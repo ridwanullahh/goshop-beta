@@ -40,7 +40,19 @@ const Login = () => {
           title: "Welcome back!",
           description: "You have been successfully logged in."
         });
-        navigate('/');
+        
+        // Get user data to determine redirect
+        const user = sdk?.getCurrentUser(result);
+        const userRole = user?.roles?.[0] || user?.role;
+        
+        // Redirect based on user role
+        if (userRole === 'admin') {
+          navigate('/admin-dashboard');
+        } else if (userRole === 'seller') {
+          navigate('/seller-dashboard');
+        } else {
+          navigate('/customer-dashboard');
+        }
       }
     } catch (error) {
       toast({
@@ -63,7 +75,9 @@ const Login = () => {
         title: "Login Successful",
         description: "OTP verified successfully."
       });
-      navigate('/');
+      
+      // Redirect to appropriate dashboard
+      navigate('/customer-dashboard');
     } catch (error) {
       toast({
         title: "OTP Verification Failed",

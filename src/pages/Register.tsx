@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCommerce } from '@/context/CommerceContext';
-import { Eye, EyeOff, Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Store, ShoppingBag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const Register = () => {
@@ -18,7 +19,10 @@ const Register = () => {
     confirmPassword: '',
     firstName: '',
     lastName: '',
-    agreeToTerms: false
+    role: '',
+    businessName: '',
+    agreeToTerms: false,
+    agreeToSharia: false
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -44,10 +48,19 @@ const Register = () => {
       return;
     }
 
-    if (!formData.agreeToTerms) {
+    if (!formData.agreeToTerms || !formData.agreeToSharia) {
       toast({
-        title: "Terms Required",
-        description: "Please agree to the terms and conditions.",
+        title: "Agreement Required",
+        description: "Please agree to the terms and Shariah compliance.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!formData.role) {
+      toast({
+        title: "Role Required",
+        description: "Please select your account type.",
         variant: "destructive"
       });
       return;
@@ -59,15 +72,22 @@ const Register = () => {
       await register(formData.email, formData.password, {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        roles: ['buyer']
+        role: formData.role,
+        businessName: formData.businessName,
+        roles: [formData.role]
       });
       
       toast({
         title: "Account Created!",
-        description: "Welcome to CommerceOS! Please check your email to verify your account."
+        description: "Welcome to CommerceOS! Let's set up your account."
       });
       
-      navigate('/login');
+      // Redirect to appropriate onboarding based on role
+      if (formData.role === 'seller') {
+        navigate('/seller-onboarding');
+      } else {
+        navigate('/customer-onboarding');
+      }
     } catch (error) {
       toast({
         title: "Registration Failed",
@@ -90,11 +110,34 @@ const Register = () => {
           </div>
           <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
           <CardDescription>
-            Join CommerceOS and start your shopping journey
+            Join CommerceOS - Shariah-Compliant Commerce Platform
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="role">Account Type</Label>
+              <Select value={formData.role} onValueChange={(value) => handleChange('role', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select account type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="buyer">
+                    <div className="flex items-center space-x-2">
+                      <ShoppingBag className="h-4 w-4" />
+                      <span>Customer - Buy Products</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="seller">
+                    <div className="flex items-center space-x-2">
+                      <Store className="h-4 w-4" />
+                      <span>Seller - Sell Products</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
@@ -103,7 +146,7 @@ const Register = () => {
                   <Input
                     id="firstName"
                     type="text"
-                    placeholder="John"
+                    placeholder="First name"
                     value={formData.firstName}
                     onChange={(e) => handleChange('firstName', e.target.value)}
                     className="pl-10"
@@ -117,13 +160,31 @@ const Register = () => {
                 <Input
                   id="lastName"
                   type="text"
-                  placeholder="Doe"
+                  placeholder="Last name"
                   value={formData.lastName}
                   onChange={(e) => handleChange('lastName', e.target.value)}
                   required
                 />
               </div>
             </div>
+
+            {formData.role === 'seller' && (
+              <div className="space-y-2">
+                <Label htmlFor="businessName">Business Name</Label>
+                <div className="relative">
+                  <Store className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="businessName"
+                    type="text"
+                    placeholder="Your business name"
+                    value={formData.businessName}
+                    onChange={(e) => handleChange('businessName', e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -132,7 +193,7 @@ const Register = () => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="john@example.com"
+                  placeholder="your@email.com"
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
                   className="pl-10"
@@ -187,22 +248,38 @@ const Register = () => {
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="terms"
-                checked={formData.agreeToTerms}
-                onCheckedChange={(checked) => handleChange('agreeToTerms', checked as boolean)}
-              />
-              <Label htmlFor="terms" className="text-sm">
-                I agree to the{' '}
-                <Link to="/terms" className="text-primary hover:underline">
-                  Terms of Service
-                </Link>{' '}
-                and{' '}
-                <Link to="/privacy" className="text-primary hover:underline">
-                  Privacy Policy
-                </Link>
-              </Label>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="terms"
+                  checked={formData.agreeToTerms}
+                  onCheckedChange={(checked) => handleChange('agreeToTerms', checked as boolean)}
+                />
+                <Label htmlFor="terms" className="text-sm">
+                  I agree to the{' '}
+                  <Link to="/terms" className="text-primary hover:underline">
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link to="/privacy" className="text-primary hover:underline">
+                    Privacy Policy
+                  </Link>
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="sharia"
+                  checked={formData.agreeToSharia}
+                  onCheckedChange={(checked) => handleChange('agreeToSharia', checked as boolean)}
+                />
+                <Label htmlFor="sharia" className="text-sm">
+                  I confirm this platform operates in accordance with{' '}
+                  <Link to="/shariah-compliance" className="text-primary hover:underline">
+                    Shariah principles
+                  </Link>
+                </Label>
+              </div>
             </div>
 
             <Button 
