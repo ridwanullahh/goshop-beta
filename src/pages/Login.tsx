@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -18,7 +17,7 @@ const Login = () => {
   const [otpRequired, setOtpRequired] = useState(false);
   const [otp, setOtp] = useState('');
   
-  const { login } = useCommerce();
+  const { login, sdk } = useCommerce();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -29,13 +28,13 @@ const Login = () => {
     try {
       const result = await login(email, password);
       
-      if (typeof result === 'object' && result.otpRequired) {
+      if (result && typeof result === 'object' && result.otpRequired) {
         setOtpRequired(true);
         toast({
           title: "OTP Required",
           description: "Please check your email for the verification code."
         });
-      } else if (typeof result === 'string') {
+      } else if (result && typeof result === 'string') {
         toast({
           title: "Welcome back!",
           description: "You have been successfully logged in."
