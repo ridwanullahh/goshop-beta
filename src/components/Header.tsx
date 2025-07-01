@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -17,14 +18,22 @@ import { Search, ShoppingCart, User, Menu, Bell, Heart } from 'lucide-react';
 export function Header() {
   const { currentUser, cart, logout } = useCommerce();
   const [searchQuery, setSearchQuery] = useState('');
+  const location = useLocation();
 
   const cartItemCount = cart?.items?.length || 0;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement search functionality
-    console.log('Searching for:', searchQuery);
+    if (searchQuery.trim()) {
+      // Navigate to products page with search query
+      window.location.href = `/products?search=${encodeURIComponent(searchQuery)}`;
+    }
   };
+
+  // Don't show header on auth pages
+  if (['/login', '/register'].includes(location.pathname)) {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -40,6 +49,28 @@ export function Header() {
                 CommerceOS
               </span>
             </Link>
+
+            {/* Navigation Links */}
+            <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
+              <Link 
+                to="/products" 
+                className="transition-colors hover:text-primary"
+              >
+                Products
+              </Link>
+              <Link 
+                to="/categories" 
+                className="transition-colors hover:text-primary"
+              >
+                Categories
+              </Link>
+              <Link 
+                to="/deals" 
+                className="transition-colors hover:text-primary"
+              >
+                Deals
+              </Link>
+            </nav>
           </div>
 
           {/* Search Bar */}

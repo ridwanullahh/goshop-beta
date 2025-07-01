@@ -1,4 +1,6 @@
+
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -43,24 +45,30 @@ export function HeroSection() {
                 placeholder="Search for products, brands, or experiences..."
                 className="pl-12 pr-4 h-14 text-lg rounded-full border-2 bg-background/50 backdrop-blur-sm"
               />
-              <Button
-                size="lg"
-                variant="commerce"
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 rounded-full px-8"
-              >
-                Explore
-              </Button>
+              <Link to="/products">
+                <Button
+                  size="lg"
+                  variant="commerce"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 rounded-full px-8"
+                >
+                  Explore
+                </Button>
+              </Link>
             </div>
           </div>
           
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-            <Button size="xl" variant="commerce" className="px-12">
-              Start Shopping
-            </Button>
-            <Button size="xl" variant="seller" className="px-12">
-              Become a Seller
-            </Button>
+            <Link to="/products">
+              <Button size="xl" variant="commerce" className="px-12">
+                Start Shopping
+              </Button>
+            </Link>
+            <Link to="/register">
+              <Button size="xl" variant="seller" className="px-12">
+                Become a Seller
+              </Button>
+            </Link>
           </div>
           
           {/* Stats */}
