@@ -9,7 +9,7 @@ interface CommerceContextType {
   products: Product[];
   isLoading: boolean;
   // Auth methods
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<string | { otpRequired: boolean }>;
   register: (email: string, password: string, profile?: any) => Promise<void>;
   logout: () => void;
   // Product methods
@@ -120,7 +120,7 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
     initSDK();
   }, [sessionToken, toast]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<string | { otpRequired: boolean }> => {
     if (!sdk) throw new Error('SDK not initialized');
     
     try {
@@ -139,23 +139,12 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
           setCart(userCart);
         }
         
-        toast({
-          title: "Welcome back!",
-          description: "Successfully logged in to CommerceOS."
-        });
+        return result;
       } else {
         // OTP required
-        toast({
-          title: "OTP Sent",
-          description: "Please check your email for the verification code."
-        });
+        return result;
       }
     } catch (error) {
-      toast({
-        title: "Login Failed",
-        description: error instanceof Error ? error.message : "Invalid credentials",
-        variant: "destructive"
-      });
       throw error;
     }
   };
