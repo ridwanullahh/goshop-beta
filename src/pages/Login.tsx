@@ -29,13 +29,13 @@ const Login = () => {
     try {
       const result = await login(email, password);
       
-      if (typeof result === 'object' && result.otpRequired) {
+      if (result && typeof result === 'object' && 'otpRequired' in result && result.otpRequired) {
         setOtpRequired(true);
         toast({
           title: "OTP Required",
           description: "Please check your email for the verification code."
         });
-      } else {
+      } else if (result) {
         toast({
           title: "Welcome back!",
           description: "You have been successfully logged in."
