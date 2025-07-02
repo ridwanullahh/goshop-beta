@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,18 +5,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ProductGrid } from '@/components/ProductGrid';
+import { AdvancedSearch } from '@/components/AdvancedSearch';
+import { AIChatAssistant } from '@/components/AIChatAssistant';
 import { useCommerce } from '@/context/CommerceContext';
-import { Search, Filter, SlidersHorizontal, Grid, List } from 'lucide-react';
+import { Search, Filter, SlidersHorizontal, Grid, List, Sparkles, TrendingUp } from 'lucide-react';
 
 const Products = () => {
-  const { products, searchProducts } = useCommerce();
-  const [searchQuery, setSearchQuery] = useState('');
+  const { products, searchProducts, currentUser } = useCommerce();
   const [filteredProducts, setFilteredProducts] = useState(products);
   const [sortBy, setSortBy] = useState('newest');
   const [category, setCategory] = useState('all');
   const [priceRange, setPriceRange] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [isLoading, setIsLoading] = useState(false);
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
+  const [isAssistantMinimized, setIsAssistantMinimized] = useState(true);
+  const [showAssistant, setShowAssistant] = useState(false);
 
   const categories = ['all', ...Array.from(new Set(products.map(p => p.category)))];
   const priceRanges = [
@@ -30,15 +33,6 @@ const Products = () => {
 
   useEffect(() => {
     let filtered = [...products];
-
-    // Apply search filter
-    if (searchQuery) {
-      filtered = filtered.filter(product =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
-    }
 
     // Apply category filter
     if (category !== 'all') {
@@ -68,64 +62,107 @@ const Products = () => {
       case 'newest':
         filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         break;
+      case 'trending':
+        // Sort by a combination of rating and review count for trending
+        filtered.sort((a, b) => (b.rating * Math.log(b.reviewCount + 1)) - (a.rating * Math.log(a.reviewCount + 1)));
+        break;
       default:
         break;
     }
 
     setFilteredProducts(filtered);
-  }, [products, searchQuery, category, priceRange, sortBy]);
+  }, [products, category, priceRange, sortBy]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
+  const handleSearchResults = (results: any[]) => {
+    setFilteredProducts(results);
+  };
 
-    setIsLoading(true);
-    try {
-      const results = await searchProducts(searchQuery);
-      setFilteredProducts(results);
-    } catch (error) {
-      console.error('Search failed:', error);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleSearchSuggestions = (suggestions: string[]) => {
+    setSearchSuggestions(suggestions);
   };
 
   const clearFilters = () => {
-    setSearchQuery('');
     setCategory('all');
     setPriceRange('all');
     setSortBy('newest');
+    setFilteredProducts(products);
   };
 
   const activeFilters = [
     category !== 'all' && { type: 'category', value: category },
     priceRange !== 'all' && { type: 'price', value: priceRanges.find(r => r.value === priceRange)?.label },
-    searchQuery && { type: 'search', value: searchQuery }
   ].filter(Boolean);
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Search Section */}
+      {/* AI-Enhanced Search Section */}
       <div className="mb-8">
-        <form onSubmit={handleSearch} className="relative max-w-2xl mx-auto">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search products, brands, categories..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-12 pr-4 h-12 text-lg"
-          />
-          <Button
-            type="submit"
-            size="sm"
-            className="absolute right-2 top-1/2 transform -translate-y-1/2"
-            variant="commerce"
-            disabled={isLoading}
-          >
-            {isLoading ? "Searching..." : "Search"}
-          </Button>
-        </form>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-3xl font-bold">Discover Products</h1>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
+              className="flex items-center gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              AI Search
+            </Button>
+            {currentUser && (
+              <Button
+                variant="outline"
+                onClick={() => setShowAssistant(!showAssistant)}
+                className="flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                Shopping Assistant
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {showAdvancedSearch && (
+          <div className="mb-6">
+            <AdvancedSearch
+              onResults={handleSearchResults}
+              onSuggestions={handleSearchSuggestions}
+            />
+          </div>
+        )}
+
+        {!showAdvancedSearch && (
+          <div className="relative max-w-2xl mx-auto">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search products, brands, categories..."
+              className="pl-12 pr-4 h-12 text-lg"
+            />
+            <Button
+              type="submit"
+              size="sm"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2"
+            >
+              Search
+            </Button>
+          </div>
+        )}
+
+        {/* Search Suggestions */}
+        {searchSuggestions.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="text-sm text-muted-foreground">Related:</span>
+            {searchSuggestions.map((suggestion, index) => (
+              <Badge
+                key={index}
+                variant="outline"
+                className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
+              >
+                {suggestion}
+              </Badge>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Filters and Controls */}
@@ -163,6 +200,12 @@ const Products = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="newest">Newest First</SelectItem>
+              <SelectItem value="trending">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4" />
+                  Trending
+                </div>
+              </SelectItem>
               <SelectItem value="price-low">Price: Low to High</SelectItem>
               <SelectItem value="price-high">Price: High to Low</SelectItem>
               <SelectItem value="rating">Highest Rated</SelectItem>
@@ -212,6 +255,12 @@ const Products = () => {
         <p className="text-muted-foreground">
           Showing {filteredProducts.length} of {products.length} products
         </p>
+        {sortBy === 'trending' && (
+          <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+            <TrendingUp className="w-3 h-3 mr-1" />
+            Trending Now
+          </Badge>
+        )}
       </div>
 
       {/* Products Grid */}
@@ -234,6 +283,16 @@ const Products = () => {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* AI Shopping Assistant */}
+      {(showAssistant || !isAssistantMinimized) && currentUser && (
+        <AIChatAssistant
+          mode="buyer"
+          isMinimized={isAssistantMinimized}
+          onToggleMinimize={() => setIsAssistantMinimized(!isAssistantMinimized)}
+          onClose={() => setShowAssistant(false)}
+        />
       )}
     </div>
   );
