@@ -1,13 +1,14 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCommerce } from '@/context/CommerceContext';
+import { Product, Order } from '@/lib/commerce-sdk';
+import { toast } from 'sonner';
 import { 
   Store, 
   Package, 
@@ -19,64 +20,122 @@ import {
   Plus,
   Eye,
   Edit,
+  Trash2,
   BarChart3,
-  Settings
+  Settings,
+  ArrowLeft,
+  ArrowRight,
+  Filter,
+  Search
 } from 'lucide-react';
 
 const SellerDashboard = () => {
-  const { currentUser, products } = useCommerce();
-  const [activeTab, setActiveTab] = useState('overview');
+  const { currentUser, products, sdk } = useCommerce();
+  const [activeView, setActiveView] = useState('overview');
   const [showAddProduct, setShowAddProduct] = useState(false);
-
-  // Mock seller data - in production, this would come from your SDK
-  const mockSellerStats = {
-    totalRevenue: 15420.50,
-    totalOrders: 87,
-    totalProducts: 12,
-    averageRating: 4.8,
-    monthlyRevenue: 3250.00,
-    pendingOrders: 5
-  };
-
-  const mockOrders = [
-    {
-      id: '1',
-      orderNumber: 'SO-2024-001',
-      customer: 'Ahmad Khan',
-      date: '2024-01-15',
-      status: 'pending',
-      total: 299.99,
-      items: [{ name: 'Wireless Headphones Pro', quantity: 1 }]
-    },
-    {
-      id: '2',
-      orderNumber: 'SO-2024-002',
-      customer: 'Fatima Ali',
-      date: '2024-01-14',
-      status: 'shipped',
-      total: 199.99,
-      items: [{ name: 'Smart Fitness Watch', quantity: 1 }]
-    }
-  ];
+  const [sellerProducts, setSellerProducts] = useState<Product[]>([]);
+  const [sellerOrders, setSellerOrders] = useState<Order[]>([]);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   const [newProduct, setNewProduct] = useState({
     name: '',
     description: '',
     price: '',
     category: '',
-    inventory: ''
+    inventory: '',
+    tags: '',
+    images: []
   });
 
-  const handleAddProduct = () => {
-    // In production, this would call your SDK
-    console.log('Adding product:', newProduct);
-    setNewProduct({ name: '', description: '', price: '', category: '', inventory: '' });
-    setShowAddProduct(false);
+  // Fetch seller data on component mount
+  useEffect(() => {
+    if (currentUser && sdk) {
+      fetchSellerData();
+    }
+  }, [currentUser, sdk]);
+
+  const fetchSellerData = async () => {
+    if (!currentUser || !sdk) return;
+    
+    setLoading(true);
+    try {
+      // Fetch seller's products
+      const products = await sdk.getSellerProducts(currentUser.id!);
+      setSellerProducts(products);
+
+      // Fetch seller's orders
+      const orders = await sdk.getOrders(currentUser.id!, 'seller');
+      setSellerOrders(orders);
+
+      // Fetch analytics
+      const analyticsData = await sdk.getSellerAnalytics(currentUser.id!);
+      setAnalytics(analyticsData);
+
+      toast.success('Dashboard data loaded successfully');
+    } catch (error) {
+      console.error('Error fetching seller data:', error);
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddProduct = async () => {
+    if (!sdk || !currentUser) return;
+
+    try {
+      const productData = {
+        ...newProduct,
+        price: parseFloat(newProduct.price),
+        inventory: parseInt(newProduct.inventory),
+        sellerId: currentUser.id!,
+        sellerName: currentUser.businessName || currentUser.email,
+        tags: newProduct.tags.split(',').map(tag => tag.trim()),
+        images: ['/placeholder.svg'] // Default image for now
+      };
+
+      await sdk.createProduct(productData);
+      toast.success('Product added successfully');
+      setNewProduct({ name: '', description: '', price: '', category: '', inventory: '', tags: '', images: [] });
+      setShowAddProduct(false);
+      fetchSellerData(); // Refresh data
+    } catch (error) {
+      console.error('Error adding product:', error);
+      toast.error('Failed to add product');
+    }
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!sdk) return;
+
+    try {
+      await sdk.deleteProduct(productId);
+      toast.success('Product deleted successfully');
+      fetchSellerData(); // Refresh data
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      toast.error('Failed to delete product');
+    }
+  };
+
+  const handleUpdateOrderStatus = async (orderId: string, status: Order['status']) => {
+    if (!sdk) return;
+
+    try {
+      await sdk.updateOrderStatus(orderId, status);
+      toast.success('Order status updated successfully');
+      fetchSellerData(); // Refresh data
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      toast.error('Failed to update order status');
+    }
   };
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
       pending: 'bg-yellow-100 text-yellow-800',
+      confirmed: 'bg-blue-100 text-blue-800',
       processing: 'bg-blue-100 text-blue-800',
       shipped: 'bg-purple-100 text-purple-800',
       delivered: 'bg-green-100 text-green-800',
@@ -90,48 +149,65 @@ const SellerDashboard = () => {
     );
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Seller Dashboard</h1>
-          <p className="text-muted-foreground mt-2">Manage your store, products, and orders</p>
+      <div className="container mx-auto px-4 py-6">
+        {/* Mobile Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">Seller Dashboard</h1>
+          <p className="text-muted-foreground">Manage your store and products</p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="overview" className="flex items-center space-x-2">
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Overview</span>
-            </TabsTrigger>
-            <TabsTrigger value="products" className="flex items-center space-x-2">
-              <Package className="h-4 w-4" />
-              <span className="hidden sm:inline">Products</span>
-            </TabsTrigger>
-            <TabsTrigger value="orders" className="flex items-center space-x-2">
-              <ShoppingCart className="h-4 w-4" />
-              <span className="hidden sm:inline">Orders</span>
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center space-x-2">
-              <TrendingUp className="h-4 w-4" />
-              <span className="hidden sm:inline">Analytics</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center space-x-2">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Settings</span>
-            </TabsTrigger>
-          </TabsList>
+        {/* Mobile Navigation */}
+        <div className="flex overflow-x-auto space-x-2 mb-6 pb-2">
+          {[
+            { id: 'overview', label: 'Overview', icon: BarChart3 },
+            { id: 'products', label: 'Products', icon: Package },
+            { id: 'orders', label: 'Orders', icon: ShoppingCart },
+            { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+            { id: 'settings', label: 'Settings', icon: Settings }
+          ].map((nav) => {
+            const Icon = nav.icon;
+            return (
+              <Button
+                key={nav.id}
+                variant={activeView === nav.id ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveView(nav.id)}
+                className="flex items-center space-x-2 whitespace-nowrap"
+              >
+                <Icon className="h-4 w-4" />
+                <span>{nav.label}</span>
+              </Button>
+            );
+          })}
+        </div>
 
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* Overview */}
+        {activeView === 'overview' && (
+          <div className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">${mockSellerStats.totalRevenue.toFixed(2)}</div>
-                  <p className="text-xs text-muted-foreground">+${mockSellerStats.monthlyRevenue.toFixed(2)} this month</p>
+                  <div className="text-2xl font-bold">
+                    ${analytics?.totalRevenue?.toFixed(2) || '0.00'}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Total earnings</p>
                 </CardContent>
               </Card>
 
@@ -141,8 +217,8 @@ const SellerDashboard = () => {
                   <ShoppingCart className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{mockSellerStats.totalOrders}</div>
-                  <p className="text-xs text-muted-foreground">{mockSellerStats.pendingOrders} pending</p>
+                  <div className="text-2xl font-bold">{analytics?.totalOrders || 0}</div>
+                  <p className="text-xs text-muted-foreground">Orders received</p>
                 </CardContent>
               </Card>
 
@@ -152,87 +228,61 @@ const SellerDashboard = () => {
                   <Package className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{mockSellerStats.totalProducts}</div>
+                  <div className="text-2xl font-bold">{analytics?.totalProducts || 0}</div>
                   <p className="text-xs text-muted-foreground">Active listings</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Store Rating</CardTitle>
-                  <Star className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">Avg Order Value</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{mockSellerStats.averageRating}</div>
-                  <p className="text-xs text-muted-foreground">Based on customer reviews</p>
+                  <div className="text-2xl font-bold">
+                    ${analytics?.averageOrderValue?.toFixed(2) || '0.00'}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Per order</p>
                 </CardContent>
               </Card>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Orders</CardTitle>
-                  <CardDescription>Latest customer orders</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {mockOrders.slice(0, 3).map((order) => (
-                      <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <p className="font-medium">{order.orderNumber}</p>
-                          <p className="text-sm text-muted-foreground">{order.customer}</p>
-                          <p className="text-sm text-muted-foreground">{order.date}</p>
-                        </div>
-                        <div className="text-right">
-                          {getStatusBadge(order.status)}
-                          <p className="text-sm font-medium mt-1">${order.total}</p>
-                        </div>
+            {/* Recent Orders */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Orders</CardTitle>
+                <CardDescription>Latest customer orders</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {sellerOrders.slice(0, 5).map((order) => (
+                    <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <p className="font-medium">Order #{order.id}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(order.createdAt).toLocaleDateString()}
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Products</CardTitle>
-                  <CardDescription>Your best-selling items</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {products.slice(0, 3).map((product) => (
-                      <div key={product.id} className="flex items-center space-x-4 p-4 border rounded-lg">
-                        <img 
-                          src={product.images[0]} 
-                          alt={product.name}
-                          className="w-12 h-12 object-cover rounded"
-                        />
-                        <div className="flex-1">
-                          <p className="font-medium">{product.name}</p>
-                          <p className="text-sm text-muted-foreground">${product.price}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium">45 sold</p>
-                          <div className="flex items-center">
-                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                            <span className="text-xs ml-1">{product.rating}</span>
-                          </div>
-                        </div>
+                      <div className="text-right">
+                        {getStatusBadge(order.status)}
+                        <p className="text-sm font-medium mt-1">${order.total}</p>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                    </div>
+                  ))}
+                  {sellerOrders.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">No orders yet</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
-          <TabsContent value="products" className="space-y-6">
+        {/* Products */}
+        {activeView === 'products' && (
+          <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold">Products</h2>
-                <p className="text-muted-foreground">Manage your product catalog</p>
-              </div>
+              <h2 className="text-xl font-bold">Products</h2>
               <Button onClick={() => setShowAddProduct(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Product
@@ -243,10 +293,9 @@ const SellerDashboard = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>Add New Product</CardTitle>
-                  <CardDescription>Create a new product listing</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="productName">Product Name</Label>
                       <Input
@@ -278,7 +327,7 @@ const SellerDashboard = () => {
                     />
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <Label htmlFor="productCategory">Category</Label>
                       <Input
@@ -298,6 +347,15 @@ const SellerDashboard = () => {
                         placeholder="Stock quantity"
                       />
                     </div>
+                    <div>
+                      <Label htmlFor="productTags">Tags (comma separated)</Label>
+                      <Input
+                        id="productTags"
+                        value={newProduct.tags}
+                        onChange={(e) => setNewProduct({...newProduct, tags: e.target.value})}
+                        placeholder="tag1, tag2, tag3"
+                      />
+                    </div>
                   </div>
                   
                   <div className="flex space-x-2">
@@ -310,16 +368,15 @@ const SellerDashboard = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Product List</CardTitle>
-                <CardDescription>All your products</CardDescription>
+                <CardTitle>Your Products ({sellerProducts.length})</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {products.map((product) => (
+                  {sellerProducts.map((product) => (
                     <div key={product.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center space-x-4">
                         <img 
-                          src={product.images[0]} 
+                          src={product.images[0] || '/placeholder.svg'} 
                           alt={product.name}
                           className="w-16 h-16 object-cover rounded"
                         />
@@ -342,30 +399,45 @@ const SellerDashboard = () => {
                           <Button size="sm" variant="outline">
                             <Edit className="h-4 w-4" />
                           </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleDeleteProduct(product.id!)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     </div>
                   ))}
+                  {sellerProducts.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">No products yet. Add your first product!</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="orders" className="space-y-6">
+        {/* Orders */}
+        {activeView === 'orders' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-bold">Order Management</h2>
+            
             <Card>
               <CardHeader>
-                <CardTitle>Order Management</CardTitle>
-                <CardDescription>Manage customer orders and fulfillment</CardDescription>
+                <CardTitle>Orders ({sellerOrders.length})</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockOrders.map((order) => (
+                  {sellerOrders.map((order) => (
                     <div key={order.id} className="border rounded-lg p-6">
                       <div className="flex items-center justify-between mb-4">
                         <div>
-                          <h3 className="font-semibold">{order.orderNumber}</h3>
-                          <p className="text-sm text-muted-foreground">Customer: {order.customer}</p>
-                          <p className="text-sm text-muted-foreground">Date: {order.date}</p>
+                          <h3 className="font-semibold">Order #{order.id}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Date: {new Date(order.createdAt).toLocaleDateString()}
+                          </p>
                         </div>
                         <div className="text-right">
                           {getStatusBadge(order.status)}
@@ -374,12 +446,13 @@ const SellerDashboard = () => {
                       </div>
                       
                       <div className="space-y-2 mb-4">
-                        {order.items.map((item, index) => (
+                        {order.products.map((item, index) => (
                           <div key={index} className="flex items-center justify-between py-2 border-t">
                             <div>
-                              <p className="font-medium">{item.name}</p>
+                              <p className="font-medium">{item.productName}</p>
                               <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                             </div>
+                            <p className="font-medium">${item.subtotal}</p>
                           </div>
                         ))}
                       </div>
@@ -387,35 +460,72 @@ const SellerDashboard = () => {
                       <div className="flex space-x-2">
                         {order.status === 'pending' && (
                           <>
-                            <Button size="sm">Accept Order</Button>
-                            <Button size="sm" variant="outline">Decline</Button>
+                            <Button 
+                              size="sm"
+                              onClick={() => handleUpdateOrderStatus(order.id!, 'confirmed')}
+                            >
+                              Accept Order
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleUpdateOrderStatus(order.id!, 'cancelled')}
+                            >
+                              Decline
+                            </Button>
                           </>
                         )}
-                        {order.status === 'processing' && (
-                          <Button size="sm">Mark as Shipped</Button>
+                        {order.status === 'confirmed' && (
+                          <Button 
+                            size="sm"
+                            onClick={() => handleUpdateOrderStatus(order.id!, 'processing')}
+                          >
+                            Mark as Processing
+                          </Button>
                         )}
-                        <Button size="sm" variant="outline">View Details</Button>
+                        {order.status === 'processing' && (
+                          <Button 
+                            size="sm"
+                            onClick={() => handleUpdateOrderStatus(order.id!, 'shipped')}
+                          >
+                            Mark as Shipped
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
+                  {sellerOrders.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">No orders yet</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="analytics" className="space-y-6">
+        {/* Analytics */}
+        {activeView === 'analytics' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-bold">Analytics</h2>
+            
             <div className="grid gap-6 md:grid-cols-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Revenue Analytics</CardTitle>
-                  <CardDescription>Monthly revenue trends</CardDescription>
+                  <CardTitle>Revenue Overview</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <BarChart3 className="h-12 w-12 mx-auto mb-4" />
-                      <p>Revenue chart visualization</p>
-                      <p className="text-sm">(Charts would be implemented with Recharts)</p>
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span>Total Revenue</span>
+                      <span className="font-semibold">${analytics?.totalRevenue?.toFixed(2) || '0.00'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Average Order Value</span>
+                      <span className="font-semibold">${analytics?.averageOrderValue?.toFixed(2) || '0.00'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total Orders</span>
+                      <span className="font-semibold">{analytics?.totalOrders || 0}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -423,34 +533,42 @@ const SellerDashboard = () => {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Top Categories</CardTitle>
-                  <CardDescription>Best performing product categories</CardDescription>
+                  <CardTitle>Product Performance</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span>Electronics</span>
-                      <span className="font-semibold">$8,450</span>
+                    <div className="flex justify-between">
+                      <span>Total Products</span>
+                      <span className="font-semibold">{analytics?.totalProducts || 0}</span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span>Accessories</span>
-                      <span className="font-semibold">$4,200</span>
+                    <div className="flex justify-between">
+                      <span>Active Products</span>
+                      <span className="font-semibold">{analytics?.activeProducts || 0}</span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span>Clothing</span>
-                      <span className="font-semibold">$2,770</span>
+                    <div className="flex justify-between">
+                      <span>Avg Rating</span>
+                      <span className="font-semibold">
+                        {sellerProducts.length > 0 
+                          ? (sellerProducts.reduce((acc, p) => acc + p.rating, 0) / sellerProducts.length).toFixed(1)
+                          : '0.0'
+                        }
+                      </span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="settings" className="space-y-6">
+        {/* Settings */}
+        {activeView === 'settings' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-bold">Store Settings</h2>
+            
             <Card>
               <CardHeader>
-                <CardTitle>Store Settings</CardTitle>
-                <CardDescription>Manage your store configuration</CardDescription>
+                <CardTitle>Store Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -461,7 +579,7 @@ const SellerDashboard = () => {
                   <Label htmlFor="storeDescription">Store Description</Label>
                   <Textarea id="storeDescription" placeholder="Tell customers about your store..." />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="storeEmail">Contact Email</Label>
                     <Input id="storeEmail" type="email" defaultValue={currentUser?.email} />
@@ -474,8 +592,8 @@ const SellerDashboard = () => {
                 <Button>Save Settings</Button>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </div>
     </div>
   );

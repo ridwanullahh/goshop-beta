@@ -30,6 +30,9 @@ import AffiliateOnboarding from "./pages/AffiliateOnboarding";
 import Checkout from "./pages/Checkout";
 import HelpCenter from "./pages/HelpCenter";
 import TrackOrder from "./pages/TrackOrder";
+import ReturnsRefunds from "./pages/ReturnsRefunds";
+import ShippingInfo from "./pages/ShippingInfo";
+import ContactUs from "./pages/ContactUs";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +61,9 @@ const App = () => (
               <Route path="/community" element={<CommunityHub />} />
               <Route path="/help" element={<HelpCenter />} />
               <Route path="/track-order" element={<TrackOrder />} />
+              <Route path="/returns-refunds" element={<ReturnsRefunds />} />
+              <Route path="/shipping-info" element={<ShippingInfo />} />
+              <Route path="/contact" element={<ContactUs />} />
               
               {/* Protected Dashboard Routes */}
               <Route path="/customer-dashboard" element={

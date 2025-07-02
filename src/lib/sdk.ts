@@ -157,13 +157,103 @@ class UniversalSDK {
     return res.json();
   }
 
-  // 1.3 get
+  // 1.3 get - Enhanced to handle empty repos
   async get<T = any>(collection: string): Promise<T[]> {
     try {
       const res = await this.request(`${this.basePath}/${collection}.json`);
       return JSON.parse(atob(res.content));
-    } catch {
-      return [];
+    } catch (error: any) {
+      // If collection doesn't exist or repo is empty, return empty array and create collection
+      if (error.message.includes('404') || error.message.includes('empty')) {
+        console.log(`Collection ${collection} doesn't exist, creating it...`);
+        await this.initializeCollection(collection);
+        return [];
+      }
+      throw error;
+    }
+  }
+
+  // New method to initialize collections
+  private async initializeCollection(collection: string): Promise<void> {
+    try {
+      await this.save(collection, []);
+      console.log(`Collection ${collection} created successfully`);
+    } catch (error) {
+      console.warn(`Failed to create collection ${collection}:`, error);
+    }
+  }
+
+  // Enhanced init method to create necessary collections
+  async init(): Promise<UniversalSDK> {
+    try {
+      // Try to list collections, if fails, initialize basic collections
+      await this.listCollections();
+    } catch (error: any) {
+      if (error.message.includes('empty') || error.message.includes('404')) {
+        console.log('Repository is empty, initializing basic collections...');
+        const basicCollections = [
+          'users', 'products', 'orders', 'reviews', 'sellers', 
+          'carts', 'wishlists', 'notifications', 'categories', 
+          'stores', 'affiliates', 'wallets', 'transactions', 
+          'crowdCheckouts', 'posts', 'comments', 'liveStreams'
+        ];
+        
+        for (const collection of basicCollections) {
+          await this.initializeCollection(collection);
+        }
+        
+        // Initialize with some sample data
+        await this.initializeSampleData();
+      } else {
+        throw error;
+      }
+    }
+    return this;
+  }
+
+  // Initialize sample data for development
+  private async initializeSampleData(): Promise<void> {
+    try {
+      // Create sample categories
+      const categories = [
+        { name: 'Electronics', slug: 'electronics', description: 'Latest gadgets and electronics' },
+        { name: 'Fashion', slug: 'fashion', description: 'Trending fashion items' },
+        { name: 'Home & Garden', slug: 'home-garden', description: 'Home improvement and garden supplies' },
+        { name: 'Sports', slug: 'sports', description: 'Sports equipment and accessories' },
+        { name: 'Books', slug: 'books', description: 'Books and educational materials' }
+      ];
+
+      for (const category of categories) {
+        await this.insert('categories', category);
+      }
+
+      // Create sample stores
+      const stores = [
+        { 
+          sellerId: 'seller1', 
+          name: 'Tech Hub Store', 
+          slug: 'tech-hub-store',
+          description: 'Your one-stop shop for all tech needs',
+          logo: '/placeholder.svg',
+          banner: '/placeholder.svg'
+        },
+        { 
+          sellerId: 'seller2', 
+          name: 'Fashion Forward', 
+          slug: 'fashion-forward',
+          description: 'Latest fashion trends and styles',
+          logo: '/placeholder.svg',
+          banner: '/placeholder.svg'
+        }
+      ];
+
+      for (const store of stores) {
+        await this.insert('stores', store);
+      }
+
+      console.log('Sample data initialized successfully');
+    } catch (error) {
+      console.warn('Failed to initialize sample data:', error);
     }
   }
 

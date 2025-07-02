@@ -1,388 +1,429 @@
 
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Heart, 
-  MessageCircle, 
-  Share2, 
-  Users, 
-  Plus,
-  Search,
-  TrendingUp,
-  Camera,
-  Video,
-  ShoppingBag,
-  Star
-} from 'lucide-react';
-import { useCommerce } from '@/context/CommerceContext';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useCommerce } from '@/context/CommerceContext';
+import { toast } from 'sonner';
+import { 
+  MessageSquare, 
+  Heart, 
+  Share2, 
+  Plus, 
+  Search,
+  Filter,
+  Trending,
+  Users,
+  Clock,
+  Send
+} from 'lucide-react';
+
+interface Post {
+  id?: string;
+  uid?: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  content: string;
+  images?: string[];
+  likes: number;
+  comments: number;
+  isLiked?: boolean;
+  createdAt: string;
+  tags?: string[];
+}
+
+interface Comment {
+  id?: string;
+  uid?: string;
+  postId: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  content: string;
+  createdAt: string;
+}
 
 export default function CommunityHub() {
-  const { currentUser, products } = useCommerce();
-  const [posts, setPosts] = useState<any[]>([]);
-  const [newPost, setNewPost] = useState('');
-  const [activeTab, setActiveTab] = useState('feed');
+  const { currentUser, sdk } = useCommerce();
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreatePost, setShowCreatePost] = useState(false);
+  const [newPost, setNewPost] = useState({ content: '', tags: '' });
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState('');
 
   useEffect(() => {
-    // Sample community posts
-    const samplePosts = [
-      {
-        id: '1',
-        user: 'TechReviewer',
-        userAvatar: '/placeholder.svg',
-        content: 'Just unboxed the new wireless headphones! The sound quality is incredible 🎧',
-        image: '/placeholder.svg',
-        likes: 45,
-        comments: 12,
-        shares: 5,
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        product: products[0],
-        tags: ['#TechReview', '#Headphones']
-      },
-      {
-        id: '2',
-        user: 'Fashionista',
-        userAvatar: '/placeholder.svg',
-        content: 'Perfect outfit for the weekend! Love how this fits 💃',
-        image: '/placeholder.svg',
-        likes: 78,
-        comments: 23,
-        shares: 15,
-        timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-        tags: ['#OOTD', '#Fashion', '#Weekend']
-      },
-      {
-        id: '3',
-        user: 'HomeDesigner',
-        userAvatar: '/placeholder.svg',
-        content: 'Transformed my living room with these amazing finds! What do you think?',
-        image: '/placeholder.svg',
-        likes: 92,
-        comments: 31,
-        shares: 8,
-        timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-        tags: ['#HomeDecor', '#InteriorDesign', '#Makeover']
-      }
-    ];
-    setPosts(samplePosts);
-  }, [products]);
+    fetchPosts();
+  }, [sdk]);
 
-  const handleCreatePost = () => {
-    if (!newPost.trim()) return;
+  const fetchPosts = async () => {
+    if (!sdk) return;
     
-    const post = {
-      id: Date.now().toString(),
-      user: currentUser?.email || 'Anonymous',
-      userAvatar: '/placeholder.svg',
-      content: newPost,
-      likes: 0,
-      comments: 0,
-      shares: 0,
-      timestamp: new Date(),
-      tags: []
-    };
-    
-    setPosts(prev => [post, ...prev]);
-    setNewPost('');
+    setLoading(true);
+    try {
+      const fetchedPosts = await sdk.get<Post>('posts');
+      setPosts(fetchedPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      toast.error('Failed to load community posts');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const formatTimeAgo = (date: Date) => {
+  const handleCreatePost = async () => {
+    if (!sdk || !currentUser || !newPost.content.trim()) return;
+
+    try {
+      const postData = {
+        userId: currentUser.id!,
+        userName: currentUser.name || currentUser.email,
+        userAvatar: currentUser.avatar || '',
+        content: newPost.content,
+        likes: 0,
+        comments: 0,
+        tags: newPost.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+        createdAt: new Date().toISOString()
+      };
+
+      await sdk.insert<Post>('posts', postData);
+      toast.success('Post created successfully');
+      setNewPost({ content: '', tags: '' });
+      setShowCreatePost(false);
+      fetchPosts();
+    } catch (error) {
+      console.error('Error creating post:', error);
+      toast.error('Failed to create post');
+    }
+  };
+
+  const handleLikePost = async (postId: string, currentLikes: number, isLiked?: boolean) => {
+    if (!sdk || !currentUser) {
+      toast.error('Please login to like posts');
+      return;
+    }
+
+    try {
+      const newLikes = isLiked ? currentLikes - 1 : currentLikes + 1;
+      await sdk.update<Post>('posts', postId, { 
+        likes: newLikes,
+        isLiked: !isLiked 
+      });
+      
+      // Update local state
+      setPosts(posts.map(post => 
+        post.id === postId 
+          ? { ...post, likes: newLikes, isLiked: !isLiked }
+          : post
+      ));
+    } catch (error) {
+      console.error('Error liking post:', error);
+      toast.error('Failed to like post');
+    }
+  };
+
+  const fetchComments = async (postId: string) => {
+    if (!sdk) return;
+
+    try {
+      const fetchedComments = await sdk.queryBuilder<Comment>('comments')
+        .where(comment => comment.postId === postId)
+        .sort('createdAt', 'desc')
+        .exec();
+      setComments(fetchedComments);
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!sdk || !currentUser || !selectedPost || !newComment.trim()) return;
+
+    try {
+      const commentData = {
+        postId: selectedPost.id!,
+        userId: currentUser.id!,
+        userName: currentUser.name || currentUser.email,
+        userAvatar: currentUser.avatar || '',
+        content: newComment,
+        createdAt: new Date().toISOString()
+      };
+
+      await sdk.insert<Comment>('comments', commentData);
+      
+      // Update post comment count
+      await sdk.update<Post>('posts', selectedPost.id!, { 
+        comments: selectedPost.comments + 1 
+      });
+
+      toast.success('Comment added successfully');
+      setNewComment('');
+      fetchComments(selectedPost.id!);
+      fetchPosts(); // Refresh to update comment count
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      toast.error('Failed to add comment');
+    }
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
     const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
     
-    if (hours < 1) return 'Just now';
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    return `${Math.floor(diffInHours / 24)}d ago`;
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
       
-      <div className="container mx-auto px-4 py-8">
-        {/* Hero Section */}
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Users className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold">Community Hub</h1>
+      <main className="flex-1 py-8">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-4">Community Hub</h1>
+            <p className="text-muted-foreground">
+              Connect with other shoppers, share experiences, and discover new products
+            </p>
           </div>
-          <p className="text-xl text-muted-foreground mb-6">
-            Connect, share, and discover with fellow shoppers
-          </p>
-          <div className="flex items-center justify-center gap-4">
-            <Badge variant="secondary">25.7K Members</Badge>
-            <Badge variant="secondary">1.2K Online</Badge>
-            <Badge variant="secondary">500+ Posts Today</Badge>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="feed">Feed</TabsTrigger>
-                <TabsTrigger value="trending">Trending</TabsTrigger>
-                <TabsTrigger value="reviews">Reviews</TabsTrigger>
-                <TabsTrigger value="groups">Groups</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="feed" className="mt-6">
-                {/* Create Post */}
-                <Card className="mb-6">
+          {/* Community Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <Card>
+              <CardContent className="p-4 text-center">
+                <Users className="h-8 w-8 mx-auto mb-2 text-blue-500" />
+                <p className="text-2xl font-bold">{posts.length}</p>
+                <p className="text-sm text-muted-foreground">Posts</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <MessageSquare className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                <p className="text-2xl font-bold">{posts.reduce((acc, post) => acc + post.comments, 0)}</p>
+                <p className="text-sm text-muted-foreground">Comments</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <Heart className="h-8 w-8 mx-auto mb-2 text-red-500" />
+                <p className="text-2xl font-bold">{posts.reduce((acc, post) => acc + post.likes, 0)}</p>
+                <p className="text-sm text-muted-foreground">Likes</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <Trending className="h-8 w-8 mx-auto mb-2 text-purple-500" />
+                <p className="text-2xl font-bold">24</p>
+                <p className="text-sm text-muted-foreground">Active Today</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Create Post Button */}
+          {currentUser && (
+            <Card className="mb-6">
+              <CardContent className="p-4">
+                <Button
+                  onClick={() => setShowCreatePost(true)}
+                  className="w-full justify-start"
+                  variant="outline"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Share something with the community...
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Create Post Modal */}
+          {showCreatePost && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Create New Post</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Textarea
+                  placeholder="What's on your mind?"
+                  value={newPost.content}
+                  onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
+                  rows={4}
+                />
+                <Input
+                  placeholder="Add tags (comma separated)"
+                  value={newPost.tags}
+                  onChange={(e) => setNewPost({ ...newPost, tags: e.target.value })}
+                />
+                <div className="flex space-x-2">
+                  <Button onClick={handleCreatePost} disabled={!newPost.content.trim()}>
+                    <Send className="h-4 w-4 mr-2" />
+                    Post
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowCreatePost(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Posts Feed */}
+          <div className="space-y-6">
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p>Loading community posts...</p>
+              </div>
+            ) : posts.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No posts yet</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Be the first to share something with the community!
+                  </p>
+                  {currentUser && (
+                    <Button onClick={() => setShowCreatePost(true)}>
+                      Create First Post
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              posts.map((post) => (
+                <Card key={post.id} className="overflow-hidden">
                   <CardContent className="p-6">
-                    <div className="flex gap-3">
+                    <div className="flex items-start space-x-4">
                       <Avatar>
-                        <AvatarFallback>
-                          {currentUser?.email?.charAt(0).toUpperCase() || 'U'}
-                        </AvatarFallback>
+                        <AvatarImage src={post.userAvatar} />
+                        <AvatarFallback>{post.userName?.[0]?.toUpperCase()}</AvatarFallback>
                       </Avatar>
+                      
                       <div className="flex-1">
-                        <Textarea
-                          placeholder="What's on your mind? Share your latest finds or ask for recommendations..."
-                          value={newPost}
-                          onChange={(e) => setNewPost(e.target.value)}
-                          className="mb-3"
-                        />
-                        <div className="flex items-center justify-between">
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm">
-                              <Camera className="h-4 w-4 mr-2" />
-                              Photo
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              <Video className="h-4 w-4 mr-2" />
-                              Video
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              <ShoppingBag className="h-4 w-4 mr-2" />
-                              Product
-                            </Button>
-                          </div>
-                          <Button onClick={handleCreatePost} disabled={!newPost.trim()}>
-                            Post
-                          </Button>
+                        <div className="flex items-center space-x-2 mb-2">
+                          <h3 className="font-semibold">{post.userName}</h3>
+                          <span className="text-sm text-muted-foreground flex items-center">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {formatTimeAgo(post.createdAt)}
+                          </span>
                         </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Posts Feed */}
-                <div className="space-y-6">
-                  {posts.map((post) => (
-                    <Card key={post.id}>
-                      <CardContent className="p-6">
-                        {/* Post Header */}
-                        <div className="flex items-center gap-3 mb-4">
-                          <Avatar>
-                            <AvatarImage src={post.userAvatar} />
-                            <AvatarFallback>{post.user.charAt(0).toUpperCase()}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <h4 className="font-medium">{post.user}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {formatTimeAgo(post.timestamp)}
-                            </p>
-                          </div>
-                          <Button variant="ghost" size="icon">
-                            <Share2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-
-                        {/* Post Content */}
-                        <p className="mb-4">{post.content}</p>
-
-                        {/* Post Image */}
-                        {post.image && (
-                          <div className="mb-4 rounded-lg overflow-hidden">
-                            <img
-                              src={post.image}
-                              alt="Post content"
-                              className="w-full h-64 object-cover"
-                            />
-                          </div>
-                        )}
-
-                        {/* Featured Product */}
-                        {post.product && (
-                          <Card className="mb-4 border border-muted">
-                            <CardContent className="p-4">
-                              <div className="flex gap-3">
-                                <img
-                                  src={post.product.images[0]}
-                                  alt={post.product.name}
-                                  className="w-16 h-16 object-cover rounded"
-                                />
-                                <div className="flex-1">
-                                  <h5 className="font-medium line-clamp-1">{post.product.name}</h5>
-                                  <p className="text-sm text-muted-foreground line-clamp-1">
-                                    {post.product.description}
-                                  </p>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span className="font-bold text-primary">${post.product.price}</span>
-                                    <div className="flex items-center gap-1">
-                                      <Star className="h-3 w-3 fill-secondary text-secondary" />
-                                      <span className="text-sm">{post.product.rating}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                                <Button size="sm">View</Button>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
-
-                        {/* Post Tags */}
+                        
+                        <p className="text-gray-800 mb-4 whitespace-pre-wrap">{post.content}</p>
+                        
                         {post.tags && post.tags.length > 0 && (
                           <div className="flex flex-wrap gap-2 mb-4">
-                            {post.tags.map((tag: string) => (
-                              <Badge key={tag} variant="outline" className="text-xs">
-                                {tag}
+                            {post.tags.map((tag, index) => (
+                              <Badge key={index} variant="secondary">
+                                #{tag}
                               </Badge>
                             ))}
                           </div>
                         )}
-
-                        {/* Post Actions */}
-                        <div className="flex items-center justify-between pt-4 border-t">
-                          <div className="flex items-center gap-6">
-                            <Button variant="ghost" size="sm" className="gap-2">
-                              <Heart className="h-4 w-4" />
-                              {post.likes}
-                            </Button>
-                            <Button variant="ghost" size="sm" className="gap-2">
-                              <MessageCircle className="h-4 w-4" />
-                              {post.comments}
-                            </Button>
-                            <Button variant="ghost" size="sm" className="gap-2">
-                              <Share2 className="h-4 w-4" />
-                              {post.shares}
-                            </Button>
-                          </div>
+                        
+                        <div className="flex items-center space-x-6">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleLikePost(post.id!, post.likes, post.isLiked)}
+                            className={post.isLiked ? 'text-red-500' : ''}
+                          >
+                            <Heart className={`h-4 w-4 mr-1 ${post.isLiked ? 'fill-current' : ''}`} />
+                            {post.likes}
+                          </Button>
+                          
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedPost(post);
+                              fetchComments(post.id!);
+                            }}
+                          >
+                            <MessageSquare className="h-4 w-4 mr-1" />
+                            {post.comments}
+                          </Button>
+                          
+                          <Button variant="ghost" size="sm">
+                            <Share2 className="h-4 w-4 mr-1" />
+                            Share
+                          </Button>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="trending" className="mt-6">
-                <Card>
-                  <CardContent className="p-6 text-center">
-                    <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Trending Content</h3>
-                    <p className="text-muted-foreground">
-                      Discover what's hot in the community right now
-                    </p>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="reviews" className="mt-6">
-                <Card>
-                  <CardContent className="p-6 text-center">
-                    <Star className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Product Reviews</h3>
-                    <p className="text-muted-foreground">
-                      Read and share honest product reviews
-                    </p>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="groups" className="mt-6">
-                <Card>
-                  <CardContent className="p-6 text-center">
-                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Community Groups</h3>
-                    <p className="text-muted-foreground">
-                      Join groups based on your interests
-                    </p>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Search */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search community..." className="pl-10" />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Popular Topics */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-semibold mb-4">Popular Topics</h3>
-                <div className="space-y-2">
-                  {['#TechReviews', '#FashionFinds', '#HomeDecor', '#DealAlert', '#Unboxing'].map((topic) => (
-                    <Button key={topic} variant="ghost" size="sm" className="w-full justify-start">
-                      {topic}
-                    </Button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Suggested Users */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-semibold mb-4">Suggested for You</h3>
-                <div className="space-y-3">
-                  {['TechGuru', 'StyleMaven', 'BargainHunter'].map((user) => (
-                    <div key={user} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="w-8 h-8">
-                          <AvatarFallback>{user.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium">{user}</span>
                       </div>
-                      <Button size="sm" variant="outline">Follow</Button>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Community Stats */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-semibold mb-4">Community Stats</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Total Members</span>
-                    <span className="font-medium">25.7K</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Posts Today</span>
-                    <span className="font-medium">500+</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Online Now</span>
-                    <span className="font-medium">1.2K</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
-        </div>
-      </div>
 
+          {/* Comment Modal */}
+          {selectedPost && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <CardTitle>Comments</CardTitle>
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedPost(null)}>
+                      ×
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Add Comment */}
+                  {currentUser && (
+                    <div className="flex space-x-2">
+                      <Input
+                        placeholder="Add a comment..."
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
+                      />
+                      <Button onClick={handleAddComment} disabled={!newComment.trim()}>
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {/* Comments List */}
+                  <div className="space-y-4">
+                    {comments.map((comment) => (
+                      <div key={comment.id} className="flex space-x-3">
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={comment.userAvatar} />
+                          <AvatarFallback>{comment.userName?.[0]?.toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium text-sm">{comment.userName}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatTimeAgo(comment.createdAt)}
+                            </span>
+                          </div>
+                          <p className="text-sm mt-1">{comment.content}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {comments.length === 0 && (
+                      <p className="text-center text-muted-foreground py-4">
+                        No comments yet. Be the first to comment!
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
+      </main>
+      
       <Footer />
     </div>
   );
