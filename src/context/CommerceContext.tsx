@@ -38,14 +38,7 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function initSDK() {
       try {
-        // Note: In production, these would come from environment variables
-        const commerceSDK = new CommerceSDK({
-          owner: 'commerce-user', // Replace with actual GitHub username
-          repo: 'commerce-data', // Replace with actual repo name
-          token: 'github_token_here', // Replace with actual GitHub token
-          chutesApiKey: 'chutes_api_key_here', // Replace with actual Chutes AI key
-          branch: 'main'
-        });
+        const commerceSDK = new CommerceSDK();
 
         await commerceSDK.init();
         setSdk(commerceSDK);

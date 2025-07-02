@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Search, Mic, Camera, Filter, Trending, Clock, X } from 'lucide-react';
+import { Search, Mic, Camera, Filter, TrendingUp, Clock, X } from 'lucide-react';
 import { useCommerce } from '@/context/CommerceContext';
 import { ProductCard } from './ProductCard';
 
@@ -172,7 +172,7 @@ export function SearchModal({ children }: SearchModalProps) {
                 {/* Trending Searches */}
                 <div className="mb-6">
                   <div className="flex items-center gap-2 mb-3">
-                    <Trending className="h-4 w-4 text-muted-foreground" />
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     <h3 className="font-semibold">Trending</h3>
                   </div>
                   <div className="flex flex-wrap gap-2">
