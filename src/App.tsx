@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,6 +24,12 @@ import LiveShopping from "./pages/LiveShopping";
 import CommunityHub from "./pages/CommunityHub";
 import NotFound from "./pages/NotFound";
 import Wishlist from "./pages/Wishlist";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import AffiliateDashboard from "./pages/AffiliateDashboard";
+import AffiliateOnboarding from "./pages/AffiliateOnboarding";
+import Checkout from "./pages/Checkout";
+import HelpCenter from "./pages/HelpCenter";
+import TrackOrder from "./pages/TrackOrder";
 
 const queryClient = new QueryClient();
 
@@ -47,14 +52,57 @@ const App = () => (
               <Route path="/stores" element={<StoresDirectory />} />
               <Route path="/stores/:storeSlug" element={<StoreDetail />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/checkout" element={<Checkout />} />
               <Route path="/wishlist" element={<Wishlist />} />
               <Route path="/live" element={<LiveShopping />} />
               <Route path="/community" element={<CommunityHub />} />
-              <Route path="/customer-dashboard" element={<CustomerDashboard />} />
-              <Route path="/seller-dashboard" element={<SellerDashboard />} />
-              <Route path="/admin-dashboard" element={<AdminDashboard />} />
-              <Route path="/customer-onboarding" element={<CustomerOnboarding />} />
-              <Route path="/seller-onboarding" element={<SellerOnboarding />} />
+              <Route path="/help" element={<HelpCenter />} />
+              <Route path="/track-order" element={<TrackOrder />} />
+              
+              {/* Protected Dashboard Routes */}
+              <Route path="/customer-dashboard" element={
+                <ProtectedRoute requireAuth allowedRoles={['customer', 'buyer']}>
+                  <CustomerDashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/seller-dashboard" element={
+                <ProtectedRoute requireAuth allowedRoles={['seller']}>
+                  <SellerDashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/admin-dashboard" element={
+                <ProtectedRoute requireAuth allowedRoles={['admin']}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/affiliate-dashboard" element={
+                <ProtectedRoute requireAuth allowedRoles={['affiliate']}>
+                  <AffiliateDashboard />
+                </ProtectedRoute>
+              } />
+
+              {/* Protected Onboarding Routes */}
+              <Route path="/customer-onboarding" element={
+                <ProtectedRoute requireAuth allowedRoles={['customer', 'buyer']}>
+                  <CustomerOnboarding />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/seller-onboarding" element={
+                <ProtectedRoute requireAuth allowedRoles={['seller']}>
+                  <SellerOnboarding />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/affiliate-onboarding" element={
+                <ProtectedRoute requireAuth allowedRoles={['affiliate']}>
+                  <AffiliateOnboarding />
+                </ProtectedRoute>
+              } />
+
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

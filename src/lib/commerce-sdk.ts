@@ -35,6 +35,7 @@ export interface Order {
   shippingAddress: Address;
   paymentMethod: string;
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  crowdFunding: any;
   createdAt: string;
   updatedAt: string;
 }
@@ -150,11 +151,15 @@ class CommerceSDK {
             products: 'array',
             total: 'number',
             status: 'string',
-            paymentStatus: 'string'
+            paymentStatus: 'string',
+            paymentMethod: 'string',
+            crowdFunding: 'object'
           },
           defaults: {
             status: 'pending',
             paymentStatus: 'pending',
+            paymentMethod: 'paystack',
+            crowdFunding: null,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           }
@@ -265,10 +270,66 @@ class CommerceSDK {
             userId: 'string',
             commissionRate: 'number',
             totalEarnings: 'number',
-            isActive: 'boolean'
+            isActive: 'boolean',
+            businessName: 'string',
+            website: 'string'
           },
           defaults: {
             totalEarnings: 0,
+            isActive: true,
+            businessName: '',
+            website: '',
+            createdAt: new Date().toISOString()
+          }
+        },
+        wallets: {
+          required: ['userId', 'balance'],
+          types: {
+            userId: 'string',
+            balance: 'number',
+            currency: 'string'
+          },
+          defaults: {
+            balance: 0,
+            currency: 'NGN',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        },
+        transactions: {
+          required: ['userId', 'amount', 'type'],
+          types: {
+            userId: 'string',
+            amount: 'number',
+            type: 'string',
+            status: 'string',
+            reference: 'string',
+            description: 'string'
+          },
+          defaults: {
+            status: 'pending',
+            reference: '',
+            description: '',
+            createdAt: new Date().toISOString()
+          }
+        },
+        crowdCheckouts: {
+          required: ['orderId', 'creatorId', 'targetAmount'],
+          types: {
+            orderId: 'string',
+            creatorId: 'string',
+            targetAmount: 'number',
+            currentAmount: 'number',
+            contributors: 'array',
+            message: 'string',
+            shareableLink: 'string',
+            isActive: 'boolean'
+          },
+          defaults: {
+            currentAmount: 0,
+            contributors: [],
+            message: '',
+            shareableLink: '',
             isActive: true,
             createdAt: new Date().toISOString()
           }
@@ -617,6 +678,85 @@ class CommerceSDK {
   async getAffiliate(userId: string) {
     const affiliates = await this.sdk.get('affiliates');
     return affiliates.find(affiliate => affiliate.userId === userId) || null;
+  }
+
+  // Wallet methods
+  async getWallet(userId: string) {
+    const wallets = await this.sdk.get('wallets');
+    return wallets.find(wallet => wallet.userId === userId) || null;
+  }
+
+  async createWallet(userId: string) {
+    return this.sdk.insert('wallets', {
+      userId,
+      balance: 0,
+      currency: 'NGN'
+    });
+  }
+
+  async updateWalletBalance(userId: string, amount: number, type: 'credit' | 'debit') {
+    let wallet = await this.getWallet(userId);
+    
+    if (!wallet) {
+      wallet = await this.createWallet(userId);
+    }
+
+    const newBalance = type === 'credit' 
+      ? wallet.balance + amount 
+      : wallet.balance - amount;
+
+    if (newBalance < 0) {
+      throw new Error('Insufficient wallet balance');
+    }
+
+    return this.sdk.update('wallets', wallet.id, {
+      balance: newBalance,
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  // Transaction methods
+  async createTransaction(transaction: any) {
+    return this.sdk.insert('transactions', {
+      ...transaction,
+      reference: `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    });
+  }
+
+  async getTransactions(userId: string) {
+    return this.sdk.queryBuilder('transactions')
+      .where(txn => txn.userId === userId)
+      .sort('createdAt', 'desc')
+      .exec();
+  }
+
+  // Crowd Checkout methods
+  async createCrowdCheckout(crowdCheckout: any) {
+    const shareableLink = `${window.location.origin}/crowd-checkout/${crowdCheckout.orderId}?token=${Date.now()}`;
+    
+    return this.sdk.insert('crowdCheckouts', {
+      ...crowdCheckout,
+      shareableLink
+    });
+  }
+
+  async getCrowdCheckout(orderId: string) {
+    const crowdCheckouts = await this.sdk.get('crowdCheckouts');
+    return crowdCheckouts.find(cc => cc.orderId === orderId) || null;
+  }
+
+  async contributeToCrowdCheckout(crowdCheckoutId: string, contribution: any) {
+    const crowdCheckout = await this.sdk.getItem('crowdCheckouts', crowdCheckoutId);
+    if (!crowdCheckout) throw new Error('Crowd checkout not found');
+
+    const updatedContributors = [...crowdCheckout.contributors, contribution];
+    const newCurrentAmount = crowdCheckout.currentAmount + contribution.amount;
+
+    return this.sdk.update('crowdCheckouts', crowdCheckoutId, {
+      contributors: updatedContributors,
+      currentAmount: newCurrentAmount,
+      updatedAt: new Date().toISOString()
+    });
   }
 
   // AI-powered features
