@@ -33,7 +33,7 @@ export function AdvancedSearch({ onResults, onSuggestions }: AdvancedSearchProps
       return;
     }
 
-    const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     
     recognition.continuous = false;
@@ -44,13 +44,13 @@ export function AdvancedSearch({ onResults, onSuggestions }: AdvancedSearchProps
       setIsListening(true);
     };
 
-    recognition.onresult = (event) => {
+    recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setQuery(transcript);
       handleSearch(transcript);
     };
 
-    recognition.onerror = (event) => {
+    recognition.onerror = () => {
       toast({
         title: "Voice Search Error",
         description: "Could not process voice input. Please try again.",

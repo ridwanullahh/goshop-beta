@@ -1,4 +1,3 @@
-
 // Enhanced Chutes AI Integration for CommerceOS
 interface ChutesAIMessage {
   role: 'user' | 'assistant' | 'system';
@@ -93,7 +92,7 @@ class ChutesAI {
   }
 
   // Dynamic Product Descriptions
-  async generateProductDescription(productName: string, features: string[], category: string): Promise<string> {
+  async generateProductDescription(productName: string, features: string[], category?: string): Promise<string> {
     const messages: ChutesAIMessage[] = [
       {
         role: 'system',
@@ -101,11 +100,78 @@ class ChutesAI {
       },
       {
         role: 'user',
-        content: `Product: ${productName}\nCategory: ${category}\nFeatures: ${features.join(', ')}\n\nWrite a compelling 2-3 paragraph product description that drives sales.`
+        content: `Product: ${productName}\nCategory: ${category || 'General'}\nFeatures: ${features.join(', ')}\n\nWrite a compelling 2-3 paragraph product description that drives sales.`
       }
     ];
 
     return this.chat(messages, { temperature: 0.8 });
+  }
+
+  // Category Suggestions
+  async suggestCategories(productName: string, description: string): Promise<string[]> {
+    const messages: ChutesAIMessage[] = [
+      {
+        role: 'system',
+        content: 'You are a product categorization expert. Suggest appropriate product categories based on product name and description. Return categories as comma-separated values.'
+      },
+      {
+        role: 'user',
+        content: `Product: ${productName}\nDescription: ${description}\n\nSuggest 3 most appropriate categories for this product.`
+      }
+    ];
+
+    const response = await this.chat(messages, { temperature: 0.3 });
+    return response.split(',').map(cat => cat.trim()).slice(0, 3);
+  }
+
+  // Search Suggestions
+  async generateSearchSuggestions(query: string): Promise<string[]> {
+    const messages: ChutesAIMessage[] = [
+      {
+        role: 'system',
+        content: 'Generate helpful search suggestions based on the user query. Return suggestions as comma-separated values.'
+      },
+      {
+        role: 'user',
+        content: `Search query: ${query}\n\nGenerate 5 related search suggestions.`
+      }
+    ];
+
+    const response = await this.chat(messages, { temperature: 0.5 });
+    return response.split(',').map(suggestion => suggestion.trim()).slice(0, 5);
+  }
+
+  // Recommendations
+  async generateRecommendations(userPreferences: string[], recentPurchases: string[]): Promise<string[]> {
+    const messages: ChutesAIMessage[] = [
+      {
+        role: 'system',
+        content: 'Generate personalized product recommendations based on user preferences and purchase history.'
+      },
+      {
+        role: 'user',
+        content: `User preferences: ${userPreferences.join(', ')}\nRecent purchases: ${recentPurchases.join(', ')}\n\nRecommend 5 products this user might like.`
+      }
+    ];
+
+    const response = await this.chat(messages, { temperature: 0.6 });
+    return response.split('\n').filter(line => line.trim()).slice(0, 5);
+  }
+
+  // Chatbot Response
+  async generateChatbotResponse(userMessage: string, context: string = ''): Promise<string> {
+    const messages: ChutesAIMessage[] = [
+      {
+        role: 'system',
+        content: 'You are a helpful customer service assistant for CommerceOS. Provide friendly, accurate, and helpful responses to user queries.'
+      },
+      {
+        role: 'user',
+        content: `User message: ${userMessage}\nContext: ${context}\n\nProvide a helpful response.`
+      }
+    ];
+
+    return this.chat(messages, { temperature: 0.7 });
   }
 
   // Advanced Search with NLP
@@ -194,11 +260,12 @@ class ChutesAI {
   }
 
   // Content Moderation with Advanced Context
-  async moderateContent(content: string, contentType: 'review' | 'comment' | 'description' | 'message'): Promise<{
+  async moderateContent(content: string, contentType: 'review' | 'comment' | 'description' | 'message' = 'comment'): Promise<{
     safe: boolean;
     confidence: number;
     categories: string[];
     suggestion?: string;
+    reason?: string;
   }> {
     const messages: ChutesAIMessage[] = [
       {
@@ -213,7 +280,14 @@ class ChutesAI {
 
     try {
       const response = await this.chat(messages, { temperature: 0.2 });
-      return JSON.parse(response);
+      const result = JSON.parse(response);
+      return {
+        safe: result.safe || true,
+        confidence: result.confidence || 0.8,
+        categories: result.categories || [],
+        suggestion: result.suggestion,
+        reason: result.reason
+      };
     } catch (error) {
       // Fallback moderation
       const flaggedWords = ['spam', 'scam', 'fake', 'illegal'];
@@ -225,7 +299,8 @@ class ChutesAI {
         safe: !hasFlaggedContent,
         confidence: 0.7,
         categories: hasFlaggedContent ? ['suspicious'] : [],
-        suggestion: hasFlaggedContent ? 'Please review content for policy compliance' : undefined
+        suggestion: hasFlaggedContent ? 'Please review content for policy compliance' : undefined,
+        reason: hasFlaggedContent ? 'Contains flagged keywords' : undefined
       };
     }
   }

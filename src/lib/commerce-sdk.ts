@@ -236,9 +236,9 @@ class CommerceSDK {
 
   async createProduct(product: Partial<Product>) {
     // AI enhancement: generate description if not provided
-    if (product.name && !product.description) {
+    if (product.name && !product.description && product.tags) {
       const features = product.tags || [];
-      product.description = await this.ai.generateProductDescription(product.name, features);
+      product.description = await this.ai.generateProductDescription(product.name, features, product.category);
     }
 
     // AI enhancement: suggest categories
@@ -380,9 +380,9 @@ class CommerceSDK {
   async createReview(review: Partial<Review>) {
     // AI content moderation
     if (review.comment) {
-      const moderation = await this.ai.moderateContent(review.comment);
+      const moderation = await this.ai.moderateContent(review.comment, 'review');
       if (!moderation.safe) {
-        throw new Error(`Review content inappropriate: ${moderation.reason}`);
+        throw new Error(`Review content inappropriate: ${moderation.reason || 'Policy violation detected'}`);
       }
     }
 
