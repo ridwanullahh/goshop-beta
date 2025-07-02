@@ -17,6 +17,7 @@ import SellerOnboarding from "./pages/SellerOnboarding";
 import LiveShopping from "./pages/LiveShopping";
 import CommunityHub from "./pages/CommunityHub";
 import NotFound from "./pages/NotFound";
+import Wishlist from "./pages/Wishlist";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/register" element={<Register />} />
             <Route path="/products" element={<Products />} />
             <Route path="/cart" element={<Cart />} />
+            <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/live" element={<LiveShopping />} />
             <Route path="/community" element={<CommunityHub />} />
             <Route path="/customer-dashboard" element={<CustomerDashboard />} />

@@ -89,21 +89,34 @@ export interface Seller {
   createdAt: string;
 }
 
-// Initialize CommerceOS SDK
+// Initialize CommerceOS SDK with environment configuration
 class CommerceSDK {
   private sdk: UniversalSDK;
   private ai: ChutesAI;
 
-  constructor(config: {
-    owner: string;
-    repo: string;
-    token: string;
-    chutesApiKey: string;
-    branch?: string;
-  }) {
+  constructor() {
+    const config = {
+      owner: import.meta.env.VITE_GITHUB_OWNER || '',
+      repo: import.meta.env.VITE_GITHUB_REPO || '',
+      token: import.meta.env.VITE_GITHUB_TOKEN || '',
+      branch: import.meta.env.VITE_GITHUB_BRANCH || 'main',
+      chutesApiKey: import.meta.env.VITE_CHUTES_API_KEY || ''
+    };
+
+    if (!config.owner || !config.repo || !config.token) {
+      throw new Error('Missing required GitHub configuration. Please check your environment variables.');
+    }
+
+    if (!config.chutesApiKey) {
+      console.warn('Chutes AI API key not found. AI features will be disabled.');
+    }
+
     // Initialize GitHub SDK with commerce schemas
     this.sdk = new UniversalSDK({
-      ...config,
+      owner: config.owner,
+      repo: config.repo,
+      token: config.token,
+      branch: config.branch,
       schemas: {
         products: {
           required: ['name', 'price', 'category', 'sellerId'],
@@ -183,6 +196,81 @@ class CommerceSDK {
           defaults: {
             items: [],
             updatedAt: new Date().toISOString()
+          }
+        },
+        wishlists: {
+          required: ['userId', 'items'],
+          types: {
+            userId: 'string',
+            items: 'array'
+          },
+          defaults: {
+            items: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        },
+        notifications: {
+          required: ['userId', 'title', 'message'],
+          types: {
+            userId: 'string',
+            title: 'string',
+            message: 'string',
+            type: 'string',
+            isRead: 'boolean'
+          },
+          defaults: {
+            type: 'general',
+            isRead: false,
+            createdAt: new Date().toISOString()
+          }
+        },
+        categories: {
+          required: ['name', 'slug'],
+          types: {
+            name: 'string',
+            slug: 'string',
+            description: 'string',
+            parentId: 'string',
+            image: 'string'
+          },
+          defaults: {
+            description: '',
+            parentId: null,
+            image: '',
+            createdAt: new Date().toISOString()
+          }
+        },
+        stores: {
+          required: ['sellerId', 'name', 'slug'],
+          types: {
+            sellerId: 'string',
+            name: 'string', 
+            slug: 'string',
+            description: 'string',
+            logo: 'string',
+            banner: 'string'
+          },
+          defaults: {
+            description: '',
+            logo: '',
+            banner: '',
+            isActive: true,
+            createdAt: new Date().toISOString()
+          }
+        },
+        affiliates: {
+          required: ['userId', 'commissionRate'],
+          types: {
+            userId: 'string',
+            commissionRate: 'number',
+            totalEarnings: 'number',
+            isActive: 'boolean'
+          },
+          defaults: {
+            totalEarnings: 0,
+            isActive: true,
+            createdAt: new Date().toISOString()
           }
         }
       }
@@ -345,6 +433,66 @@ class CommerceSDK {
     });
   }
 
+  // Wishlist methods
+  async getWishlist(userId: string) {
+    const wishlists = await this.sdk.get('wishlists');
+    return wishlists.find(wishlist => wishlist.userId === userId) || null;
+  }
+
+  async addToWishlist(userId: string, productId: string) {
+    let wishlist = await this.getWishlist(userId);
+    
+    if (!wishlist) {
+      wishlist = await this.sdk.insert('wishlists', {
+        userId,
+        items: [{ productId, addedAt: new Date().toISOString() }]
+      });
+    } else {
+      const existingItem = wishlist.items.find(item => item.productId === productId);
+      
+      if (!existingItem) {
+        wishlist.items.push({ productId, addedAt: new Date().toISOString() });
+        wishlist = await this.sdk.update('wishlists', wishlist.id, { 
+          items: wishlist.items,
+          updatedAt: new Date().toISOString()
+        });
+      }
+    }
+    
+    return wishlist;
+  }
+
+  async removeFromWishlist(userId: string, productId: string) {
+    const wishlist = await this.getWishlist(userId);
+    if (!wishlist) return null;
+
+    wishlist.items = wishlist.items.filter(item => item.productId !== productId);
+    
+    return this.sdk.update('wishlists', wishlist.id, { 
+      items: wishlist.items,
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  // Notification methods
+  async getNotifications(userId: string) {
+    return this.sdk.queryBuilder('notifications')
+      .where(notification => notification.userId === userId)
+      .sort('createdAt', 'desc')
+      .exec();
+  }
+
+  async createNotification(notification: Partial<any>) {
+    return this.sdk.insert('notifications', notification);
+  }
+
+  async markNotificationAsRead(notificationId: string) {
+    return this.sdk.update('notifications', notificationId, { 
+      isRead: true,
+      readAt: new Date().toISOString()
+    });
+  }
+
   // Order methods
   async createOrder(order: Partial<Order>) {
     return this.sdk.insert<Order>('orders', order);
@@ -427,6 +575,48 @@ class CommerceSDK {
       .where(product => product.sellerId === sellerId)
       .sort('createdAt', 'desc')
       .exec();
+  }
+
+  // Category methods
+  async getCategories() {
+    return this.sdk.queryBuilder('categories')
+      .sort('name', 'asc')
+      .exec();
+  }
+
+  async getCategory(slug: string) {
+    const categories = await this.sdk.get('categories');
+    return categories.find(category => category.slug === slug) || null;
+  }
+
+  // Store methods
+  async getStores() {
+    return this.sdk.queryBuilder('stores')
+      .where(store => store.isActive === true)
+      .sort('createdAt', 'desc')
+      .exec();
+  }
+
+  async getStore(slug: string) {
+    const stores = await this.sdk.get('stores');
+    return stores.find(store => store.slug === slug) || null;
+  }
+
+  async getStoreProducts(sellerId: string) {
+    return this.sdk.queryBuilder('products')
+      .where(product => product.sellerId === sellerId && product.isActive === true)
+      .sort('createdAt', 'desc')
+      .exec();
+  }
+
+  // Affiliate methods
+  async createAffiliate(affiliate: Partial<any>) {
+    return this.sdk.insert('affiliates', affiliate);
+  }
+
+  async getAffiliate(userId: string) {
+    const affiliates = await this.sdk.get('affiliates');
+    return affiliates.find(affiliate => affiliate.userId === userId) || null;
   }
 
   // AI-powered features

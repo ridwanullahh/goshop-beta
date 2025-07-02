@@ -1,8 +1,7 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -14,21 +13,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useCommerce } from '@/context/CommerceContext';
 import { Search, ShoppingCart, User, Menu, Bell, Heart } from 'lucide-react';
+import { SearchModal } from './SearchModal';
+import { WishlistModal } from './WishlistModal';
+import { NotificationsModal } from './NotificationsModal';
+import { CartSidebar } from './CartSidebar';
 
 export function Header() {
   const { currentUser, cart, logout } = useCommerce();
-  const [searchQuery, setSearchQuery] = useState('');
   const location = useLocation();
 
   const cartItemCount = cart?.items?.length || 0;
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      // Navigate to products page with search query
-      window.location.href = `/products?search=${encodeURIComponent(searchQuery)}`;
-    }
-  };
 
   // Don't show header on auth pages
   if (['/login', '/register'].includes(location.pathname)) {
@@ -73,48 +67,39 @@ export function Header() {
             </nav>
           </div>
 
-          {/* Search Bar */}
-          <div className="flex-1 max-w-2xl mx-8">
-            <form onSubmit={handleSearch} className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search products, brands, categories..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 w-full"
-              />
-              <Button
-                type="submit"
-                size="sm"
-                className="absolute right-1 top-1/2 transform -translate-y-1/2"
-                variant="commerce"
-              >
-                Search
+          {/* Search - Icon Only */}
+          <div className="flex-1 max-w-2xl mx-8 flex justify-center">
+            <SearchModal>
+              <Button variant="ghost" size="icon" className="h-10 w-10">
+                <Search className="h-5 w-5" />
               </Button>
-            </form>
+            </SearchModal>
           </div>
 
           {/* Right Section */}
           <div className="flex items-center space-x-4">
             {/* Notifications */}
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
-                3
-              </Badge>
-            </Button>
+            <NotificationsModal>
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-5 w-5" />
+                <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
+                  3
+                </Badge>
+              </Button>
+            </NotificationsModal>
 
             {/* Wishlist */}
-            <Button variant="ghost" size="icon" className="relative">
-              <Heart className="h-5 w-5" />
-              <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
-                5
-              </Badge>
-            </Button>
+            <WishlistModal>
+              <Button variant="ghost" size="icon" className="relative">
+                <Heart className="h-5 w-5" />
+                <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
+                  5
+                </Badge>
+              </Button>
+            </WishlistModal>
 
             {/* Cart */}
-            <Link to="/cart">
+            <CartSidebar>
               <Button variant="ghost" size="icon" className="relative">
                 <ShoppingCart className="h-5 w-5" />
                 {cartItemCount > 0 && (
@@ -123,7 +108,7 @@ export function Header() {
                   </Badge>
                 )}
               </Button>
-            </Link>
+            </CartSidebar>
 
             {/* User Menu */}
             {currentUser ? (
@@ -138,7 +123,8 @@ export function Header() {
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium">{currentUser.email}</p>
                       <p className="text-xs text-muted-foreground">
-                        {currentUser.roles?.includes('seller') ? 'Seller Account' : 'Buyer Account'}
+                        {currentUser.roles?.includes('seller') ? 'Seller Account' : 
+                         currentUser.roles?.includes('affiliate') ? 'Affiliate Account' : 'Buyer Account'}
                       </p>
                     </div>
                   </DropdownMenuLabel>
@@ -160,6 +146,14 @@ export function Header() {
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link to="/seller/products">My Products</Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {currentUser.roles?.includes('affiliate') && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link to="/affiliate/dashboard">Affiliate Dashboard</Link>
                       </DropdownMenuItem>
                     </>
                   )}
