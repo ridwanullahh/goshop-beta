@@ -12,11 +12,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useCommerce } from '@/context/CommerceContext';
-import { Search, ShoppingCart, User, Menu, Bell, Heart } from 'lucide-react';
+import { Search, ShoppingCart, User, Bell, Heart } from 'lucide-react';
 import { SearchModal } from './SearchModal';
 import { WishlistModal } from './WishlistModal';
 import { NotificationsModal } from './NotificationsModal';
 import { CartSidebar } from './CartSidebar';
+import { CategoriesMegaMenu } from './CategoriesMegaMenu';
 
 export function Header() {
   const { currentUser, cart, logout } = useCommerce();
@@ -52,11 +53,12 @@ export function Header() {
               >
                 Products
               </Link>
+              <CategoriesMegaMenu />
               <Link 
-                to="/categories" 
+                to="/stores" 
                 className="transition-colors hover:text-primary"
               >
-                Categories
+                Stores
               </Link>
               <Link 
                 to="/deals" 
@@ -173,11 +175,6 @@ export function Header() {
                 </Link>
               </div>
             )}
-
-            {/* Mobile Menu */}
-            <Button variant="ghost" size="icon" className="md:hidden">
-              <Menu className="h-5 w-5" />
-            </Button>
           </div>
         </div>
       </div>
