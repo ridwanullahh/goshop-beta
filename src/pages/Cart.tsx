@@ -1,343 +1,242 @@
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useCommerce } from '@/context/CommerceContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/hooks/use-toast';
-import { 
-  Trash2, 
-  Plus, 
-  Minus, 
-  ShoppingBag, 
-  ArrowRight,
-  CreditCard,
-  Truck,
-  Shield,
-  Tag,
-  Gift
-} from 'lucide-react';
+import { useCommerce } from '@/context/CommerceContext';
+import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, CreditCard } from 'lucide-react';
 
 const Cart = () => {
-  const { cart, products, removeFromCart, currentUser, sdk } = useCommerce();
-  const [cartItems, setCartItems] = useState<any[]>([]);
-  const [promoCode, setPromoCode] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
-  const { toast } = useToast();
+  const { cart, products, removeFromCart, currentUser } = useCommerce();
 
-  useEffect(() => {
-    if (cart && cart.items && products.length > 0) {
-      const items = cart.items.map((cartItem: any) => {
-        const product = products.find(p => p.id === cartItem.productId);
-        return {
-          ...cartItem,
-          product
-        };
-      }).filter((item: any) => item.product);
-      
-      setCartItems(items);
-    }
-  }, [cart, products]);
+  // Get cart items with product details
+  const cartItems = cart?.items?.map(item => {
+    const product = products.find(p => p.id === item.productId);
+    return product ? { ...item, product } : null;
+  }).filter(Boolean) || [];
 
-  const updateQuantity = async (productId: string, newQuantity: number) => {
-    if (!sdk || !currentUser) return;
-    
-    try {
-      if (newQuantity <= 0) {
-        await removeFromCart(productId);
-      } else {
-        await sdk.updateCartQuantity(currentUser.id, productId, newQuantity);
-        // Update local state
-        setCartItems(prev => prev.map(item => 
-          item.productId === productId 
-            ? { ...item, quantity: newQuantity }
-            : item
-        ));
-      }
-    } catch (error) {
-      toast({
-        title: "Update Failed",
-        description: "Could not update cart quantity",
-        variant: "destructive"
-      });
-    }
+  const subtotal = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  const shipping = subtotal > 50 ? 0 : 9.99;
+  const tax = subtotal * 0.08; // 8% tax
+  const total = subtotal + shipping + tax;
+
+  const handleRemoveItem = (productId: string) => {
+    removeFromCart(productId);
   };
 
-  const handleRemoveItem = async (productId: string) => {
-    try {
-      await removeFromCart(productId);
-    } catch (error) {
-      console.error('Failed to remove item:', error);
-    }
-  };
-
-  const applyPromoCode = () => {
-    // Simulate promo code application
-    if (promoCode.toLowerCase() === 'welcome10') {
-      toast({
-        title: "Promo Code Applied!",
-        description: "10% discount has been applied to your order."
-      });
-    } else if (promoCode) {
-      toast({
-        title: "Invalid Promo Code",
-        description: "The promo code you entered is not valid.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const calculateSubtotal = () => {
-    return cartItems.reduce((total, item) => {
-      return total + (item.product.price * item.quantity);
-    }, 0);
-  };
-
-  const calculateShipping = () => {
-    const subtotal = calculateSubtotal();
-    return subtotal > 50 ? 0 : 9.99; // Free shipping over $50
-  };
-
-  const calculateTax = () => {
-    return calculateSubtotal() * 0.08; // 8% tax
-  };
-
-  const calculateTotal = () => {
-    return calculateSubtotal() + calculateShipping() + calculateTax();
-  };
-
-  const handleCheckout = () => {
-    if (!currentUser) {
-      toast({
-        title: "Login Required",
-        description: "Please log in to proceed with checkout.",
-        variant: "destructive"
-      });
-      navigate('/login');
-      return;
-    }
-
-    if (cartItems.length === 0) {
-      toast({
-        title: "Empty Cart",
-        description: "Add some items to your cart before checking out.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Navigate to checkout (to be implemented)
-    toast({
-      title: "Checkout",
-      description: "Proceeding to secure checkout..."
-    });
+  const handleQuantityChange = (productId: string, newQuantity: number) => {
+    // In a real app, you'd have an updateCartQuantity function
+    console.log('Update quantity:', productId, newQuantity);
   };
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center px-4">
-        <Card className="w-full max-w-md text-center">
-          <CardHeader>
-            <ShoppingBag className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <CardTitle>Login Required</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">
-              Please log in to view your shopping cart
-            </p>
-            <Button onClick={() => navigate('/login')} className="w-full">
-              Log In
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="container mx-auto px-4 py-16 text-center">
+        <div className="max-w-md mx-auto">
+          <ShoppingBag className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+          <h2 className="text-2xl font-bold mb-4">Your Cart</h2>
+          <p className="text-muted-foreground mb-6">
+            Please sign in to view your cart and continue shopping.
+          </p>
+          <div className="space-y-3">
+            <Link to="/login">
+              <Button className="w-full" variant="commerce">
+                Sign In
+              </Button>
+            </Link>
+            <Link to="/products">
+              <Button variant="outline" className="w-full">
+                Continue Shopping
+              </Button>
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (cartItems.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center px-4">
-        <Card className="w-full max-w-md text-center">
-          <CardHeader>
-            <ShoppingBag className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <CardTitle>Your cart is empty</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">
-              Looks like you haven't added anything to your cart yet
-            </p>
-            <Button onClick={() => navigate('/products')} className="w-full">
-              Start Shopping
+      <div className="container mx-auto px-4 py-16 text-center">
+        <div className="max-w-md mx-auto">
+          <ShoppingBag className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+          <h2 className="text-2xl font-bold mb-4">Your cart is empty</h2>
+          <p className="text-muted-foreground mb-6">
+            Looks like you haven't added anything to your cart yet. Start shopping to fill it up!
+          </p>
+          <Link to="/products">
+            <Button variant="commerce">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Continue Shopping
             </Button>
-          </CardContent>
-        </Card>
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold">Shopping Cart</h1>
-          <Badge variant="secondary">
-            {cartItems.length} {cartItems.length === 1 ? 'item' : 'items'}
-          </Badge>
-        </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-6">
+        <Link to="/products" className="inline-flex items-center text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Continue Shopping
+        </Link>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Cart Items */}
-          <div className="lg:col-span-2 space-y-4">
-            {cartItems.map((item) => (
-              <Card key={item.productId}>
-                <CardContent className="p-4">
-                  <div className="flex gap-4">
-                    <img
-                      src={item.product.images[0] || '/placeholder.svg'}
-                      alt={item.product.name}
-                      className="w-20 h-20 object-cover rounded-md"
-                    />
+      <div className="grid lg:grid-cols-3 gap-8">
+        {/* Cart Items */}
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <ShoppingBag className="w-5 h-5 mr-2" />
+                Shopping Cart ({cartItems.length} items)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {cartItems.map((item) => (
+                <div key={item.productId} className="flex gap-4 p-4 border rounded-lg">
+                  <img
+                    src={item.product.images[0] || '/placeholder.svg'}
+                    alt={item.product.name}
+                    className="w-20 h-20 object-cover rounded-lg"
+                  />
+                  
+                  <div className="flex-1">
+                    <h3 className="font-semibold">{item.product.name}</h3>
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {item.product.description}
+                    </p>
+                    <Badge variant="outline" className="mt-1">
+                      {item.product.category}
+                    </Badge>
                     
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h3 className="font-semibold line-clamp-1">
-                            {item.product.name}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            by {item.product.sellerName}
-                          </p>
-                        </div>
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="flex items-center gap-2">
                         <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveItem(item.productId)}
-                          className="text-red-500 hover:text-red-700"
+                          size="icon"
+                          variant="outline"
+                          onClick={() => handleQuantityChange(item.productId, item.quantity - 1)}
+                          disabled={item.quantity <= 1}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Minus className="w-4 h-4" />
+                        </Button>
+                        <Input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => handleQuantityChange(item.productId, parseInt(e.target.value))}
+                          className="w-16 text-center"
+                          min="1"
+                        />
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          onClick={() => handleQuantityChange(item.productId, item.quantity + 1)}
+                        >
+                          <Plus className="w-4 h-4" />
                         </Button>
                       </div>
                       
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                            disabled={item.quantity <= 1}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-12 text-center">{item.quantity}</span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                            disabled={item.quantity >= item.product.inventory}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        
-                        <div className="text-right">
-                          <div className="font-semibold">
-                            ${(item.product.price * item.quantity).toFixed(2)}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            ${item.product.price} each
-                          </div>
-                        </div>
+                      <div className="flex items-center gap-4">
+                        <span className="font-semibold text-lg">
+                          ${(item.product.price * item.quantity).toFixed(2)}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleRemoveItem(item.productId)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
 
-          {/* Order Summary */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Order Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>${calculateSubtotal().toFixed(2)}</span>
-                </div>
-                
-                <div className="flex justify-between">
-                  <span>Shipping</span>
-                  <span>
-                    {calculateShipping() === 0 ? (
-                      <Badge variant="secondary">FREE</Badge>
-                    ) : (
-                      `$${calculateShipping().toFixed(2)}`
-                    )}
-                  </span>
-                </div>
-                
-                <div className="flex justify-between">
-                  <span>Tax</span>
-                  <span>${calculateTax().toFixed(2)}</span>
-                </div>
-                
-                <Separator />
-                
-                <div className="flex justify-between font-semibold text-lg">
-                  <span>Total</span>
-                  <span>${calculateTotal().toFixed(2)}</span>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Promo code"
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value)}
-                    />
-                    <Button variant="outline" onClick={applyPromoCode}>
-                      <Tag className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                
-                <Button 
-                  className="w-full" 
-                  size="lg" 
-                  onClick={handleCheckout}
-                  disabled={isLoading}
-                >
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  {isLoading ? 'Processing...' : 'Proceed to Checkout'}
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </CardContent>
-            </Card>
+        {/* Order Summary */}
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Order Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>${subtotal.toFixed(2)}</span>
+              </div>
+              
+              <div className="flex justify-between">
+                <span>Shipping</span>
+                <span>
+                  {shipping === 0 ? (
+                    <Badge variant="secondary">FREE</Badge>
+                  ) : (
+                    `$${shipping.toFixed(2)}`
+                  )}
+                </span>
+              </div>
+              
+              <div className="flex justify-between">
+                <span>Tax</span>
+                <span>${tax.toFixed(2)}</span>
+              </div>
+              
+              <Separator />
+              
+              <div className="flex justify-between text-lg font-semibold">
+                <span>Total</span>
+                <span>${total.toFixed(2)}</span>
+              </div>
 
-            {/* Trust Signals */}
-            <Card>
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-center space-x-3">
-                  <Shield className="h-5 w-5 text-green-500" />
-                  <span className="text-sm">Secure checkout</span>
+              {shipping > 0 && (
+                <div className="text-sm text-muted-foreground p-3 bg-muted rounded-lg">
+                  💡 Add ${(50 - subtotal).toFixed(2)} more to get free shipping!
                 </div>
-                <div className="flex items-center space-x-3">
-                  <Truck className="h-5 w-5 text-blue-500" />
-                  <span className="text-sm">Free shipping over $50</span>
+              )}
+
+              <Button className="w-full" size="lg" variant="commerce">
+                <CreditCard className="w-4 h-4 mr-2" />
+                Proceed to Checkout
+              </Button>
+
+              <div className="text-xs text-muted-foreground text-center">
+                Secure checkout with 256-bit SSL encryption
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Trust Badges */}
+          <Card className="mt-4">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-2 gap-4 text-xs text-center">
+                <div>
+                  <div className="font-semibold">Free Returns</div>
+                  <div className="text-muted-foreground">30 days</div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <Gift className="h-5 w-5 text-purple-500" />
-                  <span className="text-sm">Easy returns within 30 days</span>
+                <div>
+                  <div className="font-semibold">Fast Shipping</div>
+                  <div className="text-muted-foreground">1-2 days</div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+                <div>
+                  <div className="font-semibold">Secure Payment</div>
+                  <div className="text-muted-foreground">SSL Protected</div>
+                </div>
+                <div>
+                  <div className="font-semibold">24/7 Support</div>
+                  <div className="text-muted-foreground">Always here</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
