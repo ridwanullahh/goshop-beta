@@ -1,10 +1,489 @@
-import UniversalSDK from './sdk';
-import ChutesAI from './ai';
+interface CloudinaryConfig {
+  uploadPreset?: string;
+  cloudName?: string;
+  apiKey?: string;
+  apiSecret?: string;
+}
 
-// Commerce-specific types
-export interface Product {
+interface SMTPConfig {
+  endpoint?: string;
+  from?: string;
+  test?: () => Promise<boolean>;
+}
+
+interface AuthConfig {
+  requireEmailVerification?: boolean;
+  otpTriggers?: string[];
+}
+
+interface SchemaDefinition {
+  required?: string[];
+  types?: Record<string, string>;
+  defaults?: Record<string, any>;
+}
+
+interface UniversalSDKConfig {
+  owner: string;
+  repo: string;
+  token: string;
+  branch?: string;
+  basePath?: string;
+  mediaPath?: string;
+  cloudinary?: CloudinaryConfig;
+  smtp?: SMTPConfig;
+  templates?: Record<string, string>;
+  schemas?: Record<string, SchemaDefinition>;
+  auth?: AuthConfig;
+}
+
+interface User {
   id?: string;
   uid?: string;
+  email: string;
+  password?: string;
+  name?: string;
+  avatar?: string;
+  role: 'admin' | 'seller' | 'customer' | 'affiliate';
+  roles?: string[];
+  permissions?: string[];
+  verified?: boolean;
+  onboardingCompleted?: boolean;
+  businessName?: string;
+  phone?: string;
+  address?: any;
+  [key: string]: any;
+}
+
+interface Session {
+  token: string;
+  user: User;
+  created: number;
+}
+
+interface OTPRecord {
+  otp: string;
+  created: number;
+  reason: string;
+}
+
+interface AuditLogEntry {
+  action: string;
+  data: any;
+  timestamp: number;
+}
+
+interface QueryBuilder<T = any> {
+  where(fn: (item: T) => boolean): QueryBuilder<T>;
+  sort(field: string, dir?: 'asc' | 'desc'): QueryBuilder<T>;
+  project(fields: string[]): QueryBuilder<Partial<T>>;
+  exec(): Promise<T[]>;
+}
+
+interface MediaAttachment {
+  attachmentId: string;
+  mimeType: string;
+  isInline: boolean;
+  url: string;
+  name: string;
+}
+
+interface CloudinaryUploadResult {
+  public_id: string;
+  secure_url: string;
+  url: string;
+  [key: string]: any;
+}
+
+interface EmailPayload {
+  to: string;
+  subject: string;
+  html: string;
+  from: string;
+  headers: Record<string, string>;
+}
+
+class UniversalSDK {
+  private owner: string;
+  private repo: string;
+  private token: string;
+  private branch: string;
+  private basePath: string;
+  private mediaPath: string;
+  private cloudinary: CloudinaryConfig;
+  private smtp: SMTPConfig;
+  private templates: Record<string, string>;
+  private schemas: Record<string, SchemaDefinition>;
+  private authConfig: AuthConfig;
+  private sessionStore: Record<string, Session>;
+  private otpMemory: Record<string, OTPRecord>;
+  private auditLog: Record<string, AuditLogEntry[]>;
+
+  constructor(config: UniversalSDKConfig) {
+    this.owner = config.owner;
+    this.repo = config.repo;
+    this.token = config.token;
+    this.branch = config.branch || "main";
+    this.basePath = config.basePath || "db";
+    this.mediaPath = config.mediaPath || "media";
+    this.cloudinary = config.cloudinary || {};
+    this.smtp = config.smtp || {};
+    this.templates = config.templates || {};
+    this.schemas = config.schemas || {};
+    this.authConfig = config.auth || { requireEmailVerification: true, otpTriggers: ["register"] };
+    this.sessionStore = {};
+    this.otpMemory = {};
+    this.auditLog = {};
+  }
+
+  private headers(): Record<string, string> {
+    return {
+      Authorization: `token ${this.token}`,
+      "Content-Type": "application/json",
+    };
+  }
+
+  private async request(path: string, method: string = "GET", body: any = null): Promise<any> {
+    const url = `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${path}` +
+                (method === "GET" ? `?ref=${this.branch}` : "");
+    const res = await fetch(url, {
+      method,
+      headers: this.headers(),
+      body: body ? JSON.stringify(body) : null,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+
+  async get<T = any>(collection: string): Promise<T[]> {
+    try {
+      const res = await this.request(`${this.basePath}/${collection}.json`);
+      return JSON.parse(atob(res.content));
+    } catch (error: any) {
+      if (error.message.includes('404') || error.message.includes('empty')) {
+        console.log(`Collection ${collection} doesn't exist, creating it...`);
+        await this.initializeCollection(collection);
+        return [];
+      }
+      throw error;
+    }
+  }
+
+  private async initializeCollection(collection: string): Promise<void> {
+    try {
+      await this.save(collection, []);
+      console.log(`Collection ${collection} created successfully`);
+    } catch (error) {
+      console.warn(`Failed to create collection ${collection}:`, error);
+    }
+  }
+
+  async init(): Promise<UniversalSDK> {
+    try {
+      await this.listCollections();
+    } catch (error: any) {
+      if (error.message.includes('empty') || error.message.includes('404')) {
+        console.log('Repository is empty, initializing basic collections...');
+        const basicCollections = [
+          'users', 'products', 'orders', 'reviews', 'sellers', 
+          'carts', 'wishlists', 'notifications', 'categories', 
+          'stores', 'affiliates', 'wallets', 'transactions', 
+          'crowdCheckouts', 'posts', 'comments', 'liveStreams',
+          'blogs', 'pages', 'help_articles', 'returns_refunds',
+          'shipping_info', 'contact_submissions', 'marketing_campaigns',
+          'affiliate_links', 'commissions', 'product_variants',
+          'product_bundles', 'product_addons'
+        ];
+        
+        for (const collection of basicCollections) {
+          await this.initializeCollection(collection);
+        }
+        
+        await this.initializeSampleData();
+      } else {
+        throw error;
+      }
+    }
+    return this;
+  }
+
+  private async listCollections(): Promise<string[]> {
+    try {
+      const res = await this.request(this.basePath);
+      if (Array.isArray(res)) {
+        return res.filter(item => item.name.endsWith('.json')).map(item => item.name.replace('.json', ''));
+      }
+      return [];
+    } catch (error: any) {
+      if (error.message.includes('empty') || error.message.includes('404')) {
+        throw new Error('Repository is empty');
+      }
+      throw error;
+    }
+  }
+
+  // Authentication methods
+  async register(email: string, password: string, profile: any = {}): Promise<User & { id: string; uid: string }> {
+    const users = await this.get<User>('users');
+    const existingUser = users.find(u => u.email === email);
+    if (existingUser) throw new Error('User already exists');
+    
+    return this.insert<User>('users', {
+      email,
+      password, // In production, hash this password
+      verified: false,
+      role: profile.role || 'customer',
+      roles: [profile.role || 'customer'],
+      onboardingCompleted: false,
+      ...profile
+    });
+  }
+
+  async login(email: string, password: string): Promise<Session> {
+    const users = await this.get<User>('users');
+    const user = users.find(u => u.email === email && u.password === password);
+    if (!user) throw new Error('Invalid credentials');
+    
+    const token = crypto.randomUUID();
+    const session: Session = {
+      token,
+      user,
+      created: Date.now()
+    };
+    
+    this.sessionStore[token] = session;
+    return session;
+  }
+
+  getCurrentUser(token: string): User | null {
+    const session = this.sessionStore[token];
+    return session ? session.user : null;
+  }
+
+  async destroySession(token: string): Promise<void> {
+    delete this.sessionStore[token];
+  }
+
+  // Helper method for SHA1 hashing (for Cloudinary)
+  private async _sha1(str: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  private async initializeSampleData(): Promise<void> {
+    try {
+      // Initialize admin user
+      const adminUser = {
+        email: 'admin@platform.com',
+        password: 'admin123',
+        name: 'Platform Admin',
+        role: 'admin',
+        roles: ['admin'],
+        verified: true,
+        onboardingCompleted: true
+      };
+      await this.insert('users', adminUser);
+
+      const categories = [
+        { name: 'Electronics', slug: 'electronics', description: 'Latest gadgets and electronics' },
+        { name: 'Fashion', slug: 'fashion', description: 'Trending fashion items' },
+        { name: 'Home & Garden', slug: 'home-garden', description: 'Home improvement and garden supplies' },
+        { name: 'Sports', slug: 'sports', description: 'Sports equipment and accessories' },
+        { name: 'Books', slug: 'books', description: 'Books and educational materials' }
+      ];
+
+      for (const category of categories) {
+        await this.insert('categories', category);
+      }
+
+      // Initialize help articles
+      const helpArticles = [
+        {
+          title: 'Getting Started Guide',
+          content: 'Welcome to our platform! This guide will help you get started.',
+          category: 'getting-started',
+          slug: 'getting-started-guide',
+          isPublished: true
+        },
+        {
+          title: 'How to Create Your First Product',
+          content: 'Learn how to list your first product on our marketplace.',
+          category: 'seller-guide',
+          slug: 'create-first-product',
+          isPublished: true
+        }
+      ];
+
+      for (const article of helpArticles) {
+        await this.insert('help_articles', article);
+      }
+
+      console.log('Sample data initialized successfully');
+    } catch (error) {
+      console.warn('Failed to initialize sample data:', error);
+    }
+  }
+
+  async getItem<T = any>(collection: string, key: string): Promise<T | null> {
+    const arr = await this.get<T>(collection);
+    return arr.find((x: any) => x.id === key || x.uid === key) || null;
+  }
+
+  private async save<T = any>(collection: string, data: T[]): Promise<void> {
+    let sha: string | undefined;
+    try {
+      const head = await this.request(`${this.basePath}/${collection}.json`);
+      sha = head.sha;
+    } catch {}
+    await this.request(`${this.basePath}/${collection}.json`, "PUT", {
+      message: `Update ${collection}`,
+      content: btoa(JSON.stringify(data, null, 2)),
+      branch: this.branch,
+      ...(sha ? { sha } : {}),
+    });
+  }
+
+  async insert<T = any>(collection: string, item: Partial<T>): Promise<T & { id: string; uid: string }> {
+    const arr = await this.get<T>(collection);
+    const schema = this.schemas[collection];
+    if (schema?.defaults) item = { ...schema.defaults, ...item };
+    this.validateSchema(collection, item);
+    const id = (Math.max(0, ...arr.map((x: any) => +x.id || 0)) + 1).toString();
+    const newItem = { uid: crypto.randomUUID(), id, ...item } as T & { id: string; uid: string };
+    arr.push(newItem);
+    await this.save(collection, arr);
+    this._audit(collection, newItem, "insert");
+    return newItem;
+  }
+
+  async bulkInsert<T = any>(collection: string, items: Partial<T>[]): Promise<(T & { id: string; uid: string })[]> {
+    const arr = await this.get<T>(collection);
+    const results: (T & { id: string; uid: string })[] = [];
+    let nextId = Math.max(0, ...arr.map((x: any) => +x.id || 0)) + 1;
+
+    for (const item of items) {
+      const schema = this.schemas[collection];
+      let processedItem = item;
+      if (schema?.defaults) processedItem = { ...schema.defaults, ...item };
+      this.validateSchema(collection, processedItem);
+      const newItem = { uid: crypto.randomUUID(), id: nextId.toString(), ...processedItem } as T & { id: string; uid: string };
+      arr.push(newItem);
+      results.push(newItem);
+      nextId++;
+    }
+
+    await this.save(collection, arr);
+    return results;
+  }
+
+  async update<T = any>(collection: string, key: string, updates: Partial<T>): Promise<T | null> {
+    const arr = await this.get<T>(collection);
+    const index = arr.findIndex((x: any) => x.id === key || x.uid === key);
+    if (index === -1) return null;
+    arr[index] = { ...arr[index], ...updates };
+    await this.save(collection, arr);
+    this._audit(collection, arr[index], "update");
+    return arr[index];
+  }
+
+  async delete(collection: string, key: string): Promise<boolean> {
+    const arr = await this.get(collection);
+    const index = arr.findIndex((x: any) => x.id === key || x.uid === key);
+    if (index === -1) return false;
+    const deleted = arr.splice(index, 1)[0];
+    await this.save(collection, arr);
+    this._audit(collection, deleted, "delete");
+    return true;
+  }
+
+  queryBuilder<T = any>(collection: string): QueryBuilder<T> {
+    let query = this.get<T>(collection);
+    const filters: ((item: T) => boolean)[] = [];
+    let sortField: string | null = null;
+    let sortDir: 'asc' | 'desc' = 'asc';
+    let projectionFields: string[] | null = null;
+
+    return {
+      where: (fn: (item: T) => boolean) => {
+        filters.push(fn);
+        return this.queryBuilder(collection);
+      },
+      sort: (field: string, dir: 'asc' | 'desc' = 'asc') => {
+        sortField = field;
+        sortDir = dir;
+        return this.queryBuilder(collection);
+      },
+      project: (fields: string[]) => {
+        projectionFields = fields;
+        return this.queryBuilder(collection);
+      },
+      exec: async (): Promise<T[]> => {
+        let results = await query;
+        
+        // Apply filters
+        for (const filter of filters) {
+          results = results.filter(filter);
+        }
+        
+        // Apply sorting
+        if (sortField) {
+          results.sort((a: any, b: any) => {
+            const aVal = a[sortField];
+            const bVal = b[sortField];
+            if (sortDir === 'asc') {
+              return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+            } else {
+              return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+            }
+          });
+        }
+        
+        // Apply projection
+        if (projectionFields) {
+          results = results.map(item => {
+            const projected: any = {};
+            for (const field of projectionFields) {
+              projected[field] = (item as any)[field];
+            }
+            return projected;
+          });
+        }
+        
+        return results;
+      }
+    };
+  }
+
+  private validateSchema(collection: string, item: any): void {
+    const schema = this.schemas[collection];
+    if (!schema) return;
+
+    if (schema.required) {
+      for (const field of schema.required) {
+        if (!(field in item) || item[field] === undefined || item[field] === null) {
+          throw new Error(`Required field '${field}' is missing in ${collection}`);
+        }
+      }
+    }
+  }
+
+  private _audit(collection: string, data: any, action: string): void {
+    if (!this.auditLog[collection]) {
+      this.auditLog[collection] = [];
+    }
+    this.auditLog[collection].push({
+      action,
+      data,
+      timestamp: Date.now()
+    });
+  }
+}
+
+interface Product {
+  id: string;
+  uid: string;
   name: string;
   description: string;
   price: number;
@@ -12,7 +491,6 @@ export interface Product {
   category: string;
   tags: string[];
   images: string[];
-  videos?: string[];
   sellerId: string;
   sellerName: string;
   inventory: number;
@@ -20,242 +498,74 @@ export interface Product {
   reviewCount: number;
   isActive: boolean;
   isFeatured: boolean;
-  hasVariants?: boolean;
-  variants?: ProductVariant[];
-  bundles?: ProductBundle[];
-  addons?: ProductAddon[];
-  seoTitle?: string;
-  seoDescription?: string;
-  sku?: string;
-  weight?: number;
-  dimensions?: { length: number; width: number; height: number };
-  shippingClass?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface ProductVariant {
-  id?: string;
-  name: string;
-  price: number;
-  inventory: number;
-  sku?: string;
-  attributes: Record<string, string>;
-}
-
-export interface ProductBundle {
-  id?: string;
-  name: string;
-  discount: number;
-  products: { productId: string; quantity: number }[];
-}
-
-export interface ProductAddon {
-  id?: string;
-  name: string;
-  price: number;
-  required: boolean;
-  options?: string[];
-}
-
-export interface Order {
-  id?: string;
-  uid?: string;
-  buyerId: string;
-  sellerId: string;
-  products: OrderItem[];
+interface Order {
+  id: string;
+  uid: string;
+  userId: string;
+  items: OrderItem[];
   total: number;
-  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  shippingAddress: Address;
-  paymentMethod: string;
-  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
-  crowdFunding: any;
-  trackingNumber?: string;
-  shippingMethod?: string;
-  notes?: string;
+  shippingAddress: any;
+  billingAddress: any;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   createdAt: string;
   updatedAt: string;
 }
 
-export interface OrderItem {
+interface OrderItem {
   productId: string;
-  productName: string;
-  price: number;
-  quantity: number;
-  subtotal: number;
-  variantId?: string;
-  addons?: { id: string; name: string; price: number }[];
-}
-
-export interface Address {
-  street: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
-}
-
-export interface CartItem {
-  productId: string;
-  quantity: number;
-  variantId?: string;
-  addons?: string[];
-  addedAt: string;
-}
-
-export interface Review {
-  id?: string;
-  uid?: string;
-  productId: string;
-  buyerId: string;
-  buyerName: string;
-  rating: number;
-  comment: string;
-  images?: string[];
-  isVerified: boolean;
-  createdAt: string;
-}
-
-export interface Seller {
-  id?: string;
-  uid?: string;
-  userId: string;
-  businessName: string;
-  description: string;
-  logo?: string;
-  cover?: string;
-  rating: number;
-  reviewCount: number;
-  totalSales: number;
-  isVerified: boolean;
-  businessType?: string;
-  taxId?: string;
-  phone?: string;
-  address?: Address;
-  bankDetails?: any;
-  commissionRate?: number;
-  createdAt: string;
-}
-
-export interface Affiliate {
-  id?: string;
-  uid?: string;
-  userId: string;
-  commissionRate: number;
-  totalEarnings: number;
-  isActive: boolean;
-  businessName: string;
-  website?: string;
-  socialMedia?: {
-    instagram?: string;
-    twitter?: string;
-    youtube?: string;
-    tiktok?: string;
-  };
-  audienceSize?: number;
-  niche?: string[];
-  paymentMethod?: 'bank' | 'paypal' | 'crypto';
-  paymentDetails?: any;
-  createdAt: string;
-}
-
-export interface AffiliateLink {
-  id?: string;
-  uid?: string;
-  affiliateId: string;
-  productId?: string;
-  sellerId?: string;
-  campaignId?: string;
-  url: string;
-  shortUrl: string;
-  clicks: number;
-  conversions: number;
-  earnings: number;
-  createdAt: string;
-}
-
-export interface Commission {
-  id?: string;
-  uid?: string;
-  affiliateId: string;
-  orderId: string;
-  amount: number;
-  rate: number;
-  status: 'pending' | 'approved' | 'paid';
-  paidAt?: string;
-  createdAt: string;
-}
-
-export interface MarketingCampaign {
-  id?: string;
-  uid?: string;
-  sellerId: string;
   name: string;
-  type: 'discount' | 'flash-sale' | 'affiliate' | 'influencer';
-  description: string;
-  discountType?: 'percentage' | 'fixed';
-  discountValue?: number;
-  minPurchase?: number;
-  maxDiscount?: number;
-  startDate: string;
-  endDate: string;
-  isActive: boolean;
-  targetAudience?: string[];
-  budget?: number;
-  spent?: number;
-  conversions?: number;
-  createdAt: string;
+  quantity: number;
+  price: number;
 }
 
-// Initialize CommerceOS SDK with environment configuration
-class CommerceSDK {
+interface Seller {
+  id: string;
+  uid: string;
+  userId: string;
+  businessName: string;
+  description: string;
+  isVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export default class CommerceSDK {
   public sdk: UniversalSDK;
-  private ai: ChutesAI;
 
   constructor() {
-    const config = {
-      owner: import.meta.env.VITE_GITHUB_OWNER || '',
-      repo: import.meta.env.VITE_GITHUB_REPO || '',
-      token: import.meta.env.VITE_GITHUB_TOKEN || '',
-      branch: import.meta.env.VITE_GITHUB_BRANCH || 'main',
-      chutesApiKey: import.meta.env.VITE_CHUTES_API_KEY || ''
-    };
-
-    if (!config.owner || !config.repo || !config.token) {
-      throw new Error('Missing required GitHub configuration. Please check your environment variables.');
-    }
-
-    if (!config.chutesApiKey) {
-      console.warn('Chutes AI API key not found. AI features will be disabled.');
-    }
-
-    // Initialize GitHub SDK with commerce schemas
     this.sdk = new UniversalSDK({
-      owner: config.owner,
-      repo: config.repo,
-      token: config.token,
-      branch: config.branch,
+      owner: 'your-github-username',
+      repo: 'your-repo-name', 
+      token: 'your-github-token',
+      branch: 'main',
+      basePath: 'db',
       schemas: {
         users: {
-          required: ['email', 'role'],
+          required: ['email', 'password', 'role'],
           types: {
             email: 'string',
             password: 'string',
-            name: 'string',
             role: 'string',
+            name: 'string',
+            avatar: 'string',
+            roles: 'array',
+            permissions: 'array',
             verified: 'boolean',
             onboardingCompleted: 'boolean'
           },
           defaults: {
-            verified: false,
-            onboardingCompleted: false,
             role: 'customer',
             roles: ['customer'],
-            createdAt: new Date().toISOString()
+            verified: false,
+            onboardingCompleted: false
           }
         },
         products: {
-          required: ['name', 'price', 'category', 'sellerId'],
+          required: ['name', 'description', 'price', 'category', 'tags', 'images', 'sellerId', 'sellerName', 'inventory', 'rating', 'reviewCount', 'isActive', 'isFeatured'],
           types: {
             name: 'string',
             description: 'string',
@@ -264,177 +574,41 @@ class CommerceSDK {
             tags: 'array',
             images: 'array',
             sellerId: 'string',
+            sellerName: 'string',
             inventory: 'number',
             rating: 'number',
-            isActive: 'boolean'
-          },
-          defaults: {
-            rating: 0,
-            reviewCount: 0,
-            isActive: true,
-            isFeatured: false,
-            hasVariants: false,
-            tags: [],
-            images: [],
-            variants: [],
-            bundles: [],
-            addons: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            reviewCount: 'number',
+            isActive: 'boolean',
+            isFeatured: 'boolean'
           }
         },
         orders: {
-          required: ['buyerId', 'products', 'total', 'shippingAddress'],
-          types: {
-            buyerId: 'string',
-            products: 'array',
-            total: 'number',
-            status: 'string',
-            paymentStatus: 'string',
-            paymentMethod: 'string',
-            crowdFunding: 'object'
-          },
-          defaults: {
-            status: 'pending',
-            paymentStatus: 'pending',
-            paymentMethod: 'paystack',
-            crowdFunding: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        },
-        affiliates: {
-          required: ['userId', 'commissionRate'],
+          required: ['userId', 'items', 'total', 'shippingAddress', 'billingAddress', 'status'],
           types: {
             userId: 'string',
-            commissionRate: 'number',
-            totalEarnings: 'number',
-            isActive: 'boolean',
-            businessName: 'string',
-            website: 'string'
-          },
-          defaults: {
-            totalEarnings: 0,
-            isActive: true,
-            businessName: '',
-            website: '',
-            audienceSize: 0,
-            niche: [],
-            createdAt: new Date().toISOString()
-          }
-        },
-        affiliate_links: {
-          required: ['affiliateId', 'url'],
-          types: {
-            affiliateId: 'string',
-            productId: 'string',
-            url: 'string',
-            shortUrl: 'string',
-            clicks: 'number',
-            conversions: 'number',
-            earnings: 'number'
-          },
-          defaults: {
-            clicks: 0,
-            conversions: 0,
-            earnings: 0,
-            createdAt: new Date().toISOString()
-          }
-        },
-        commissions: {
-          required: ['affiliateId', 'orderId', 'amount'],
-          types: {
-            affiliateId: 'string',
-            orderId: 'string',
-            amount: 'number',
-            rate: 'number',
+            items: 'array',
+            total: 'number',
+            shippingAddress: 'object',
+            billingAddress: 'object',
             status: 'string'
-          },
-          defaults: {
-            status: 'pending',
-            createdAt: new Date().toISOString()
           }
         },
-        marketing_campaigns: {
-          required: ['sellerId', 'name', 'type'],
-          types: {
-            sellerId: 'string',
-            name: 'string',
-            type: 'string',
-            description: 'string',
-            isActive: 'boolean'
-          },
-          defaults: {
-            isActive: true,
-            budget: 0,
-            spent: 0,
-            conversions: 0,
-            createdAt: new Date().toISOString()
-          }
-        },
-        help_articles: {
-          required: ['title', 'content'],
-          types: {
-            title: 'string',
-            content: 'string',
-            category: 'string',
-            slug: 'string',
-            isPublished: 'boolean'
-          },
-          defaults: {
-            isPublished: false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        },
-        blogs: {
-          required: ['title', 'content'],
-          types: {
-            title: 'string',
-            content: 'string',
-            excerpt: 'string',
-            slug: 'string',
-            authorId: 'string',
-            category: 'string',
-            tags: 'array',
-            featuredImage: 'string',
-            isPublished: 'boolean'
-          },
-          defaults: {
-            isPublished: false,
-            tags: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        },
-        // ... keep existing code (other schemas)
         reviews: {
-          required: ['productId', 'buyerId', 'rating'],
+          required: ['productId', 'userId', 'rating', 'comment'],
           types: {
             productId: 'string',
-            buyerId: 'string',
+            userId: 'string',
             rating: 'number',
             comment: 'string'
-          },
-          defaults: {
-            isVerified: false,
-            createdAt: new Date().toISOString()
           }
         },
         sellers: {
-          required: ['userId', 'businessName'],
+          required: ['userId', 'businessName', 'description', 'isVerified'],
           types: {
             userId: 'string',
             businessName: 'string',
-            description: 'string'
-          },
-          defaults: {
-            rating: 0,
-            reviewCount: 0,
-            totalSales: 0,
-            isVerified: false,
-            commissionRate: 0.05,
-            createdAt: new Date().toISOString()
+            description: 'string',
+            isVerified: 'boolean'
           }
         },
         carts: {
@@ -442,10 +616,6 @@ class CommerceSDK {
           types: {
             userId: 'string',
             items: 'array'
-          },
-          defaults: {
-            items: [],
-            updatedAt: new Date().toISOString()
           }
         },
         wishlists: {
@@ -453,763 +623,335 @@ class CommerceSDK {
           types: {
             userId: 'string',
             items: 'array'
-          },
-          defaults: {
-            items: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
           }
         },
         notifications: {
-          required: ['userId', 'title', 'message'],
+          required: ['userId', 'title', 'message', 'isRead'],
           types: {
             userId: 'string',
             title: 'string',
             message: 'string',
-            type: 'string',
             isRead: 'boolean'
-          },
-          defaults: {
-            type: 'general',
-            isRead: false,
-            createdAt: new Date().toISOString()
           }
         },
         categories: {
-          required: ['name', 'slug'],
+          required: ['name', 'slug', 'description'],
+          types: {
+            name: 'string',
+            slug: 'string',
+            description: 'string'
+          }
+        },
+        stores: {
+          required: ['name', 'slug', 'description', 'sellerId'],
           types: {
             name: 'string',
             slug: 'string',
             description: 'string',
-            parentId: 'string',
-            image: 'string'
-          },
-          defaults: {
-            description: '',
-            parentId: null,
-            image: '',
-            createdAt: new Date().toISOString()
+            sellerId: 'string'
           }
         },
-        stores: {
-          required: ['sellerId', 'name', 'slug'],
+        affiliates: {
+          required: ['userId', 'commissionRate', 'businessName', 'isActive'],
           types: {
-            sellerId: 'string',
-            name: 'string', 
-            slug: 'string',
-            description: 'string',
-            logo: 'string',
-            banner: 'string'
-          },
-          defaults: {
-            description: '',
-            logo: '',
-            banner: '',
-            isActive: true,
-            createdAt: new Date().toISOString()
+            userId: 'string',
+            commissionRate: 'number',
+            businessName: 'string',
+            isActive: 'boolean'
           }
         },
         wallets: {
           required: ['userId', 'balance'],
           types: {
             userId: 'string',
-            balance: 'number',
-            currency: 'string'
-          },
-          defaults: {
-            balance: 0,
-            currency: 'NGN',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            balance: 'number'
           }
         },
         transactions: {
-          required: ['userId', 'amount', 'type'],
+          required: ['userId', 'amount', 'type', 'description'],
           types: {
             userId: 'string',
             amount: 'number',
             type: 'string',
-            status: 'string',
-            reference: 'string',
             description: 'string'
-          },
-          defaults: {
-            status: 'pending',
-            reference: '',
-            description: '',
-            createdAt: new Date().toISOString()
           }
         },
         crowdCheckouts: {
-          required: ['orderId', 'creatorId', 'targetAmount'],
+          required: ['productId', 'targetQuantity', 'currentQuantity', 'discountPercentage', 'endDate'],
           types: {
-            orderId: 'string',
-            creatorId: 'string',
-            targetAmount: 'number',
-            currentAmount: 'number',
-            contributors: 'array',
-            message: 'string',
-            shareableLink: 'string',
-            isActive: 'boolean'
-          },
-          defaults: {
-            currentAmount: 0,
-            contributors: [],
-            message: '',
-            shareableLink: '',
-            isActive: true,
-            createdAt: new Date().toISOString()
+            productId: 'string',
+            targetQuantity: 'number',
+            currentQuantity: 'number',
+            discountPercentage: 'number',
+            endDate: 'string'
           }
         },
         posts: {
-          required: ['userId', 'content'],
+          required: ['title', 'content', 'authorId', 'authorName'],
           types: {
-            userId: 'string',
-            userName: 'string',
+            title: 'string',
             content: 'string',
-            likes: 'number',
-            comments: 'number'
-          },
-          defaults: {
-            likes: 0,
-            comments: 0,
-            isLiked: false,
-            tags: [],
-            images: [],
-            createdAt: new Date().toISOString()
+            authorId: 'string',
+            authorName: 'string'
           }
         },
         comments: {
-          required: ['postId', 'userId', 'content'],
+          required: ['postId', 'userId', 'userName', 'content'],
           types: {
             postId: 'string',
             userId: 'string',
             userName: 'string',
             content: 'string'
-          },
-          defaults: {
-            createdAt: new Date().toISOString()
+          }
+        },
+        liveStreams: {
+          required: ['title', 'description', 'startTime', 'endTime', 'hostId', 'hostName'],
+          types: {
+            title: 'string',
+            description: 'string',
+            startTime: 'string',
+            endTime: 'string',
+            hostId: 'string',
+            hostName: 'string'
+          }
+        },
+        blogs: {
+          required: ['title', 'content', 'authorId', 'authorName', 'category', 'slug'],
+          types: {
+            title: 'string',
+            content: 'string',
+            authorId: 'string',
+            authorName: 'string',
+            category: 'string',
+            slug: 'string'
+          }
+        },
+        pages: {
+          required: ['title', 'content', 'slug'],
+          types: {
+            title: 'string',
+            content: 'string',
+            slug: 'string'
+          }
+        },
+        help_articles: {
+          required: ['title', 'content', 'category', 'slug', 'isPublished'],
+          types: {
+            title: 'string',
+            content: 'string',
+            category: 'string',
+            slug: 'string',
+            isPublished: 'boolean'
+          }
+        },
+        returns_refunds: {
+          required: ['orderId', 'reason', 'status', 'requestDate'],
+          types: {
+            orderId: 'string',
+            reason: 'string',
+            status: 'string',
+            requestDate: 'string'
+          }
+        },
+        shipping_info: {
+          required: ['orderId', 'shippingAddress', 'shippingDate', 'deliveryDate', 'status'],
+          types: {
+            orderId: 'string',
+            shippingAddress: 'object',
+            shippingDate: 'string',
+            deliveryDate: 'string',
+            status: 'string'
+          }
+        },
+        contact_submissions: {
+          required: ['name', 'email', 'message', 'submissionDate'],
+          types: {
+            name: 'string',
+            email: 'string',
+            message: 'string',
+            submissionDate: 'string'
+          }
+        },
+        marketing_campaigns: {
+          required: ['name', 'startDate', 'endDate', 'targetAudience', 'budget'],
+          types: {
+            name: 'string',
+            startDate: 'string',
+            endDate: 'string',
+            targetAudience: 'string',
+            budget: 'number'
+          }
+        },
+        affiliate_links: {
+          required: ['affiliateId', 'productId', 'link', 'clicks', 'conversions'],
+          types: {
+            affiliateId: 'string',
+            productId: 'string',
+            link: 'string',
+            clicks: 'number',
+            conversions: 'number'
+          }
+        },
+        commissions: {
+          required: ['affiliateId', 'orderId', 'amount', 'date'],
+          types: {
+            affiliateId: 'string',
+            orderId: 'string',
+            amount: 'number',
+            date: 'string'
+          }
+        },
+        product_variants: {
+          required: ['productId', 'name', 'sku', 'price', 'inventory'],
+          types: {
+            productId: 'string',
+            name: 'string',
+            sku: 'string',
+            price: 'number',
+            inventory: 'number'
+          }
+        },
+        product_bundles: {
+          required: ['name', 'description', 'products', 'discountPercentage'],
+          types: {
+            name: 'string',
+            description: 'string',
+            products: 'array',
+            discountPercentage: 'number'
+          }
+        },
+        product_addons: {
+          required: ['name', 'description', 'price', 'type'],
+          types: {
+            name: 'string',
+            description: 'string',
+            price: 'number',
+            type: 'string'
           }
         }
       }
     });
-
-    this.ai = new ChutesAI(config.chutesApiKey);
   }
 
-  // Authentication methods (inherited from SDK)
-  async register(email: string, password: string, profile = {}) {
-    return this.sdk.register(email, password, profile);
+  async init(): Promise<CommerceSDK> {
+    await this.sdk.init();
+    return this;
   }
 
-  async login(email: string, password: string) {
-    const session = await this.sdk.login(email, password);
-    return session.token; // Return just the token for compatibility
+  // Authentication methods
+  async register(email: string, password: string, profile: any = {}): Promise<User & { id: string; uid: string }> {
+    return await this.sdk.register(email, password, profile);
   }
 
-  getCurrentUser(token: string) {
+  async login(email: string, password: string): Promise<Session> {
+    return await this.sdk.login(email, password);
+  }
+
+  getCurrentUser(token: string): User | null {
     return this.sdk.getCurrentUser(token);
   }
 
-  async logout(token: string) {
-    return this.sdk.destroySession(token);
+  async logout(token: string): Promise<void> {
+    await this.sdk.destroySession(token);
   }
 
   // Product methods
-  async getProducts(filters?: { category?: string; minPrice?: number; maxPrice?: number; featured?: boolean }) {
-    const query = this.sdk.queryBuilder<Product>('products');
+  async getProducts(): Promise<Product[]> {
+    return await this.sdk.get<Product>('products');
+  }
+
+  async searchProducts(query: string): Promise<Product[]> {
+    const products = await this.sdk.get<Product>('products');
+    const searchTerm = query.toLowerCase();
     
-    if (filters) {
-      if (filters.category) {
-        query.where(p => p.category === filters.category);
-      }
-      if (filters.minPrice !== undefined) {
-        query.where(p => p.price >= filters.minPrice!);
-      }
-      if (filters.maxPrice !== undefined) {
-        query.where(p => p.price <= filters.maxPrice!);
-      }
-      if (filters.featured) {
-        query.where(p => p.isFeatured === true);
-      }
-    }
-
-    return query.where(p => p.isActive === true).sort('createdAt', 'desc').exec();
-  }
-
-  async getProduct(productId: string) {
-    return this.sdk.getItem<Product>('products', productId);
-  }
-
-  async createProduct(product: Partial<Product>) {
-    // AI enhancement: generate description if not provided
-    if (product.name && !product.description && product.tags) {
-      const features = product.tags || [];
-      product.description = await this.ai.generateProductDescription(product.name, features, product.category);
-    }
-
-    // AI enhancement: suggest categories
-    if (product.name && product.description && !product.category) {
-      const categories = await this.ai.suggestCategories(product.name, product.description);
-      product.category = categories[0] || 'General';
-    }
-
-    return this.sdk.insert<Product>('products', product);
-  }
-
-  async updateProduct(productId: string, updates: Partial<Product>) {
-    return this.sdk.update<Product>('products', productId, {
-      ...updates,
-      updatedAt: new Date().toISOString()
-    });
-  }
-
-  async deleteProduct(productId: string) {
-    return this.sdk.delete('products', productId);
-  }
-
-  // Affiliate methods
-  async createAffiliate(affiliate: Partial<Affiliate>) {
-    return this.sdk.insert('affiliates', affiliate);
-  }
-
-  async getAffiliate(userId: string) {
-    const affiliates = await this.sdk.get('affiliates');
-    return affiliates.find(affiliate => affiliate.userId === userId) || null;
-  }
-
-  async getAffiliateById(affiliateId: string) {
-    return this.sdk.getItem('affiliates', affiliateId);
-  }
-
-  async updateAffiliate(affiliateId: string, updates: Partial<Affiliate>) {
-    return this.sdk.update('affiliates', affiliateId, updates);
-  }
-
-  async createAffiliateLink(linkData: Partial<AffiliateLink>) {
-    const shortUrl = `${window.location.origin}/aff/${Date.now()}`;
-    return this.sdk.insert('affiliate_links', {
-      ...linkData,
-      shortUrl
-    });
-  }
-
-  async getAffiliateLinks(affiliateId: string) {
-    return this.sdk.queryBuilder('affiliate_links')
-      .where((link: any) => link.affiliateId === affiliateId)
-      .sort('createdAt', 'desc')
-      .exec();
-  }
-
-  async trackAffiliateClick(linkId: string) {
-    const link = await this.sdk.getItem('affiliate_links', linkId);
-    if (link) {
-      await this.sdk.update('affiliate_links', linkId, {
-        clicks: link.clicks + 1
-      });
-    }
-  }
-
-  async createCommission(commissionData: Partial<Commission>) {
-    return this.sdk.insert('commissions', commissionData);
-  }
-
-  async getCommissions(affiliateId: string) {
-    return this.sdk.queryBuilder('commissions')
-      .where((commission: any) => commission.affiliateId === affiliateId)
-      .sort('createdAt', 'desc')
-      .exec();
-  }
-
-  // Marketing methods
-  async createMarketingCampaign(campaign: Partial<MarketingCampaign>) {
-    return this.sdk.insert('marketing_campaigns', campaign);
-  }
-
-  async getMarketingCampaigns(sellerId: string) {
-    return this.sdk.queryBuilder('marketing_campaigns')
-      .where((campaign: any) => campaign.sellerId === sellerId)
-      .sort('createdAt', 'desc')
-      .exec();
-  }
-
-  async updateMarketingCampaign(campaignId: string, updates: Partial<MarketingCampaign>) {
-    return this.sdk.update('marketing_campaigns', campaignId, updates);
-  }
-
-  // Help & CMS methods
-  async getHelpArticles() {
-    return this.sdk.queryBuilder('help_articles')
-      .where((article: any) => article.isPublished === true)
-      .sort('createdAt', 'desc')
-      .exec();
-  }
-
-  async getHelpArticle(slug: string) {
-    const articles = await this.sdk.get('help_articles');
-    return articles.find(article => article.slug === slug) || null;
-  }
-
-  async createHelpArticle(article: any) {
-    return this.sdk.insert('help_articles', article);
-  }
-
-  async updateHelpArticle(articleId: string, updates: any) {
-    return this.sdk.update('help_articles', articleId, {
-      ...updates,
-      updatedAt: new Date().toISOString()
-    });
-  }
-
-  async deleteHelpArticle(articleId: string) {
-    return this.sdk.delete('help_articles', articleId);
-  }
-
-  // Blog methods
-  async getBlogs() {
-    return this.sdk.queryBuilder('blogs')
-      .where((blog: any) => blog.isPublished === true)
-      .sort('createdAt', 'desc')
-      .exec();
-  }
-
-  async getBlog(slug: string) {
-    const blogs = await this.sdk.get('blogs');
-    return blogs.find(blog => blog.slug === slug) || null;
-  }
-
-  async createBlog(blog: any) {
-    return this.sdk.insert('blogs', blog);
-  }
-
-  async updateBlog(blogId: string, updates: any) {
-    return this.sdk.update('blogs', blogId, {
-      ...updates,
-      updatedAt: new Date().toISOString()
-    });
-  }
-
-  async deleteBlog(blogId: string) {
-    return this.sdk.delete('blogs', blogId);
+    return products.filter(product => 
+      product.name.toLowerCase().includes(searchTerm) ||
+      product.description?.toLowerCase().includes(searchTerm) ||
+      product.category?.toLowerCase().includes(searchTerm) ||
+      product.tags?.some(tag => tag.toLowerCase().includes(searchTerm))
+    );
   }
 
   // Cart methods
-  async getCart(userId: string) {
+  async getCart(userId: string): Promise<any> {
     const carts = await this.sdk.get('carts');
-    return carts.find(cart => cart.userId === userId) || null;
-  }
-
-  async addToCart(userId: string, productId: string, quantity: number = 1) {
-    let cart = await this.getCart(userId);
-    
-    if (!cart) {
-      cart = await this.sdk.insert('carts', {
-        userId,
-        items: [{ productId, quantity, addedAt: new Date().toISOString() }]
-      });
-    } else {
-      const existingItem = cart.items.find((item: CartItem) => item.productId === productId);
-      
-      if (existingItem) {
-        existingItem.quantity += quantity;
-      } else {
-        cart.items.push({ productId, quantity, addedAt: new Date().toISOString() });
-      }
-      
-      cart = await this.sdk.update('carts', cart.id, { 
-        items: cart.items,
-        updatedAt: new Date().toISOString()
-      });
-    }
-    
-    return cart;
-  }
-
-  async removeFromCart(userId: string, productId: string) {
-    const cart = await this.getCart(userId);
-    if (!cart) return null;
-
-    cart.items = cart.items.filter((item: CartItem) => item.productId !== productId);
-    
-    return this.sdk.update('carts', cart.id, { 
-      items: cart.items,
-      updatedAt: new Date().toISOString()
-    });
-  }
-
-  async updateCartQuantity(userId: string, productId: string, quantity: number) {
-    const cart = await this.getCart(userId);
-    if (!cart) return null;
-
-    const item = cart.items.find((item: CartItem) => item.productId === productId);
-    if (item) {
-      item.quantity = quantity;
-    }
-
-    return this.sdk.update('carts', cart.id, { 
-      items: cart.items,
-      updatedAt: new Date().toISOString()
-    });
-  }
-
-  async clearCart(userId: string) {
-    const cart = await this.getCart(userId);
-    if (!cart) return null;
-
-    return this.sdk.update('carts', cart.id, { 
-      items: [],
-      updatedAt: new Date().toISOString()
-    });
+    return carts.find((cart: any) => cart.userId === userId) || { items: [] };
   }
 
   // Wishlist methods
-  async getWishlist(userId: string) {
+  async getWishlist(userId: string): Promise<any> {
     const wishlists = await this.sdk.get('wishlists');
-    return wishlists.find(wishlist => wishlist.userId === userId) || null;
-  }
-
-  async addToWishlist(userId: string, productId: string) {
-    let wishlist = await this.getWishlist(userId);
-    
-    if (!wishlist) {
-      wishlist = await this.sdk.insert('wishlists', {
-        userId,
-        items: [{ productId, addedAt: new Date().toISOString() }]
-      });
-    } else {
-      const existingItem = wishlist.items.find(item => item.productId === productId);
-      
-      if (!existingItem) {
-        wishlist.items.push({ productId, addedAt: new Date().toISOString() });
-        wishlist = await this.sdk.update('wishlists', wishlist.id, { 
-          items: wishlist.items,
-          updatedAt: new Date().toISOString()
-        });
-      }
-    }
-    
-    return wishlist;
-  }
-
-  async removeFromWishlist(userId: string, productId: string) {
-    const wishlist = await this.getWishlist(userId);
-    if (!wishlist) return null;
-
-    wishlist.items = wishlist.items.filter(item => item.productId !== productId);
-    
-    return this.sdk.update('wishlists', wishlist.id, { 
-      items: wishlist.items,
-      updatedAt: new Date().toISOString()
-    });
+    return wishlists.find((wishlist: any) => wishlist.userId === userId) || { items: [] };
   }
 
   // Notification methods
-  async getNotifications(userId: string) {
-    return this.sdk.queryBuilder('notifications')
-      .where(notification => notification.userId === userId)
-      .sort('createdAt', 'desc')
-      .exec();
-  }
-
-  async createNotification(notification: Partial<any>) {
-    return this.sdk.insert('notifications', notification);
-  }
-
-  async markNotificationAsRead(notificationId: string) {
-    return this.sdk.update('notifications', notificationId, { 
-      isRead: true,
-      readAt: new Date().toISOString()
-    });
+  async getNotifications(userId: string): Promise<any[]> {
+    const notifications = await this.sdk.get('notifications');
+    return notifications.filter((notification: any) => notification.userId === userId);
   }
 
   // Order methods
-  async createOrder(order: Partial<Order>) {
-    return this.sdk.insert<Order>('orders', order);
+  async getOrders(userId: string): Promise<any[]> {
+    const orders = await this.sdk.get('orders');
+    return orders.filter((order: any) => order.userId === userId);
   }
 
-  async getOrders(userId: string, userType: 'buyer' | 'seller' = 'buyer') {
-    const field = userType === 'buyer' ? 'buyerId' : 'sellerId';
-    return this.sdk.queryBuilder<Order>('orders')
-      .where(order => order[field] === userId)
-      .sort('createdAt', 'desc')
-      .exec();
-  }
-
-  async getOrder(orderId: string) {
-    return this.sdk.getItem<Order>('orders', orderId);
-  }
-
-  async updateOrderStatus(orderId: string, status: Order['status']) {
-    return this.sdk.update<Order>('orders', orderId, { 
-      status,
-      updatedAt: new Date().toISOString()
-    });
-  }
-
-  // Review methods
-  async getProductReviews(productId: string) {
-    return this.sdk.queryBuilder<Review>('reviews')
-      .where(review => review.productId === productId)
-      .sort('createdAt', 'desc')
-      .exec();
-  }
-
-  async createReview(review: Partial<Review>) {
-    // AI content moderation
-    if (review.comment) {
-      const moderation = await this.ai.moderateContent(review.comment, 'review');
-      if (!moderation.safe) {
-        throw new Error(`Review content inappropriate: ${moderation.reason || 'Policy violation detected'}`);
-      }
+  async addToCart(userId: string, productId: string, quantity: number = 1): Promise<any> {
+    const carts = await this.sdk.get('carts');
+    let cart = carts.find((cart: any) => cart.userId === userId);
+    
+    if (!cart) {
+      cart = { userId: userId, items: [] };
+      carts.push(cart);
     }
-
-    const newReview = await this.sdk.insert<Review>('reviews', review);
     
-    // Update product rating
-    await this.updateProductRating(review.productId!);
-    
-    return newReview;
-  }
-
-  private async updateProductRating(productId: string) {
-    const reviews = await this.getProductReviews(productId);
-    const averageRating = reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
-    
-    await this.updateProduct(productId, {
-      rating: Math.round(averageRating * 10) / 10,
-      reviewCount: reviews.length
-    });
-  }
-
-  // Seller methods
-  async createSeller(seller: Partial<Seller>) {
-    return this.sdk.insert<Seller>('sellers', seller);
-  }
-
-  async getSeller(sellerId: string) {
-    return this.sdk.getItem<Seller>('sellers', sellerId);
-  }
-
-  async getSellerByUserId(userId: string) {
-    const sellers = await this.sdk.get<Seller>('sellers');
-    return sellers.find(seller => seller.userId === userId) || null;
-  }
-
-  async updateSeller(sellerId: string, updates: Partial<Seller>) {
-    return this.sdk.update<Seller>('sellers', sellerId, updates);
-  }
-
-  async getSellerProducts(sellerId: string) {
-    return this.sdk.queryBuilder<Product>('products')
-      .where(product => product.sellerId === sellerId)
-      .sort('createdAt', 'desc')
-      .exec();
-  }
-
-  // Category methods
-  async getCategories() {
-    return this.sdk.queryBuilder('categories')
-      .sort('name', 'asc')
-      .exec();
-  }
-
-  async getCategory(slug: string) {
-    const categories = await this.sdk.get('categories');
-    return categories.find(category => category.slug === slug) || null;
-  }
-
-  // Store methods
-  async getStores() {
-    return this.sdk.queryBuilder('stores')
-      .where(store => store.isActive === true)
-      .sort('createdAt', 'desc')
-      .exec();
-  }
-
-  async getStore(slug: string) {
-    const stores = await this.sdk.get('stores');
-    return stores.find(store => store.slug === slug) || null;
-  }
-
-  async getStoreProducts(sellerId: string) {
-    return this.sdk.queryBuilder('products')
-      .where(product => product.sellerId === sellerId && product.isActive === true)
-      .sort('createdAt', 'desc')
-      .exec();
-  }
-
-  // Wallet methods
-  async getWallet(userId: string) {
-    const wallets = await this.sdk.get('wallets');
-    return wallets.find(wallet => wallet.userId === userId) || null;
-  }
-
-  async createWallet(userId: string) {
-    return this.sdk.insert('wallets', {
-      userId,
-      balance: 0,
-      currency: 'NGN'
-    });
-  }
-
-  async updateWalletBalance(userId: string, amount: number, type: 'credit' | 'debit') {
-    let wallet = await this.getWallet(userId);
-    
-    if (!wallet) {
-      wallet = await this.createWallet(userId);
+    const existingItemIndex = cart.items.findIndex((item: any) => item.productId === productId);
+    if (existingItemIndex > -1) {
+      cart.items[existingItemIndex].quantity += quantity;
+    } else {
+      const product = await this.sdk.getItem('products', productId);
+      if (!product) throw new Error('Product not found');
+      cart.items.push({ productId, name: product.name, quantity });
     }
-
-    const newBalance = type === 'credit' 
-      ? wallet.balance + amount 
-      : wallet.balance - amount;
-
-    if (newBalance < 0) {
-      throw new Error('Insufficient wallet balance');
-    }
-
-    return this.sdk.update('wallets', wallet.id, {
-      balance: newBalance,
-      updatedAt: new Date().toISOString()
-    });
-  }
-
-  // Transaction methods
-  async createTransaction(transaction: any) {
-    return this.sdk.insert('transactions', {
-      ...transaction,
-      reference: `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    });
-  }
-
-  async getTransactions(userId: string) {
-    return this.sdk.queryBuilder('transactions')
-      .where(txn => txn.userId === userId)
-      .sort('createdAt', 'desc')
-      .exec();
-  }
-
-  // Crowd Checkout methods
-  async createCrowdCheckout(crowdCheckout: any) {
-    const shareableLink = `${window.location.origin}/crowd-checkout/${crowdCheckout.orderId}?token=${Date.now()}`;
     
-    return this.sdk.insert('crowdCheckouts', {
-      ...crowdCheckout,
-      shareableLink
-    });
+    await this.sdk.save('carts', carts);
+    return cart;
   }
 
-  async getCrowdCheckout(orderId: string) {
-    const crowdCheckouts = await this.sdk.get('crowdCheckouts');
-    return crowdCheckouts.find(cc => cc.orderId === orderId) || null;
-  }
-
-  async contributeToCrowdCheckout(crowdCheckoutId: string, contribution: any) {
-    const crowdCheckout = await this.sdk.getItem('crowdCheckouts', crowdCheckoutId);
-    if (!crowdCheckout) throw new Error('Crowd checkout not found');
-
-    const updatedContributors = [...crowdCheckout.contributors, contribution];
-    const newCurrentAmount = crowdCheckout.currentAmount + contribution.amount;
-
-    return this.sdk.update('crowdCheckouts', crowdCheckoutId, {
-      contributors: updatedContributors,
-      currentAmount: newCurrentAmount,
-      updatedAt: new Date().toISOString()
-    });
-  }
-
-  // AI-powered features
-  async getPersonalizedRecommendations(userId: string) {
-    // Get user's order history
-    const orders = await this.getOrders(userId, 'buyer');
-    const recentPurchases = orders.slice(0, 10).flatMap(order => 
-      order.products.map(item => item.productName)
-    );
-
-    // Simple preference extraction (could be enhanced)
-    const userPreferences = ['electronics', 'books', 'clothing']; // Placeholder
-
-    return this.ai.generateRecommendations(userPreferences, recentPurchases);
-  }
-
-  async getChatbotResponse(userMessage: string, context: string = '') {
-    return this.ai.generateChatbotResponse(userMessage, context);
-  }
-
-  // Analytics methods
-  async getSellerAnalytics(sellerId: string) {
-    const products = await this.getSellerProducts(sellerId);
-    const orders = await this.getOrders(sellerId, 'seller');
+  async removeFromCart(userId: string, productId: string): Promise<any> {
+    const carts = await this.sdk.get('carts');
+    const cart = carts.find((cart: any) => cart.userId === userId);
     
-    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-    const totalOrders = orders.length;
-    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+    if (!cart) return null;
     
-    return {
-      totalProducts: products.length,
-      totalOrders,
-      totalRevenue,
-      averageOrderValue,
-      activeProducts: products.filter(p => p.isActive).length
-    };
-  }
-
-  async getPlatformAnalytics() {
-    const [products, orders, users, sellers] = await Promise.all([
-      this.sdk.get<Product>('products'),
-      this.sdk.get<Order>('orders'),
-      this.sdk.get('users'),
-      this.sdk.get<Seller>('sellers')
-    ]);
-
-    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-    
-    return {
-      totalProducts: products.length,
-      totalOrders: orders.length,
-      totalUsers: users.length,
-      totalSellers: sellers.length,
-      totalRevenue,
-      averageOrderValue: orders.length > 0 ? totalRevenue / orders.length : 0
-    };
-  }
-
-  // Initialize the SDK
-  async init() {
-    return this.sdk.init();
-  }
-
-  // Export the underlying SDK for advanced usage
-  get rawSDK() {
-    return this.sdk;
-  }
-
-  get aiHelper() {
-    return this.ai;
+    cart.items = cart.items.filter((item: any) => item.productId !== productId);
+    await this.sdk.save('carts', carts);
+    return cart;
   }
 
   // Community methods
-  async getPosts() {
-    return this.sdk.get('posts');
+  async getPosts(): Promise<any[]> {
+    return await this.sdk.get('posts');
   }
 
-  async createPost(postData: any) {
-    return this.sdk.insert('posts', postData);
+  async createPost(post: any): Promise<any> {
+    return await this.sdk.insert('posts', post);
   }
 
-  async updatePost(postId: string, updates: any) {
-    return this.sdk.update('posts', postId, updates);
+  async updatePost(id: string, updates: any): Promise<any> {
+    return await this.sdk.update('posts', id, updates);
   }
 
-  async getComments(postId: string) {
-    return this.sdk.queryBuilder('comments')
-      .where((comment: any) => comment.postId === postId)
-      .sort('createdAt', 'desc')
-      .exec();
+  async getComments(postId: string): Promise<any[]> {
+    const comments = await this.sdk.get('comments');
+    return comments.filter((comment: any) => comment.postId === postId);
   }
 
-  async createComment(commentData: any) {
-    return this.sdk.insert('comments', commentData);
+  async createComment(comment: any): Promise<any> {
+    return await this.sdk.insert('comments', comment);
+  }
+
+  async updateComment(id: string, updates: any): Promise<any> {
+    return await this.sdk.update('comments', id, updates);
   }
 }
-
-export default CommerceSDK;

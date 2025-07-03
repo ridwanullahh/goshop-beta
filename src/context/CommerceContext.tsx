@@ -8,6 +8,10 @@ interface CommerceContextType {
   cart: any;
   products: Product[];
   isLoading: boolean;
+  cartItems: any[];
+  wishlistItems: any[];
+  notifications: any[];
+  orders: any[];
   // Auth methods
   login: (email: string, password: string) => Promise<string | { otpRequired: boolean }>;
   register: (email: string, password: string, profile?: any) => Promise<void>;
@@ -32,6 +36,10 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
   const [sessionToken, setSessionToken] = useState<string | null>(
     localStorage.getItem('commerce_token')
   );
+  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [wishlistItems, setWishlistItems] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const { toast } = useToast();
 
   // Initialize SDK
@@ -112,6 +120,31 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
 
     initSDK();
   }, [sessionToken, toast]);
+
+  // Load user-specific data when user changes
+  useEffect(() => {
+    if (currentUser && sdk) {
+      // Load cart items
+      sdk.getCart(currentUser.id).then(cart => {
+        setCartItems(cart?.items || []);
+      }).catch(console.error);
+
+      // Load wishlist items
+      sdk.getWishlist(currentUser.id).then(wishlist => {
+        setWishlistItems(wishlist?.items || []);
+      }).catch(console.error);
+
+      // Load notifications
+      sdk.getNotifications(currentUser.id).then(notifications => {
+        setNotifications(notifications || []);
+      }).catch(console.error);
+
+      // Load orders
+      sdk.getOrders(currentUser.id).then(orders => {
+        setOrders(orders || []);
+      }).catch(console.error);
+    }
+  }, [currentUser, sdk]);
 
   const login = async (email: string, password: string): Promise<string | { otpRequired: boolean }> => {
     if (!sdk) throw new Error('SDK not initialized');
@@ -253,6 +286,10 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
         cart,
         products,
         isLoading,
+        cartItems,
+        wishlistItems,
+        notifications,
+        orders,
         login,
         register,
         logout,
