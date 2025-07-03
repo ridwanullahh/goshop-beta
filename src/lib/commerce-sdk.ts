@@ -20,8 +20,42 @@ export interface Product {
   reviewCount: number;
   isActive: boolean;
   isFeatured: boolean;
+  hasVariants?: boolean;
+  variants?: ProductVariant[];
+  bundles?: ProductBundle[];
+  addons?: ProductAddon[];
+  seoTitle?: string;
+  seoDescription?: string;
+  sku?: string;
+  weight?: number;
+  dimensions?: { length: number; width: number; height: number };
+  shippingClass?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProductVariant {
+  id?: string;
+  name: string;
+  price: number;
+  inventory: number;
+  sku?: string;
+  attributes: Record<string, string>;
+}
+
+export interface ProductBundle {
+  id?: string;
+  name: string;
+  discount: number;
+  products: { productId: string; quantity: number }[];
+}
+
+export interface ProductAddon {
+  id?: string;
+  name: string;
+  price: number;
+  required: boolean;
+  options?: string[];
 }
 
 export interface Order {
@@ -36,6 +70,9 @@ export interface Order {
   paymentMethod: string;
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
   crowdFunding: any;
+  trackingNumber?: string;
+  shippingMethod?: string;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -46,6 +83,8 @@ export interface OrderItem {
   price: number;
   quantity: number;
   subtotal: number;
+  variantId?: string;
+  addons?: { id: string; name: string; price: number }[];
 }
 
 export interface Address {
@@ -59,6 +98,8 @@ export interface Address {
 export interface CartItem {
   productId: string;
   quantity: number;
+  variantId?: string;
+  addons?: string[];
   addedAt: string;
 }
 
@@ -87,12 +128,88 @@ export interface Seller {
   reviewCount: number;
   totalSales: number;
   isVerified: boolean;
+  businessType?: string;
+  taxId?: string;
+  phone?: string;
+  address?: Address;
+  bankDetails?: any;
+  commissionRate?: number;
+  createdAt: string;
+}
+
+export interface Affiliate {
+  id?: string;
+  uid?: string;
+  userId: string;
+  commissionRate: number;
+  totalEarnings: number;
+  isActive: boolean;
+  businessName: string;
+  website?: string;
+  socialMedia?: {
+    instagram?: string;
+    twitter?: string;
+    youtube?: string;
+    tiktok?: string;
+  };
+  audienceSize?: number;
+  niche?: string[];
+  paymentMethod?: 'bank' | 'paypal' | 'crypto';
+  paymentDetails?: any;
+  createdAt: string;
+}
+
+export interface AffiliateLink {
+  id?: string;
+  uid?: string;
+  affiliateId: string;
+  productId?: string;
+  sellerId?: string;
+  campaignId?: string;
+  url: string;
+  shortUrl: string;
+  clicks: number;
+  conversions: number;
+  earnings: number;
+  createdAt: string;
+}
+
+export interface Commission {
+  id?: string;
+  uid?: string;
+  affiliateId: string;
+  orderId: string;
+  amount: number;
+  rate: number;
+  status: 'pending' | 'approved' | 'paid';
+  paidAt?: string;
+  createdAt: string;
+}
+
+export interface MarketingCampaign {
+  id?: string;
+  uid?: string;
+  sellerId: string;
+  name: string;
+  type: 'discount' | 'flash-sale' | 'affiliate' | 'influencer';
+  description: string;
+  discountType?: 'percentage' | 'fixed';
+  discountValue?: number;
+  minPurchase?: number;
+  maxDiscount?: number;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  targetAudience?: string[];
+  budget?: number;
+  spent?: number;
+  conversions?: number;
   createdAt: string;
 }
 
 // Initialize CommerceOS SDK with environment configuration
 class CommerceSDK {
-  private sdk: UniversalSDK;
+  public sdk: UniversalSDK;
   private ai: ChutesAI;
 
   constructor() {
@@ -119,6 +236,24 @@ class CommerceSDK {
       token: config.token,
       branch: config.branch,
       schemas: {
+        users: {
+          required: ['email', 'role'],
+          types: {
+            email: 'string',
+            password: 'string',
+            name: 'string',
+            role: 'string',
+            verified: 'boolean',
+            onboardingCompleted: 'boolean'
+          },
+          defaults: {
+            verified: false,
+            onboardingCompleted: false,
+            role: 'customer',
+            roles: ['customer'],
+            createdAt: new Date().toISOString()
+          }
+        },
         products: {
           required: ['name', 'price', 'category', 'sellerId'],
           types: {
@@ -138,8 +273,12 @@ class CommerceSDK {
             reviewCount: 0,
             isActive: true,
             isFeatured: false,
+            hasVariants: false,
             tags: [],
             images: [],
+            variants: [],
+            bundles: [],
+            addons: [],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           }
@@ -164,6 +303,111 @@ class CommerceSDK {
             updatedAt: new Date().toISOString()
           }
         },
+        affiliates: {
+          required: ['userId', 'commissionRate'],
+          types: {
+            userId: 'string',
+            commissionRate: 'number',
+            totalEarnings: 'number',
+            isActive: 'boolean',
+            businessName: 'string',
+            website: 'string'
+          },
+          defaults: {
+            totalEarnings: 0,
+            isActive: true,
+            businessName: '',
+            website: '',
+            audienceSize: 0,
+            niche: [],
+            createdAt: new Date().toISOString()
+          }
+        },
+        affiliate_links: {
+          required: ['affiliateId', 'url'],
+          types: {
+            affiliateId: 'string',
+            productId: 'string',
+            url: 'string',
+            shortUrl: 'string',
+            clicks: 'number',
+            conversions: 'number',
+            earnings: 'number'
+          },
+          defaults: {
+            clicks: 0,
+            conversions: 0,
+            earnings: 0,
+            createdAt: new Date().toISOString()
+          }
+        },
+        commissions: {
+          required: ['affiliateId', 'orderId', 'amount'],
+          types: {
+            affiliateId: 'string',
+            orderId: 'string',
+            amount: 'number',
+            rate: 'number',
+            status: 'string'
+          },
+          defaults: {
+            status: 'pending',
+            createdAt: new Date().toISOString()
+          }
+        },
+        marketing_campaigns: {
+          required: ['sellerId', 'name', 'type'],
+          types: {
+            sellerId: 'string',
+            name: 'string',
+            type: 'string',
+            description: 'string',
+            isActive: 'boolean'
+          },
+          defaults: {
+            isActive: true,
+            budget: 0,
+            spent: 0,
+            conversions: 0,
+            createdAt: new Date().toISOString()
+          }
+        },
+        help_articles: {
+          required: ['title', 'content'],
+          types: {
+            title: 'string',
+            content: 'string',
+            category: 'string',
+            slug: 'string',
+            isPublished: 'boolean'
+          },
+          defaults: {
+            isPublished: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        },
+        blogs: {
+          required: ['title', 'content'],
+          types: {
+            title: 'string',
+            content: 'string',
+            excerpt: 'string',
+            slug: 'string',
+            authorId: 'string',
+            category: 'string',
+            tags: 'array',
+            featuredImage: 'string',
+            isPublished: 'boolean'
+          },
+          defaults: {
+            isPublished: false,
+            tags: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        },
+        // ... keep existing code (other schemas)
         reviews: {
           required: ['productId', 'buyerId', 'rating'],
           types: {
@@ -189,6 +433,7 @@ class CommerceSDK {
             reviewCount: 0,
             totalSales: 0,
             isVerified: false,
+            commissionRate: 0.05,
             createdAt: new Date().toISOString()
           }
         },
@@ -264,24 +509,6 @@ class CommerceSDK {
             createdAt: new Date().toISOString()
           }
         },
-        affiliates: {
-          required: ['userId', 'commissionRate'],
-          types: {
-            userId: 'string',
-            commissionRate: 'number',
-            totalEarnings: 'number',
-            isActive: 'boolean',
-            businessName: 'string',
-            website: 'string'
-          },
-          defaults: {
-            totalEarnings: 0,
-            isActive: true,
-            businessName: '',
-            website: '',
-            createdAt: new Date().toISOString()
-          }
-        },
         wallets: {
           required: ['userId', 'balance'],
           types: {
@@ -331,6 +558,36 @@ class CommerceSDK {
             message: '',
             shareableLink: '',
             isActive: true,
+            createdAt: new Date().toISOString()
+          }
+        },
+        posts: {
+          required: ['userId', 'content'],
+          types: {
+            userId: 'string',
+            userName: 'string',
+            content: 'string',
+            likes: 'number',
+            comments: 'number'
+          },
+          defaults: {
+            likes: 0,
+            comments: 0,
+            isLiked: false,
+            tags: [],
+            images: [],
+            createdAt: new Date().toISOString()
+          }
+        },
+        comments: {
+          required: ['postId', 'userId', 'content'],
+          types: {
+            postId: 'string',
+            userId: 'string',
+            userName: 'string',
+            content: 'string'
+          },
+          defaults: {
             createdAt: new Date().toISOString()
           }
         }
@@ -411,19 +668,129 @@ class CommerceSDK {
     return this.sdk.delete('products', productId);
   }
 
-  async searchProducts(query: string) {
-    const products = await this.getProducts();
-    const searchTerm = query.toLowerCase();
-    
-    return products.filter(product => 
-      product.name.toLowerCase().includes(searchTerm) ||
-      product.description.toLowerCase().includes(searchTerm) ||
-      product.tags.some(tag => tag.toLowerCase().includes(searchTerm))
-    );
+  // Affiliate methods
+  async createAffiliate(affiliate: Partial<Affiliate>) {
+    return this.sdk.insert('affiliates', affiliate);
   }
 
-  async getSearchSuggestions(query: string) {
-    return this.ai.generateSearchSuggestions(query);
+  async getAffiliate(userId: string) {
+    const affiliates = await this.sdk.get('affiliates');
+    return affiliates.find(affiliate => affiliate.userId === userId) || null;
+  }
+
+  async getAffiliateById(affiliateId: string) {
+    return this.sdk.getItem('affiliates', affiliateId);
+  }
+
+  async updateAffiliate(affiliateId: string, updates: Partial<Affiliate>) {
+    return this.sdk.update('affiliates', affiliateId, updates);
+  }
+
+  async createAffiliateLink(linkData: Partial<AffiliateLink>) {
+    const shortUrl = `${window.location.origin}/aff/${Date.now()}`;
+    return this.sdk.insert('affiliate_links', {
+      ...linkData,
+      shortUrl
+    });
+  }
+
+  async getAffiliateLinks(affiliateId: string) {
+    return this.sdk.queryBuilder('affiliate_links')
+      .where((link: any) => link.affiliateId === affiliateId)
+      .sort('createdAt', 'desc')
+      .exec();
+  }
+
+  async trackAffiliateClick(linkId: string) {
+    const link = await this.sdk.getItem('affiliate_links', linkId);
+    if (link) {
+      await this.sdk.update('affiliate_links', linkId, {
+        clicks: link.clicks + 1
+      });
+    }
+  }
+
+  async createCommission(commissionData: Partial<Commission>) {
+    return this.sdk.insert('commissions', commissionData);
+  }
+
+  async getCommissions(affiliateId: string) {
+    return this.sdk.queryBuilder('commissions')
+      .where((commission: any) => commission.affiliateId === affiliateId)
+      .sort('createdAt', 'desc')
+      .exec();
+  }
+
+  // Marketing methods
+  async createMarketingCampaign(campaign: Partial<MarketingCampaign>) {
+    return this.sdk.insert('marketing_campaigns', campaign);
+  }
+
+  async getMarketingCampaigns(sellerId: string) {
+    return this.sdk.queryBuilder('marketing_campaigns')
+      .where((campaign: any) => campaign.sellerId === sellerId)
+      .sort('createdAt', 'desc')
+      .exec();
+  }
+
+  async updateMarketingCampaign(campaignId: string, updates: Partial<MarketingCampaign>) {
+    return this.sdk.update('marketing_campaigns', campaignId, updates);
+  }
+
+  // Help & CMS methods
+  async getHelpArticles() {
+    return this.sdk.queryBuilder('help_articles')
+      .where((article: any) => article.isPublished === true)
+      .sort('createdAt', 'desc')
+      .exec();
+  }
+
+  async getHelpArticle(slug: string) {
+    const articles = await this.sdk.get('help_articles');
+    return articles.find(article => article.slug === slug) || null;
+  }
+
+  async createHelpArticle(article: any) {
+    return this.sdk.insert('help_articles', article);
+  }
+
+  async updateHelpArticle(articleId: string, updates: any) {
+    return this.sdk.update('help_articles', articleId, {
+      ...updates,
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  async deleteHelpArticle(articleId: string) {
+    return this.sdk.delete('help_articles', articleId);
+  }
+
+  // Blog methods
+  async getBlogs() {
+    return this.sdk.queryBuilder('blogs')
+      .where((blog: any) => blog.isPublished === true)
+      .sort('createdAt', 'desc')
+      .exec();
+  }
+
+  async getBlog(slug: string) {
+    const blogs = await this.sdk.get('blogs');
+    return blogs.find(blog => blog.slug === slug) || null;
+  }
+
+  async createBlog(blog: any) {
+    return this.sdk.insert('blogs', blog);
+  }
+
+  async updateBlog(blogId: string, updates: any) {
+    return this.sdk.update('blogs', blogId, {
+      ...updates,
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  async deleteBlog(blogId: string) {
+    return this.sdk.delete('blogs', blogId);
   }
 
   // Cart methods
@@ -669,16 +1036,6 @@ class CommerceSDK {
       .where(product => product.sellerId === sellerId && product.isActive === true)
       .sort('createdAt', 'desc')
       .exec();
-  }
-
-  // Affiliate methods
-  async createAffiliate(affiliate: Partial<any>) {
-    return this.sdk.insert('affiliates', affiliate);
-  }
-
-  async getAffiliate(userId: string) {
-    const affiliates = await this.sdk.get('affiliates');
-    return affiliates.find(affiliate => affiliate.userId === userId) || null;
   }
 
   // Wallet methods

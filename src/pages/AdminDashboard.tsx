@@ -1,11 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useCommerce } from '@/context/CommerceContext';
+import { toast } from 'sonner';
 import { 
   Users, 
   Store, 
@@ -20,89 +22,183 @@ import {
   Filter,
   Eye,
   Ban,
-  CheckCircle
+  CheckCircle,
+  Edit,
+  Trash2,
+  Plus,
+  FileText,
+  MessageSquare,
+  Star,
+  Package
 } from 'lucide-react';
 
 const AdminDashboard = () => {
-  const { products } = useCommerce();
-  const [activeTab, setActiveTab] = useState('overview');
+  const { currentUser, sdk } = useCommerce();
+  const [activeSection, setActiveSection] = useState('overview');
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Mock admin data - in production, this would come from your SDK
-  const mockPlatformStats = {
-    totalUsers: 15420,
-    totalSellers: 1250,
-    totalRevenue: 2450000,
-    totalOrders: 45670,
-    monthlyGrowth: 12.5,
-    activeDisputes: 8,
-    pendingReviews: 23
+  // State for different admin sections
+  const [users, setUsers] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [sellers, setSellers] = useState([]);
+  const [affiliates, setAffiliates] = useState([]);
+  const [helpArticles, setHelpArticles] = useState([]);
+  const [blogs, setBlogs] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
+
+  // Modal states
+  const [showCreateArticle, setShowCreateArticle] = useState(false);
+  const [showCreateBlog, setShowCreateBlog] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+
+  // Form states
+  const [articleForm, setArticleForm] = useState({
+    title: '',
+    content: '',
+    category: '',
+    slug: '',
+    isPublished: false
+  });
+
+  const [blogForm, setBlogForm] = useState({
+    title: '',
+    content: '',
+    excerpt: '',
+    slug: '',
+    category: '',
+    tags: '',
+    featuredImage: '',
+    isPublished: false
+  });
+
+  useEffect(() => {
+    if (currentUser && sdk) {
+      fetchAdminData();
+    }
+  }, [currentUser, sdk]);
+
+  const fetchAdminData = async () => {
+    if (!sdk) return;
+    
+    setLoading(true);
+    try {
+      const [
+        usersData,
+        productsData,
+        ordersData,
+        sellersData,
+        affiliatesData,
+        helpArticlesData,
+        blogsData,
+        analyticsData
+      ] = await Promise.all([
+        sdk.sdk.get('users'),
+        sdk.sdk.get('products'),
+        sdk.sdk.get('orders'),
+        sdk.sdk.get('sellers'),
+        sdk.sdk.get('affiliates'),
+        sdk.getHelpArticles(),
+        sdk.getBlogs(),
+        sdk.getPlatformAnalytics()
+      ]);
+
+      setUsers(usersData);
+      setProducts(productsData);
+      setOrders(ordersData);
+      setSellers(sellersData);
+      setAffiliates(affiliatesData);
+      setHelpArticles(helpArticlesData);
+      setBlogs(blogsData);
+      setAnalytics(analyticsData);
+
+    } catch (error) {
+      console.error('Error fetching admin data:', error);
+      toast.error('Failed to load admin data');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const mockUsers = [
-    {
-      id: '1',
-      name: 'Ahmad Khan',
-      email: 'ahmad@example.com',
-      role: 'buyer',
-      status: 'active',
-      joinDate: '2024-01-15',
-      orders: 12,
-      spent: 1250.00
-    },
-    {
-      id: '2',
-      name: 'Fatima Store',
-      email: 'fatima@store.com',
-      role: 'seller',
-      status: 'active',
-      joinDate: '2024-01-10',
-      orders: 45,
-      revenue: 8750.00
-    },
-    {
-      id: '3',
-      name: 'Omar Electronics',
-      email: 'omar@electronics.com',
-      role: 'seller',
-      status: 'pending',
-      joinDate: '2024-01-20',
-      orders: 0,
-      revenue: 0
-    }
-  ];
+  const handleCreateHelpArticle = async () => {
+    if (!sdk) return;
 
-  const mockDisputes = [
-    {
-      id: '1',
-      orderId: 'CO-2024-001',
-      buyer: 'Ahmad Khan',
-      seller: 'TechCorp',
-      reason: 'Product not as described',
-      status: 'open',
-      date: '2024-01-18',
-      amount: 299.99
-    },
-    {
-      id: '2',
-      orderId: 'CO-2024-002',
-      buyer: 'Sarah Ali',
-      seller: 'FitTech',
-      reason: 'Delayed shipping',
-      status: 'resolved',
-      date: '2024-01-16',
-      amount: 199.99
+    try {
+      await sdk.createHelpArticle({
+        ...articleForm,
+        authorId: currentUser?.id,
+        slug: articleForm.slug || articleForm.title.toLowerCase().replace(/\s+/g, '-')
+      });
+      
+      toast.success('Help article created successfully');
+      setArticleForm({ title: '', content: '', category: '', slug: '', isPublished: false });
+      setShowCreateArticle(false);
+      fetchAdminData();
+    } catch (error) {
+      console.error('Error creating help article:', error);
+      toast.error('Failed to create help article');
     }
-  ];
+  };
+
+  const handleCreateBlog = async () => {
+    if (!sdk) return;
+
+    try {
+      await sdk.createBlog({
+        ...blogForm,
+        authorId: currentUser?.id,
+        slug: blogForm.slug || blogForm.title.toLowerCase().replace(/\s+/g, '-'),
+        tags: blogForm.tags.split(',').map(tag => tag.trim()).filter(Boolean)
+      });
+      
+      toast.success('Blog post created successfully');
+      setBlogForm({ 
+        title: '', content: '', excerpt: '', slug: '', category: '', 
+        tags: '', featuredImage: '', isPublished: false 
+      });
+      setShowCreateBlog(false);
+      fetchAdminData();
+    } catch (error) {
+      console.error('Error creating blog post:', error);
+      toast.error('Failed to create blog post');
+    }
+  };
+
+  const handleUpdateItemStatus = async (collection: string, itemId: string, updates: any) => {
+    if (!sdk) return;
+
+    try {
+      await sdk.sdk.update(collection, itemId, updates);
+      toast.success('Status updated successfully');
+      fetchAdminData();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Failed to update status');
+    }
+  };
+
+  const handleDeleteItem = async (collection: string, itemId: string, itemName: string) => {
+    if (!sdk || !confirm(`Are you sure you want to delete "${itemName}"?`)) return;
+
+    try {
+      await sdk.sdk.delete(collection, itemId);
+      toast.success('Item deleted successfully');
+      fetchAdminData();
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      toast.error('Failed to delete item');
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
       active: 'bg-green-100 text-green-800',
       pending: 'bg-yellow-100 text-yellow-800',
       suspended: 'bg-red-100 text-red-800',
-      open: 'bg-red-100 text-red-800',
-      resolved: 'bg-green-100 text-green-800',
-      investigating: 'bg-blue-100 text-blue-800'
+      verified: 'bg-blue-100 text-blue-800',
+      published: 'bg-green-100 text-green-800',
+      draft: 'bg-gray-100 text-gray-800'
     };
 
     return (
@@ -112,79 +208,113 @@ const AdminDashboard = () => {
     );
   };
 
-  const filteredUsers = mockUsers.filter(user => 
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsers = users.filter((user: any) => 
+    user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const menuItems = [
+    { id: 'overview', label: 'Overview', icon: BarChart3 },
+    { id: 'users', label: 'Users', icon: Users },
+    { id: 'sellers', label: 'Sellers', icon: Store },
+    { id: 'affiliates', label: 'Affiliates', icon: TrendingUp },
+    { id: 'products', label: 'Products', icon: Package },
+    { id: 'orders', label: 'Orders', icon: ShoppingCart },
+    { id: 'help', label: 'Help Center', icon: FileText },
+    { id: 'blog', label: 'Blog', icon: MessageSquare },
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading admin dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
+      <div className="container mx-auto px-4 py-6">
+        <div className="mb-6">
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <p className="text-muted-foreground mt-2">Platform management and analytics</p>
+          <p className="text-muted-foreground">Platform management and analytics</p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="overview" className="flex items-center space-x-2">
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Overview</span>
-            </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center space-x-2">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Users</span>
-            </TabsTrigger>
-            <TabsTrigger value="sellers" className="flex items-center space-x-2">
-              <Store className="h-4 w-4" />
-              <span className="hidden sm:inline">Sellers</span>
-            </TabsTrigger>
-            <TabsTrigger value="products" className="flex items-center space-x-2">
-              <ShoppingCart className="h-4 w-4" />
-              <span className="hidden sm:inline">Products</span>
-            </TabsTrigger>
-            <TabsTrigger value="disputes" className="flex items-center space-x-2">
-              <AlertTriangle className="h-4 w-4" />
-              <span className="hidden sm:inline">Disputes</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center space-x-2">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Settings</span>
-            </TabsTrigger>
-          </TabsList>
+        {/* Mobile Navigation */}
+        <div className="flex overflow-x-auto space-x-2 mb-6 pb-2 md:hidden">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Button
+                key={item.id}
+                variant={activeSection === item.id ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveSection(item.id)}
+                className="flex items-center space-x-2 whitespace-nowrap"
+              >
+                <Icon className="h-4 w-4" />
+                <span>{item.label}</span>
+              </Button>
+            );
+          })}
+        </div>
 
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex md:space-x-2 mb-6">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Button
+                key={item.id}
+                variant={activeSection === item.id ? 'default' : 'outline'}
+                onClick={() => setActiveSection(item.id)}
+                className="flex items-center space-x-2"
+              >
+                <Icon className="h-4 w-4" />
+                <span>{item.label}</span>
+              </Button>
+            );
+          })}
+        </div>
+
+        {/* Overview Section */}
+        {activeSection === 'overview' && (
+          <div className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Users</CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{mockPlatformStats.totalUsers.toLocaleString()}</div>
-                  <p className="text-xs text-muted-foreground">+{mockPlatformStats.monthlyGrowth}% from last month</p>
+                  <div className="text-2xl font-bold">{analytics?.totalUsers || 0}</div>
+                  <p className="text-xs text-muted-foreground">Platform users</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Sellers</CardTitle>
-                  <Store className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{mockPlatformStats.totalSellers.toLocaleString()}</div>
-                  <p className="text-xs text-muted-foreground">Platform merchants</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Platform Revenue</CardTitle>
+                  <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">${(mockPlatformStats.totalRevenue / 1000000).toFixed(1)}M</div>
-                  <p className="text-xs text-muted-foreground">Total GMV</p>
+                  <div className="text-2xl font-bold">${analytics?.totalRevenue?.toFixed(2) || '0.00'}</div>
+                  <p className="text-xs text-muted-foreground">Platform earnings</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{analytics?.totalProducts || 0}</div>
+                  <p className="text-xs text-muted-foreground">Active listings</p>
                 </CardContent>
               </Card>
 
@@ -194,101 +324,45 @@ const AdminDashboard = () => {
                   <ShoppingCart className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{mockPlatformStats.totalOrders.toLocaleString()}</div>
-                  <p className="text-xs text-muted-foreground">All-time orders</p>
+                  <div className="text-2xl font-bold">{analytics?.totalOrders || 0}</div>
+                  <p className="text-xs text-muted-foreground">All orders</p>
                 </CardContent>
               </Card>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Platform Health</CardTitle>
-                  <CardDescription>Key metrics and alerts</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <AlertTriangle className="h-5 w-5 text-orange-500" />
-                        <div>
-                          <p className="font-medium">Active Disputes</p>
-                          <p className="text-sm text-muted-foreground">Require attention</p>
-                        </div>
-                      </div>
-                      <Badge variant="destructive">{mockPlatformStats.activeDisputes}</Badge>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <Shield className="h-5 w-5 text-blue-500" />
-                        <div>
-                          <p className="font-medium">Pending Reviews</p>
-                          <p className="text-sm text-muted-foreground">Content moderation</p>
-                        </div>
-                      </div>
-                      <Badge variant="secondary">{mockPlatformStats.pendingReviews}</Badge>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <TrendingUp className="h-5 w-5 text-green-500" />
-                        <div>
-                          <p className="font-medium">Growth Rate</p>
-                          <p className="text-sm text-muted-foreground">Monthly user growth</p>
-                        </div>
-                      </div>
-                      <Badge className="bg-green-100 text-green-800">+{mockPlatformStats.monthlyGrowth}%</Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Latest platform events</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-start space-x-3 p-4 border rounded-lg">
-                      <Users className="h-5 w-5 text-blue-500 mt-1" />
+            {/* Recent Activity */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>Latest platform events</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {orders.slice(0, 5).map((order: any) => (
+                    <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
-                        <p className="font-medium">New seller registered</p>
-                        <p className="text-sm text-muted-foreground">Omar Electronics joined the platform</p>
-                        <p className="text-xs text-muted-foreground">2 hours ago</p>
+                        <p className="font-medium">New Order #{order.id}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(order.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        {getStatusBadge(order.status)}
+                        <p className="text-sm font-medium mt-1">${order.total}</p>
                       </div>
                     </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
-                    <div className="flex items-start space-x-3 p-4 border rounded-lg">
-                      <AlertTriangle className="h-5 w-5 text-orange-500 mt-1" />
-                      <div>
-                        <p className="font-medium">Dispute opened</p>
-                        <p className="text-sm text-muted-foreground">Order CO-2024-001 - Product not as described</p>
-                        <p className="text-xs text-muted-foreground">4 hours ago</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start space-x-3 p-4 border rounded-lg">
-                      <CheckCircle className="h-5 w-5 text-green-500 mt-1" />
-                      <div>
-                        <p className="font-medium">Product approved</p>
-                        <p className="text-sm text-muted-foreground">Wireless Headphones Pro cleared moderation</p>
-                        <p className="text-xs text-muted-foreground">6 hours ago</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="users" className="space-y-6">
+        {/* Users Management */}
+        {activeSection === 'users' && (
+          <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold">User Management</h2>
-                <p className="text-muted-foreground">Manage platform users and their accounts</p>
-              </div>
+              <h2 className="text-2xl font-bold">User Management</h2>
               <div className="flex space-x-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -299,130 +373,38 @@ const AdminDashboard = () => {
                     className="pl-10"
                   />
                 </div>
-                <Button variant="outline">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filter
-                </Button>
               </div>
             </div>
 
             <Card>
-              <CardHeader>
-                <CardTitle>All Users</CardTitle>
-                <CardDescription>Platform users and their activity</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {filteredUsers.map((user) => (
-                    <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+              <CardContent className="p-0">
+                <div className="space-y-0">
+                  {filteredUsers.map((user: any) => (
+                    <div key={user.id} className="flex items-center justify-between p-6 border-b last:border-b-0">
                       <div className="flex items-center space-x-4">
                         <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
                           <Users className="h-5 w-5" />
                         </div>
                         <div>
-                          <h3 className="font-semibold">{user.name}</h3>
+                          <h3 className="font-semibold">{user.name || 'No Name'}</h3>
                           <p className="text-sm text-muted-foreground">{user.email}</p>
                           <div className="flex items-center space-x-2 mt-1">
                             <Badge variant="outline">{user.role}</Badge>
-                            {getStatusBadge(user.status)}
+                            {user.verified && getStatusBadge('verified')}
                           </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">
-                          {user.role === 'buyer' ? `${user.orders} orders` : `${user.orders} sales`}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          ${user.role === 'buyer' ? user.spent.toFixed(2) : user.revenue.toFixed(2)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Joined {user.joinDate}</p>
-                        <div className="flex space-x-2 mt-3">
-                          <Button size="sm" variant="outline">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            <Ban className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="sellers" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Seller Management</CardTitle>
-                <CardDescription>Monitor and manage seller accounts</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {mockUsers.filter(user => user.role === 'seller').map((seller) => (
-                    <div key={seller.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
-                          <Store className="h-6 w-6" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold">{seller.name}</h3>
-                          <p className="text-sm text-muted-foreground">{seller.email}</p>
-                          <div className="flex items-center space-x-2 mt-1">
-                            {getStatusBadge(seller.status)}
-                            <span className="text-xs text-muted-foreground">Since {seller.joinDate}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold">${seller.revenue.toFixed(2)} revenue</p>
-                        <p className="text-sm text-muted-foreground">{seller.orders} orders</p>
-                        <div className="flex space-x-2 mt-3">
-                          <Button size="sm" variant="outline">View Store</Button>
-                          {seller.status === 'pending' && (
-                            <>
-                              <Button size="sm">Approve</Button>
-                              <Button size="sm" variant="outline">Reject</Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="products" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Product Moderation</CardTitle>
-                <CardDescription>Review and moderate product listings</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {products.slice(0, 5).map((product) => (
-                    <div key={product.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <img 
-                          src={product.images[0]} 
-                          alt={product.name}
-                          className="w-16 h-16 object-cover rounded"
-                        />
-                        <div>
-                          <h3 className="font-semibold">{product.name}</h3>
-                          <p className="text-sm text-muted-foreground">by {product.sellerName}</p>
-                          <p className="text-sm text-muted-foreground">{product.category} • ${product.price}</p>
-                          <Badge className="mt-1 bg-green-100 text-green-800">Active</Badge>
                         </div>
                       </div>
                       <div className="flex space-x-2">
                         <Button size="sm" variant="outline">
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button size="sm" variant="outline">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleUpdateItemStatus('users', user.id, { 
+                            suspended: !user.suspended 
+                          })}
+                        >
                           <Ban className="h-4 w-4" />
                         </Button>
                       </div>
@@ -431,98 +413,223 @@ const AdminDashboard = () => {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="disputes" className="space-y-6">
+        {/* Help Center Management */}
+        {activeSection === 'help' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Help Center</h2>
+              <Button onClick={() => setShowCreateArticle(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                New Article
+              </Button>
+            </div>
+
+            {showCreateArticle && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Create Help Article</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>Title</Label>
+                      <Input
+                        value={articleForm.title}
+                        onChange={(e) => setArticleForm({...articleForm, title: e.target.value})}
+                        placeholder="Article title"
+                      />
+                    </div>
+                    <div>
+                      <Label>Category</Label>
+                      <Input
+                        value={articleForm.category}
+                        onChange={(e) => setArticleForm({...articleForm, category: e.target.value})}
+                        placeholder="Category"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Content</Label>
+                    <Textarea
+                      value={articleForm.content}
+                      onChange={(e) => setArticleForm({...articleForm, content: e.target.value})}
+                      placeholder="Article content"
+                      rows={8}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={articleForm.isPublished}
+                      onChange={(e) => setArticleForm({...articleForm, isPublished: e.target.checked})}
+                    />
+                    <Label>Publish immediately</Label>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button onClick={handleCreateHelpArticle}>Create Article</Button>
+                    <Button variant="outline" onClick={() => setShowCreateArticle(false)}>Cancel</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
-                <CardTitle>Dispute Resolution</CardTitle>
-                <CardDescription>Manage customer disputes and conflicts</CardDescription>
+                <CardTitle>Help Articles</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockDisputes.map((dispute) => (
-                    <div key={dispute.id} className="border rounded-lg p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h3 className="font-semibold">Order {dispute.orderId}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {dispute.buyer} vs {dispute.seller}
-                          </p>
-                          <p className="text-sm text-muted-foreground">Filed on {dispute.date}</p>
-                        </div>
-                        <div className="text-right">
-                          {getStatusBadge(dispute.status)}
-                          <p className="font-semibold mt-2">${dispute.amount}</p>
-                        </div>
+                  {helpArticles.map((article: any) => (
+                    <div key={article.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h3 className="font-semibold">{article.title}</h3>
+                        <p className="text-sm text-muted-foreground">{article.category}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(article.createdAt).toLocaleDateString()}
+                        </p>
                       </div>
-                      
-                      <div className="bg-muted/50 p-4 rounded-lg mb-4">
-                        <p className="font-medium">Reason:</p>
-                        <p className="text-sm">{dispute.reason}</p>
-                      </div>
-                      
-                      <div className="flex space-x-2">
-                        {dispute.status === 'open' && (
-                          <>
-                            <Button size="sm">Investigate</Button>
-                            <Button size="sm" variant="outline">Contact Buyer</Button>
-                            <Button size="sm" variant="outline">Contact Seller</Button>
-                          </>
-                        )}
-                        <Button size="sm" variant="outline">View Details</Button>
+                      <div className="flex items-center space-x-2">
+                        {getStatusBadge(article.isPublished ? 'published' : 'draft')}
+                        <Button size="sm" variant="outline">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleDeleteItem('help_articles', article.id, article.title)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
+                  {helpArticles.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">No help articles yet</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="settings" className="space-y-6">
+        {/* Blog Management */}
+        {activeSection === 'blog' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Blog Management</h2>
+              <Button onClick={() => setShowCreateBlog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                New Post
+              </Button>
+            </div>
+
+            {showCreateBlog && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Create Blog Post</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>Title</Label>
+                      <Input
+                        value={blogForm.title}
+                        onChange={(e) => setBlogForm({...blogForm, title: e.target.value})}
+                        placeholder="Blog post title"
+                      />
+                    </div>
+                    <div>
+                      <Label>Category</Label>
+                      <Input
+                        value={blogForm.category}
+                        onChange={(e) => setBlogForm({...blogForm, category: e.target.value})}
+                        placeholder="Category"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Excerpt</Label>
+                    <Textarea
+                      value={blogForm.excerpt}
+                      onChange={(e) => setBlogForm({...blogForm, excerpt: e.target.value})}
+                      placeholder="Brief description"
+                      rows={3}
+                    />
+                  </div>
+                  <div>
+                    <Label>Content</Label>
+                    <Textarea
+                      value={blogForm.content}
+                      onChange={(e) => setBlogForm({...blogForm, content: e.target.value})}
+                      placeholder="Blog post content"
+                      rows={10}
+                    />
+                  </div>
+                  <div>
+                    <Label>Tags (comma separated)</Label>
+                    <Input
+                      value={blogForm.tags}
+                      onChange={(e) => setBlogForm({...blogForm, tags: e.target.value})}
+                      placeholder="tag1, tag2, tag3"
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={blogForm.isPublished}
+                      onChange={(e) => setBlogForm({...blogForm, isPublished: e.target.checked})}
+                    />
+                    <Label>Publish immediately</Label>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button onClick={handleCreateBlog}>Create Post</Button>
+                    <Button variant="outline" onClick={() => setShowCreateBlog(false)}>Cancel</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
-                <CardTitle>Platform Settings</CardTitle>
-                <CardDescription>Configure platform-wide settings</CardDescription>
+                <CardTitle>Blog Posts</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <h3 className="font-semibold mb-4">Commission Settings</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium">Platform Fee (%)</label>
-                      <Input type="number" defaultValue="5" />
+              <CardContent>
+                <div className="space-y-4">
+                  {blogs.map((blog: any) => (
+                    <div key={blog.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h3 className="font-semibold">{blog.title}</h3>
+                        <p className="text-sm text-muted-foreground">{blog.category}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(blog.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {getStatusBadge(blog.isPublished ? 'published' : 'draft')}
+                        <Button size="sm" variant="outline">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleDeleteItem('blogs', blog.id, blog.title)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium">Payment Processing Fee (%)</label>
-                      <Input type="number" defaultValue="2.9" />
-                    </div>
-                  </div>
+                  ))}
+                  {blogs.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">No blog posts yet</p>
+                  )}
                 </div>
-
-                <div>
-                  <h3 className="font-semibold mb-4">Content Moderation</h3>
-                  <div className="space-y-2">
-                    <label className="flex items-center space-x-2">
-                      <input type="checkbox" defaultChecked />
-                      <span className="text-sm">Auto-moderate product listings</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input type="checkbox" defaultChecked />
-                      <span className="text-sm">Review seller applications</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input type="checkbox" />
-                      <span className="text-sm">Enable AI content filtering</span>
-                    </label>
-                  </div>
-                </div>
-
-                <Button>Save Settings</Button>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </div>
     </div>
   );

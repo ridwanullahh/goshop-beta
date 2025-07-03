@@ -1,123 +1,192 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { CommerceProvider } from "@/context/CommerceContext";
-import { BottomNavigation } from "@/components/BottomNavigation";
-import Index from "./pages/Index";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Products from "./pages/Products";
-import ProductDetail from "./pages/ProductDetail";
-import Cart from "./pages/Cart";
-import Categories from "./pages/Categories";
-import CategoryDetail from "./pages/CategoryDetail";
-import StoresDirectory from "./pages/StoresDirectory";
-import StoreDetail from "./pages/StoreDetail";
-import CustomerDashboard from "./pages/CustomerDashboard";
-import SellerDashboard from "./pages/SellerDashboard";
-import AdminDashboard from "./pages/AdminDashboard";
-import CustomerOnboarding from "./pages/CustomerOnboarding";
-import SellerOnboarding from "./pages/SellerOnboarding";
-import LiveShopping from "./pages/LiveShopping";
-import CommunityHub from "./pages/CommunityHub";
-import NotFound from "./pages/NotFound";
-import Wishlist from "./pages/Wishlist";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
-import AffiliateDashboard from "./pages/AffiliateDashboard";
-import AffiliateOnboarding from "./pages/AffiliateOnboarding";
-import Checkout from "./pages/Checkout";
-import HelpCenter from "./pages/HelpCenter";
-import TrackOrder from "./pages/TrackOrder";
-import ReturnsRefunds from "./pages/ReturnsRefunds";
-import ShippingInfo from "./pages/ShippingInfo";
-import ContactUs from "./pages/ContactUs";
 
-const queryClient = new QueryClient();
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { CommerceProvider } from '@/context/CommerceContext';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { Toaster } from 'sonner';
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <CommerceProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <div className="min-h-screen pb-16 md:pb-0">
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/products" element={<Products />} />
-              <Route path="/products/:productId" element={<ProductDetail />} />
-              <Route path="/categories" element={<Categories />} />
-              <Route path="/categories/:categorySlug" element={<CategoryDetail />} />
-              <Route path="/stores" element={<StoresDirectory />} />
-              <Route path="/stores/:storeSlug" element={<StoreDetail />} />
-              <Route path="/cart" element={<Cart />} />
-              <Route path="/checkout" element={<Checkout />} />
-              <Route path="/wishlist" element={<Wishlist />} />
-              <Route path="/live" element={<LiveShopping />} />
-              <Route path="/community" element={<CommunityHub />} />
-              <Route path="/help" element={<HelpCenter />} />
-              <Route path="/track-order" element={<TrackOrder />} />
-              <Route path="/returns-refunds" element={<ReturnsRefunds />} />
-              <Route path="/shipping-info" element={<ShippingInfo />} />
-              <Route path="/contact" element={<ContactUs />} />
-              
-              {/* Protected Dashboard Routes */}
-              <Route path="/customer-dashboard" element={
-                <ProtectedRoute requireAuth allowedRoles={['customer', 'buyer']}>
-                  <CustomerDashboard />
+// Import all pages
+import Home from '@/pages/Home';
+import Products from '@/pages/Products';
+import ProductDetails from '@/pages/ProductDetails';
+import Cart from '@/pages/Cart';
+import Checkout from '@/pages/Checkout';
+import Login from '@/pages/Login';
+import Signup from '@/pages/Signup';
+import Profile from '@/pages/Profile';
+import Orders from '@/pages/Orders';
+import Wishlist from '@/pages/Wishlist';
+import Search from '@/pages/Search';
+import Category from '@/pages/Category';
+import Store from '@/pages/Store';
+import Stores from '@/pages/Stores';
+import Help from '@/pages/Help';
+import CommunityHub from '@/pages/CommunityHub';
+import LiveShopping from '@/pages/LiveShopping';
+import TrackOrder from '@/pages/TrackOrder';
+import ReturnsRefunds from '@/pages/ReturnsRefunds';
+import ShippingInfo from '@/pages/ShippingInfo';
+import ContactUs from '@/pages/ContactUs';
+import BlogArchive from '@/pages/BlogArchive';
+import BlogSingle from '@/pages/BlogSingle';
+import HelpArticle from '@/pages/HelpArticle';
+import CrowdCheckout from '@/pages/CrowdCheckout';
+
+// Dashboard pages
+import AdminDashboard from '@/pages/AdminDashboard';
+import SellerDashboard from '@/pages/SellerDashboard';
+import CustomerDashboard from '@/pages/CustomerDashboard';
+import AffiliateDashboard from '@/pages/AffiliateDashboard';
+
+// Onboarding pages
+import SellerOnboarding from '@/pages/SellerOnboarding';
+import AffiliateOnboarding from '@/pages/AffiliateOnboarding';
+
+function App() {
+  return (
+    <CommerceProvider>
+      <Router>
+        <div className="min-h-screen bg-background">
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="/product/:id" element={<ProductDetails />} />
+            <Route path="/search" element={<Search />} />
+            <Route path="/category/:slug" element={<Category />} />
+            <Route path="/store/:slug" element={<Store />} />
+            <Route path="/stores" element={<Stores />} />
+            <Route path="/community" element={<CommunityHub />} />
+            <Route path="/live" element={<LiveShopping />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/help/:slug" element={<HelpArticle />} />
+            <Route path="/blog" element={<BlogArchive />} />
+            <Route path="/blog/:slug" element={<BlogSingle />} />
+            <Route path="/track-order" element={<TrackOrder />} />
+            <Route path="/returns-refunds" element={<ReturnsRefunds />} />
+            <Route path="/shipping-info" element={<ShippingInfo />} />
+            <Route path="/contact" element={<ContactUs />} />
+            <Route path="/crowd-checkout/:orderId" element={<CrowdCheckout />} />
+
+            {/* Auth Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+
+            {/* Protected Routes */}
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
-              } />
-              
-              <Route path="/seller-dashboard" element={
-                <ProtectedRoute requireAuth allowedRoles={['seller']}>
-                  <SellerDashboard />
+              }
+            />
+            <Route
+              path="/cart"
+              element={
+                <ProtectedRoute>
+                  <Cart />
                 </ProtectedRoute>
-              } />
-              
-              <Route path="/admin-dashboard" element={
-                <ProtectedRoute requireAuth allowedRoles={['admin']}>
+              }
+            />
+            <Route
+              path="/checkout"
+              element={
+                <ProtectedRoute>
+                  <Checkout />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <ProtectedRoute>
+                  <Orders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wishlist"
+              element={
+                <ProtectedRoute>
+                  <Wishlist />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Dashboard Routes */}
+            <Route
+              path="/admin-dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
                   <AdminDashboard />
                 </ProtectedRoute>
-              } />
-              
-              <Route path="/affiliate-dashboard" element={
-                <ProtectedRoute requireAuth allowedRoles={['affiliate']}>
+              }
+            />
+            <Route
+              path="/seller-dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['seller', 'admin']}>
+                  <SellerDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer-dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['customer', 'admin']}>
+                  <CustomerDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/affiliate-dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['affiliate', 'admin']}>
                   <AffiliateDashboard />
                 </ProtectedRoute>
-              } />
+              }
+            />
 
-              {/* Protected Onboarding Routes */}
-              <Route path="/customer-onboarding" element={
-                <ProtectedRoute requireAuth allowedRoles={['customer', 'buyer']}>
-                  <CustomerOnboarding />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/seller-onboarding" element={
-                <ProtectedRoute requireAuth allowedRoles={['seller']}>
+            {/* Onboarding Routes */}
+            <Route
+              path="/seller-onboarding"
+              element={
+                <ProtectedRoute allowedRoles={['seller']} requireOnboarding={false}>
                   <SellerOnboarding />
                 </ProtectedRoute>
-              } />
-              
-              <Route path="/affiliate-onboarding" element={
-                <ProtectedRoute requireAuth allowedRoles={['affiliate']}>
+              }
+            />
+            <Route
+              path="/affiliate-onboarding"
+              element={
+                <ProtectedRoute allowedRoles={['affiliate']} requireOnboarding={false}>
                   <AffiliateOnboarding />
                 </ProtectedRoute>
-              } />
+              }
+            />
 
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            <BottomNavigation />
-          </div>
-        </BrowserRouter>
-      </CommerceProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+            {/* Catch-all route for 404 */}
+            <Route
+              path="*"
+              element={
+                <div className="min-h-screen flex items-center justify-center">
+                  <div className="text-center">
+                    <h1 className="text-4xl font-bold mb-2">404</h1>
+                    <p className="text-muted-foreground mb-4">Page not found</p>
+                    <a href="/" className="text-primary hover:underline">
+                      Go back home
+                    </a>
+                  </div>
+                </div>
+              }
+            />
+          </Routes>
+          <Toaster />
+        </div>
+      </Router>
+    </CommerceProvider>
+  );
+}
 
 export default App;
