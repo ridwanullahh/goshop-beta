@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -26,22 +27,16 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const result = await login({ email, password });
+      const user = await login({ email, password });
       
-      if (result && typeof result === 'object' && 'otpRequired' in result && result.otpRequired) {
-        setOtpRequired(true);
-        toast({
-          title: "OTP Required",
-          description: "Please check your email for the verification code."
-        });
-      } else if (result) {
+      if (user) {
         toast({
           title: "Welcome back!",
           description: "You have been successfully logged in."
         });
         
         // Get user role from the returned user object
-        const userRole = result.roles?.[0] || result.role;
+        const userRole = user.roles?.[0] || user.role;
         
         // Redirect based on user role
         if (userRole === 'admin') {

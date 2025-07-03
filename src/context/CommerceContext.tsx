@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { CommerceSDK, User, Product, Order, CartItem } from '@/lib/commerce-sdk';
 import { toast } from 'sonner';
@@ -14,7 +13,7 @@ interface CommerceContextType {
   
   // Auth
   currentUser: User | null;
-  login: (credentials: { email: string; password: string }) => Promise<void>;
+  login: (credentials: { email: string; password: string }) => Promise<User | null>;
   register: (userData: any) => Promise<void>;
   logout: () => Promise<void>;
   
@@ -23,6 +22,8 @@ interface CommerceContextType {
   orders: Order[];
   cart: Cart | null;
   loading: boolean;
+  isLoading: boolean;
+  wishlistItems: Product[];
   
   // Actions
   addToCart: (productId: string, quantity?: number) => void;
@@ -31,6 +32,7 @@ interface CommerceContextType {
   clearCart: () => void;
   addToWishlist: (productId: string) => void;
   loadUserData: () => Promise<void>;
+  searchProducts: (query: string) => Promise<Product[]>;
 }
 
 const CommerceContext = createContext<CommerceContextType | undefined>(undefined);
@@ -42,6 +44,7 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
+  const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
 
   // Initialize
   useEffect(() => {
@@ -79,17 +82,26 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       // Load user's orders
       const userOrders = await sdk.getOrders(currentUser.id);
       setOrders(userOrders);
+
+      // Load wishlist items
+      const saved = localStorage.getItem(`wishlist_${currentUser.uid}`);
+      if (saved) {
+        const wishlistProductIds = JSON.parse(saved);
+        const items = products.filter(p => wishlistProductIds.includes(p.id));
+        setWishlistItems(items);
+      }
     } catch (error) {
       console.error('Failed to load user data:', error);
     }
   };
 
-  const login = async (credentials: { email: string; password: string }) => {
+  const login = async (credentials: { email: string; password: string }): Promise<User | null> => {
     try {
       const user = await sdk.login(credentials);
       setCurrentUser(user);
       await loadUserData();
       toast.success('Login successful!');
+      return user;
     } catch (error: any) {
       toast.error(error.message || 'Login failed');
       throw error;
@@ -113,9 +125,20 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       setCurrentUser(null);
       setCart(null);
       setOrders([]);
+      setWishlistItems([]);
       toast.success('Logged out successfully');
     } catch (error: any) {
       toast.error(error.message || 'Logout failed');
+    }
+  };
+
+  const searchProducts = async (query: string): Promise<Product[]> => {
+    try {
+      const results = await sdk.searchProducts(query);
+      return results;
+    } catch (error) {
+      console.error('Search failed:', error);
+      return [];
     }
   };
 
@@ -248,6 +271,12 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       wishlist.push(productId);
       localStorage.setItem(`wishlist_${currentUser.uid}`, JSON.stringify(wishlist));
       toast.success('Added to wishlist');
+      
+      // Update wishlist items state
+      const product = products.find(p => p.id === productId);
+      if (product) {
+        setWishlistItems(prev => [...prev, product]);
+      }
     } else {
       toast.info('Item already in wishlist');
     }
@@ -279,12 +308,15 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
     orders,
     cart,
     loading,
+    isLoading: loading,
+    wishlistItems,
     addToCart,
     removeFromCart,
     updateCartQuantity,
     clearCart,
     addToWishlist,
-    loadUserData
+    loadUserData,
+    searchProducts
   };
 
   return (
