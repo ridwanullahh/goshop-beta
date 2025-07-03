@@ -213,20 +213,66 @@ export class CommerceSDK {
   }
 
   // Authentication methods
-  async register(userData: any) {
-    return await this.sdk.register(userData);
+  async register(userData: any): Promise<User> {
+    const result = await this.sdk.register(userData);
+    return {
+      id: result.id,
+      uid: result.uid,
+      email: result.email,
+      name: result.name || '',
+      role: result.role,
+      roles: result.roles,
+      avatar: result.avatar,
+      verified: result.verified || false,
+      onboardingCompleted: result.onboardingCompleted || false,
+      businessName: result.businessName || '',
+      walletBalance: result.walletBalance || 0,
+      createdAt: result.createdAt || new Date().toISOString(),
+      updatedAt: result.updatedAt || new Date().toISOString()
+    };
   }
 
-  async login(credentials: { email: string; password: string }) {
+  async login(credentials: { email: string; password: string }): Promise<User> {
     const result = await this.sdk.login(credentials);
-    return result;
+    return {
+      id: result.user.id || result.user.uid || '1',
+      uid: result.user.uid || result.user.id || '1',
+      email: result.user.email,
+      name: result.user.name || '',
+      role: result.user.role,
+      roles: result.user.roles,
+      avatar: result.user.avatar,
+      verified: result.user.verified || false,
+      onboardingCompleted: result.user.onboardingCompleted || false,
+      businessName: result.user.businessName || '',
+      walletBalance: result.user.walletBalance || 0,
+      createdAt: result.user.createdAt || new Date().toISOString(),
+      updatedAt: result.user.updatedAt || new Date().toISOString()
+    };
   }
 
-  async getCurrentUser() {
-    return await this.sdk.getCurrentUser();
+  async getCurrentUser(): Promise<User | null> {
+    const user = await this.sdk.getCurrentUser();
+    if (!user) return null;
+    
+    return {
+      id: user.id || user.uid || '1',
+      uid: user.uid || user.id || '1',
+      email: user.email,
+      name: user.name || '',
+      role: user.role,
+      roles: user.roles,
+      avatar: user.avatar,
+      verified: user.verified || false,
+      onboardingCompleted: user.onboardingCompleted || false,
+      businessName: user.businessName || '',
+      walletBalance: user.walletBalance || 0,
+      createdAt: user.createdAt || new Date().toISOString(),
+      updatedAt: user.updatedAt || new Date().toISOString()
+    };
   }
 
-  async logout() {
+  async logout(): Promise<void> {
     return await this.sdk.destroySession('');
   }
 
@@ -449,7 +495,29 @@ export class CommerceSDK {
   async getCart(userId: string): Promise<CartItem[]> {
     try {
       const cartItems = await this.sdk.get('cart_items');
-      return cartItems.filter(item => item.userId === userId) || [];
+      const products = await this.sdk.get('products');
+      
+      return cartItems
+        .filter(item => item.userId === userId)
+        .map(item => ({
+          ...item,
+          product: products.find(p => p.id === item.productId) || {
+            id: item.productId,
+            name: 'Unknown Product',
+            description: '',
+            price: 0,
+            images: [],
+            category: '',
+            sellerName: '',
+            sellerId: '',
+            rating: 0,
+            reviewCount: 0,
+            inventory: 0,
+            isFeatured: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        })) || [];
     } catch (error) {
       console.error('Error fetching cart:', error);
       return [];
@@ -458,12 +526,34 @@ export class CommerceSDK {
 
   async addToCart(userId: string, productId: string, quantity: number = 1): Promise<CartItem> {
     try {
+      const products = await this.sdk.get('products');
+      const product = products.find(p => p.id === productId);
+      
       const cartItem = await this.sdk.insert('cart_items', {
         userId,
         productId,
         quantity
       });
-      return cartItem;
+      
+      return {
+        ...cartItem,
+        product: product || {
+          id: productId,
+          name: 'Unknown Product',
+          description: '',
+          price: 0,
+          images: [],
+          category: '',
+          sellerName: '',
+          sellerId: '',
+          rating: 0,
+          reviewCount: 0,
+          inventory: 0,
+          isFeatured: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      };
     } catch (error) {
       console.error('Error adding to cart:', error);
       throw error;

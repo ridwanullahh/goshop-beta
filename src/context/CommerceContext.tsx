@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { CommerceSDK, Product, Order, Seller, User, CartItem, WishlistItem, Notification } from '@/lib/commerce-sdk';
 import { toast } from 'sonner';
@@ -74,20 +73,13 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
   const login = async (credentials: { email: string; password: string }) => {
     try {
       setIsLoading(true);
-      const result = await sdk.login(credentials);
+      const user = await sdk.login(credentials);
       
-      if (result) {
-        const user = await sdk.getCurrentUser();
-        if (user) {
-          setCurrentUser({
-            ...user,
-            createdAt: user.createdAt || new Date().toISOString(),
-            updatedAt: user.updatedAt || new Date().toISOString()
-          });
-          await loadUserData();
-        }
+      if (user) {
+        setCurrentUser(user);
+        await loadUserData();
         toast.success('Login successful!');
-        return result;
+        return user;
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -116,19 +108,12 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
   const register = async (userData: any) => {
     try {
       setIsLoading(true);
-      const result = await sdk.register(userData);
+      const user = await sdk.register(userData);
       
-      if (result) {
-        const user = await sdk.getCurrentUser();
-        if (user) {
-          setCurrentUser({
-            ...user,
-            createdAt: user.createdAt || new Date().toISOString(),
-            updatedAt: user.updatedAt || new Date().toISOString()
-          });
-        }
+      if (user) {
+        setCurrentUser(user);
         toast.success('Registration successful!');
-        return result;
+        return user;
       }
     } catch (error) {
       console.error('Registration error:', error);
@@ -209,11 +194,7 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
     try {
       const user = await sdk.getCurrentUser();
       if (user) {
-        setCurrentUser({
-          ...user,
-          createdAt: user.createdAt || new Date().toISOString(),
-          updatedAt: user.updatedAt || new Date().toISOString()
-        });
+        setCurrentUser(user);
         await loadUserData();
       }
     } catch (error) {
