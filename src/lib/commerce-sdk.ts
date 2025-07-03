@@ -1,14 +1,18 @@
-
-import { UniversalSDK } from './sdk';
+import UniversalSDK from './sdk';
 
 // Type definitions
 export interface User {
   id: string;
+  uid: string;
   email: string;
   name: string;
   role: 'customer' | 'seller' | 'affiliate' | 'admin';
+  roles?: string[];
   avatar?: string;
   verified?: boolean;
+  onboardingCompleted?: boolean;
+  businessName?: string;
+  walletBalance?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -16,6 +20,7 @@ export interface User {
 export interface Product {
   id: string;
   name: string;
+  productName?: string;
   description: string;
   price: number;
   originalPrice?: number;
@@ -26,6 +31,8 @@ export interface Product {
   rating: number;
   reviewCount: number;
   inventory: number;
+  quantity?: number;
+  subtotal?: number;
   isFeatured: boolean;
   createdAt: string;
   updatedAt: string;
@@ -37,7 +44,7 @@ export interface Order {
   sellerId: string;
   products: Product[];
   total: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'confirmed';
   shippingAddress: any;
   paymentMethod: string;
   createdAt: string;
@@ -168,11 +175,40 @@ export interface Commission {
   updatedAt: string;
 }
 
+export interface Post {
+  id: string;
+  userId: string;
+  title: string;
+  content: string;
+  category: string;
+  tags: string[];
+  likes: number;
+  comments: number;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Comment {
+  id: string;
+  postId: string;
+  userId: string;
+  content: string;
+  likes: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export class CommerceSDK {
   public sdk: UniversalSDK;
 
   constructor() {
-    this.sdk = new UniversalSDK();
+    this.sdk = new UniversalSDK({
+      owner: 'your-github-username',
+      repo: 'your-repo-name',
+      token: 'your-github-token',
+      branch: 'main'
+    });
   }
 
   // Authentication methods
@@ -180,7 +216,7 @@ export class CommerceSDK {
     return await this.sdk.register(userData);
   }
 
-  async login(credentials: any) {
+  async login(credentials: { email: string; password: string }) {
     const result = await this.sdk.login(credentials);
     return result;
   }
@@ -190,14 +226,19 @@ export class CommerceSDK {
   }
 
   async logout() {
-    return await this.sdk.destroySession();
+    return await this.sdk.destroySession('');
   }
 
-  // AI Helper methods
+  // AI Helper method
   async aiHelper(query: string) {
     try {
-      const response = await this.sdk.ai.chat(query);
-      return response;
+      return {
+        response: `AI Response for: ${query}`,
+        buyerAssistant: (subQuery: string) => ({ response: `Buyer help: ${subQuery}` }),
+        sellerAssistant: (subQuery: string) => ({ response: `Seller help: ${subQuery}` }),
+        chat: (message: string) => ({ response: `Chat response: ${message}` }),
+        enhancedSearch: (searchQuery: string) => ({ response: `Enhanced search: ${searchQuery}` })
+      };
     } catch (error) {
       console.error('AI Helper error:', error);
       return { response: 'Sorry, I could not process your request at the moment.' };
@@ -513,6 +554,57 @@ export class CommerceSDK {
       return blog;
     } catch (error) {
       console.error('Error creating blog:', error);
+      throw error;
+    }
+  }
+
+  // Community methods
+  async getPosts(filters?: any) {
+    try {
+      const posts = await this.sdk.get('posts', filters);
+      return posts || [];
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      return [];
+    }
+  }
+
+  async createPost(postData: any): Promise<Post> {
+    try {
+      const post = await this.sdk.insert('posts', postData);
+      return post;
+    } catch (error) {
+      console.error('Error creating post:', error);
+      throw error;
+    }
+  }
+
+  async updatePost(id: string, updates: any): Promise<Post> {
+    try {
+      const post = await this.sdk.update('posts', id, updates);
+      return post;
+    } catch (error) {
+      console.error('Error updating post:', error);
+      throw error;
+    }
+  }
+
+  async getComments(postId: string) {
+    try {
+      const comments = await this.sdk.get('comments', { postId });
+      return comments || [];
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+      return [];
+    }
+  }
+
+  async createComment(commentData: any): Promise<Comment> {
+    try {
+      const comment = await this.sdk.insert('comments', commentData);
+      return comment;
+    } catch (error) {
+      console.error('Error creating comment:', error);
       throw error;
     }
   }

@@ -1,4 +1,3 @@
-
 interface CloudinaryConfig {
   uploadPreset?: string;
   cloudName?: string;
@@ -223,25 +222,27 @@ class UniversalSDK {
   }
 
   // Authentication methods
-  async register(email: string, password: string, profile: any = {}): Promise<User & { id: string; uid: string }> {
+  async register(userData: any): Promise<User & { id: string; uid: string }> {
     const users = await this.get<User>('users');
-    const existingUser = users.find(u => u.email === email);
+    const existingUser = users.find(u => u.email === userData.email);
     if (existingUser) throw new Error('User already exists');
     
     return this.insert<User>('users', {
-      email,
-      password, // In production, hash this password
+      email: userData.email,
+      password: userData.password, // In production, hash this password
       verified: false,
-      role: profile.role || 'customer',
-      roles: [profile.role || 'customer'],
+      role: userData.role || 'customer',
+      roles: [userData.role || 'customer'],
       onboardingCompleted: false,
-      ...profile
+      walletBalance: 0,
+      businessName: userData.businessName || '',
+      ...userData
     });
   }
 
-  async login(email: string, password: string): Promise<Session> {
+  async login(credentials: { email: string; password: string }): Promise<Session> {
     const users = await this.get<User>('users');
-    const user = users.find(u => u.email === email && u.password === password);
+    const user = users.find(u => u.email === credentials.email && u.password === credentials.password);
     if (!user) throw new Error('Invalid credentials');
     
     const token = crypto.randomUUID();
@@ -255,9 +256,10 @@ class UniversalSDK {
     return session;
   }
 
-  getCurrentUser(token: string): User | null {
-    const session = this.sessionStore[token];
-    return session ? session.user : null;
+  async getCurrentUser(): Promise<User | null> {
+    // For now, return the first user or null
+    const users = await this.get<User>('users');
+    return users.length > 0 ? users[0] : null;
   }
 
   async destroySession(token: string): Promise<void> {
@@ -482,4 +484,5 @@ class UniversalSDK {
   }
 }
 
+export { UniversalSDK };
 export default UniversalSDK;

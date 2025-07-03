@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { CommerceSDK, Product, Order, Seller, User, CartItem, WishlistItem, Notification } from '@/lib/commerce-sdk';
 import { toast } from 'sonner';
@@ -7,6 +6,9 @@ interface CommerceContextType {
   sdk: CommerceSDK;
   currentUser: User | null;
   products: Product[];
+  cart: {
+    items: CartItem[];
+  } | null;
   cartItems: CartItem[];
   wishlistItems: WishlistItem[];
   notifications: Notification[];
@@ -20,6 +22,7 @@ interface CommerceContextType {
   addToWishlist: (productId: string) => Promise<void>;
   removeFromWishlist: (itemId: string) => Promise<void>;
   loadUserData: () => Promise<void>;
+  searchProducts: (query: string) => Promise<Product[]>;
 }
 
 const CommerceContext = createContext<CommerceContextType | undefined>(undefined);
@@ -33,6 +36,19 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const cart = {
+    items: cartItems
+  };
+
+  const searchProducts = async (query: string): Promise<Product[]> => {
+    try {
+      return await sdk.searchProducts(query);
+    } catch (error) {
+      console.error('Search error:', error);
+      return [];
+    }
+  };
 
   const loadUserData = async () => {
     if (!currentUser) return;
@@ -205,6 +221,7 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
     sdk,
     currentUser,
     products,
+    cart,
     cartItems,
     wishlistItems,
     notifications,
@@ -217,7 +234,8 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
     removeFromCart,
     addToWishlist,
     removeFromWishlist,
-    loadUserData
+    loadUserData,
+    searchProducts
   };
 
   return (
