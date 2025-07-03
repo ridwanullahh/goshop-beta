@@ -69,7 +69,10 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      await register(formData.email, formData.password, {
+      await register({
+        email: formData.email,
+        password: formData.password,
+        name: `${formData.firstName} ${formData.lastName}`,
         firstName: formData.firstName,
         lastName: formData.lastName,
         role: formData.role,

@@ -61,15 +61,15 @@ const SellerDashboard = () => {
     setLoading(true);
     try {
       // Fetch seller's products
-      const products = await sdk.getSellerProducts(currentUser.id!);
+      const products = await sdk.getSellerProducts(currentUser.id);
       setSellerProducts(products);
 
-      // Fetch seller's orders
-      const orders = await sdk.getOrders(currentUser.id!, 'seller');
+      // Fetch seller's orders - fix the method call
+      const orders = await sdk.getOrders(currentUser.id);
       setSellerOrders(orders);
 
       // Fetch analytics
-      const analyticsData = await sdk.getSellerAnalytics(currentUser.id!);
+      const analyticsData = await sdk.getSellerAnalytics(currentUser.id);
       setAnalytics(analyticsData);
 
       toast.success('Dashboard data loaded successfully');

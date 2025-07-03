@@ -480,11 +480,13 @@ export class CommerceSDK {
 
   async updateOrderStatus(orderId: string, status: string): Promise<Order> {
     try {
-      const order = await this.sdk.update('orders', orderId, { 
+      const updatedOrder = await this.sdk.update('orders', orderId, { 
         status,
         updatedAt: new Date().toISOString()
       });
-      return order;
+      
+      // Return the full updated order object
+      return updatedOrder as Order;
     } catch (error) {
       console.error('Error updating order status:', error);
       throw error;

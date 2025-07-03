@@ -26,23 +26,22 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const result = await login(email, password);
+      const result = await login({ email, password });
       
-      if (result && typeof result === 'object' && result.otpRequired) {
+      if (result && typeof result === 'object' && 'otpRequired' in result && result.otpRequired) {
         setOtpRequired(true);
         toast({
           title: "OTP Required",
           description: "Please check your email for the verification code."
         });
-      } else if (result && typeof result === 'string') {
+      } else if (result) {
         toast({
           title: "Welcome back!",
           description: "You have been successfully logged in."
         });
         
-        // Get user data to determine redirect
-        const user = sdk?.getCurrentUser(result);
-        const userRole = user?.roles?.[0] || user?.role;
+        // Get user role from the returned user object
+        const userRole = result.roles?.[0] || result.role;
         
         // Redirect based on user role
         if (userRole === 'admin') {
