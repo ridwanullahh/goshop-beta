@@ -23,10 +23,8 @@ const Stores = React.lazy(() => import('@/pages/Stores'));
 const Search = React.lazy(() => import('@/pages/Search'));
 const Checkout = React.lazy(() => import('@/pages/Checkout'));
 const TrackOrder = React.lazy(() => import('@/pages/TrackOrder'));
-const Contact = React.lazy(() => import('@/pages/Contact'));
-const About = React.lazy(() => import('@/pages/About'));
-const Privacy = React.lazy(() => import('@/pages/Privacy'));
-const Terms = React.lazy(() => import('@/pages/Terms'));
+const ContactUs = React.lazy(() => import('@/pages/ContactUs'));
+const Help = React.lazy(() => import('@/pages/Help'));
 
 function App() {
   return (
@@ -55,10 +53,8 @@ function App() {
                 <Route path="/track-order" element={<TrackOrder />} />
                 <Route path="/customer-dashboard" element={<CustomerDashboard />} />
                 <Route path="/seller-dashboard" element={<SellerDashboard />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/privacy" element={<Privacy />} />
-                <Route path="/terms" element={<Terms />} />
+                <Route path="/contact" element={<ContactUs />} />
+                <Route path="/help" element={<Help />} />
                 
                 {/* Catch all route - redirect to home */}
                 <Route path="*" element={<Home />} />

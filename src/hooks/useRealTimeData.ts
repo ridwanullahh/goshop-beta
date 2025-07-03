@@ -18,7 +18,29 @@ export function useRealTimeData<T>(
     try {
       setLoading(true);
       setError(null);
-      const result = await sdk.get(collection);
+      let result;
+      
+      // Use the correct SDK methods based on collection type
+      switch (collection) {
+        case 'products':
+          result = await sdk.getProducts();
+          break;
+        case 'categories':
+          result = await sdk.getCategories();
+          break;
+        case 'stores':
+          result = await sdk.getStores();
+          break;
+        case 'orders':
+          result = await sdk.getOrders();
+          break;
+        case 'notifications':
+          result = await sdk.getNotifications(sdk.getCurrentUser()?.id || '');
+          break;
+        default:
+          result = [];
+      }
+      
       setData(result || []);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch data');

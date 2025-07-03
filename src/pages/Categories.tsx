@@ -7,16 +7,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useRealTimeData } from '@/hooks/useRealTimeData';
 import { Grid3X3, ArrowRight, Package } from 'lucide-react';
+import { Category, Product } from '@/lib/commerce-sdk';
 
 export default function Categories() {
-  const { data: categories, loading } = useRealTimeData('categories');
-  const { data: products } = useRealTimeData('products');
+  const { data: categories, loading } = useRealTimeData<Category>('categories');
+  const { data: products } = useRealTimeData<Product>('products');
 
   // Calculate product count for each category
   const categoriesWithCount = categories.map(category => ({
     ...category,
     productCount: products.filter(product => 
-      product.category.toLowerCase() === category.name.toLowerCase()
+      product.category?.toLowerCase() === category.name?.toLowerCase()
     ).length
   }));
 

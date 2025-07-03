@@ -10,45 +10,48 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useRealTimeData } from '@/hooks/useRealTimeData';
 import { useCommerce } from '@/context/CommerceContext';
 import { ArrowLeft, Star, Heart, ShoppingCart, Grid, List } from 'lucide-react';
+import { Category, Product } from '@/lib/commerce-sdk';
 
 export default function CategoryProducts() {
   const { slug } = useParams();
   const { addToCart, addToWishlist } = useCommerce();
-  const { data: categories } = useRealTimeData('categories');
-  const { data: products } = useRealTimeData('products');
+  const { data: categories } = useRealTimeData<Category>('categories');
+  const { data: products } = useRealTimeData<Product>('products');
   
-  const [category, setCategory] = useState(null);
-  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [category, setCategory] = useState<Category | null>(null);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [sortBy, setSortBy] = useState('newest');
   const [viewMode, setViewMode] = useState('grid');
 
   useEffect(() => {
     if (categories && slug) {
       const foundCategory = categories.find(c => c.slug === slug);
-      setCategory(foundCategory);
+      setCategory(foundCategory || null);
     }
   }, [categories, slug]);
 
   useEffect(() => {
     if (products && category) {
       let filtered = products.filter(product => 
-        product.category.toLowerCase() === category.name.toLowerCase()
+        product.category?.toLowerCase() === category.name?.toLowerCase()
       );
 
       // Sort products
       switch (sortBy) {
         case 'price-low':
-          filtered = filtered.sort((a, b) => a.price - b.price);
+          filtered = filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
           break;
         case 'price-high':
-          filtered = filtered.sort((a, b) => b.price - a.price);
+          filtered = filtered.sort((a, b) => (b.price || 0) - (a.price || 0));
           break;
         case 'rating':
-          filtered = filtered.sort((a, b) => b.rating - a.rating);
+          filtered = filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
           break;
         case 'newest':
         default:
-          filtered = filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          filtered = filtered.sort((a, b) => 
+            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+          );
           break;
       }
 
@@ -153,7 +156,7 @@ export default function CategoryProducts() {
                     <Link to={`/product/${product.id}`}>
                       <div className="aspect-square bg-muted rounded-lg overflow-hidden mb-3">
                         <img 
-                          src={product.images[0] || '/placeholder.svg'} 
+                          src={product.images?.[0] || '/placeholder.svg'} 
                           alt={product.name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         />
@@ -169,12 +172,12 @@ export default function CategoryProducts() {
                       
                       <div className="flex items-center space-x-1">
                         <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                        <span className="text-xs">{product.rating}</span>
-                        <span className="text-xs text-muted-foreground">({product.reviewCount})</span>
+                        <span className="text-xs">{product.rating || 0}</span>
+                        <span className="text-xs text-muted-foreground">({product.reviewCount || 0})</span>
                       </div>
                       
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-primary">${product.price.toFixed(2)}</span>
+                        <span className="font-bold text-primary">${(product.price || 0).toFixed(2)}</span>
                         <div className="flex gap-1">
                           <Button
                             size="icon"
@@ -204,7 +207,7 @@ export default function CategoryProducts() {
                       <Link to={`/product/${product.id}`} className="flex-shrink-0">
                         <div className="w-24 h-24 bg-muted rounded-lg overflow-hidden">
                           <img 
-                            src={product.images[0] || '/placeholder.svg'} 
+                            src={product.images?.[0] || '/placeholder.svg'} 
                             alt={product.name}
                             className="w-full h-full object-cover"
                           />
@@ -225,14 +228,14 @@ export default function CategoryProducts() {
                         <div className="flex items-center space-x-2">
                           <div className="flex items-center space-x-1">
                             <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                            <span className="text-xs">{product.rating}</span>
-                            <span className="text-xs text-muted-foreground">({product.reviewCount})</span>
+                            <span className="text-xs">{product.rating || 0}</span>
+                            <span className="text-xs text-muted-foreground">({product.reviewCount || 0})</span>
                           </div>
                           <Badge variant="outline">{product.sellerName}</Badge>
                         </div>
                         
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-lg text-primary">${product.price.toFixed(2)}</span>
+                          <span className="font-bold text-lg text-primary">${(product.price || 0).toFixed(2)}</span>
                           <div className="flex gap-2">
                             <Button
                               size="sm"
