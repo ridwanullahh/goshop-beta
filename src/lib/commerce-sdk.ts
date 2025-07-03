@@ -205,9 +205,9 @@ export class CommerceSDK {
 
   constructor() {
     this.sdk = new UniversalSDK({
-      owner: 'your-github-username',
-      repo: 'your-repo-name',
-      token: 'your-github-token',
+      owner: import.meta.env.VITE_GITHUB_OWNER,
+      repo: import.meta.env.VITE_GITHUB_REPO,
+      token: import.meta.env.VITE_GITHUB_TOKEN,
       branch: 'main'
     });
   }
