@@ -35,7 +35,8 @@ export function useRealTimeData<T>(
           result = await sdk.getOrders();
           break;
         case 'notifications':
-          result = await sdk.getNotifications(sdk.getCurrentUser()?.id || '');
+          const currentUser = await sdk.getCurrentUser();
+          result = await sdk.getNotifications(currentUser?.id || '');
           break;
         default:
           result = [];
