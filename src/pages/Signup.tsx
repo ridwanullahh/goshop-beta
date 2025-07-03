@@ -65,7 +65,11 @@ export default function Signup() {
         onboardingCompleted: false
       };
 
-      const user = await sdk.register(formData.email, formData.password, profile);
+      const user = await sdk.register({ // Fixed: changed to object parameter
+        email: formData.email,
+        password: formData.password,
+        ...profile
+      });
       
       // Create role-specific profiles
       if (formData.role === 'seller') {

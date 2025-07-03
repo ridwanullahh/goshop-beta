@@ -54,7 +54,7 @@ export default function CustomerDashboard() {
         productsData,
         notificationsData
       ] = await Promise.all([
-        sdk.getOrders(currentUser.id, 'buyer'),
+        sdk.getOrders(currentUser.id), // Fixed: removed second argument
         sdk.getProducts({ featured: true }),
         sdk.getNotifications(currentUser.id)
       ]);
