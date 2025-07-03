@@ -69,7 +69,7 @@ export default function CommunityHub() {
     
     setLoading(true);
     try {
-      const fetchedPosts = await sdk.sdk.get<Post>('posts');
+      const fetchedPosts = await sdk.getPosts();
       setPosts(fetchedPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -94,7 +94,7 @@ export default function CommunityHub() {
         createdAt: new Date().toISOString()
       };
 
-      await sdk.sdk.insert<Post>('posts', postData);
+      await sdk.createPost(postData);
       toast.success('Post created successfully');
       setNewPost({ content: '', tags: '' });
       setShowCreatePost(false);
@@ -113,7 +113,7 @@ export default function CommunityHub() {
 
     try {
       const newLikes = isLiked ? currentLikes - 1 : currentLikes + 1;
-      await sdk.sdk.update<Post>('posts', postId, { 
+      await sdk.updatePost(postId, { 
         likes: newLikes,
         isLiked: !isLiked 
       });
@@ -134,10 +134,7 @@ export default function CommunityHub() {
     if (!sdk) return;
 
     try {
-      const fetchedComments = await sdk.sdk.queryBuilder<Comment>('comments')
-        .where(comment => comment.postId === postId)
-        .sort('createdAt', 'desc')
-        .exec();
+      const fetchedComments = await sdk.getComments(postId);
       setComments(fetchedComments);
     } catch (error) {
       console.error('Error fetching comments:', error);
@@ -157,10 +154,10 @@ export default function CommunityHub() {
         createdAt: new Date().toISOString()
       };
 
-      await sdk.sdk.insert<Comment>('comments', commentData);
+      await sdk.createComment(commentData);
       
       // Update post comment count
-      await sdk.sdk.update<Post>('posts', selectedPost.id!, { 
+      await sdk.updatePost(selectedPost.id!, { 
         comments: selectedPost.comments + 1 
       });
 

@@ -196,6 +196,55 @@ class UniversalSDK {
     return this;
   }
 
+  // Authentication methods
+  async register(email: string, password: string, profile: any = {}): Promise<User & { id: string; uid: string }> {
+    const users = await this.get<User>('users');
+    const existingUser = users.find(u => u.email === email);
+    if (existingUser) throw new Error('User already exists');
+    
+    return this.insert<User>('users', {
+      email,
+      password, // In production, hash this password
+      verified: false,
+      roles: ['customer'],
+      ...profile
+    });
+  }
+
+  async login(email: string, password: string): Promise<Session> {
+    const users = await this.get<User>('users');
+    const user = users.find(u => u.email === email && u.password === password);
+    if (!user) throw new Error('Invalid credentials');
+    
+    const token = crypto.randomUUID();
+    const session: Session = {
+      token,
+      user,
+      created: Date.now()
+    };
+    
+    this.sessionStore[token] = session;
+    return session;
+  }
+
+  getCurrentUser(token: string): User | null {
+    const session = this.sessionStore[token];
+    return session ? session.user : null;
+  }
+
+  async destroySession(token: string): Promise<void> {
+    delete this.sessionStore[token];
+  }
+
+  // Helper method for SHA1 hashing (for Cloudinary)
+  private async _sha1(str: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
   private async initializeSampleData(): Promise<void> {
     try {
       const categories = [
@@ -669,10 +718,6 @@ class UniversalSDK {
     return `https://res.cloudinary.com/${this.cloudinary.cloudName}/image/upload/${options}/${publicId}`;
   }
 
-  async init(): Promise<UniversalSDK> {
-    await this.listCollections(); // Test GitHub connection
-    return this;
-  }
 
   destroyInstance(): void {
     Object.keys(this).forEach(k => delete (this as any)[k]);

@@ -346,7 +346,8 @@ class CommerceSDK {
   }
 
   async login(email: string, password: string) {
-    return this.sdk.login(email, password);
+    const session = await this.sdk.login(email, password);
+    return session.token; // Return just the token for compatibility
   }
 
   getCurrentUser(token: string) {
@@ -827,6 +828,30 @@ class CommerceSDK {
 
   get aiHelper() {
     return this.ai;
+  }
+
+  // Community methods
+  async getPosts() {
+    return this.sdk.get('posts');
+  }
+
+  async createPost(postData: any) {
+    return this.sdk.insert('posts', postData);
+  }
+
+  async updatePost(postId: string, updates: any) {
+    return this.sdk.update('posts', postId, updates);
+  }
+
+  async getComments(postId: string) {
+    return this.sdk.queryBuilder('comments')
+      .where((comment: any) => comment.postId === postId)
+      .sort('createdAt', 'desc')
+      .exec();
+  }
+
+  async createComment(commentData: any) {
+    return this.sdk.insert('comments', commentData);
   }
 }
 
