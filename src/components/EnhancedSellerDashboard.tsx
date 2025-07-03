@@ -127,7 +127,7 @@ export default function EnhancedSellerDashboard() {
       const totalRevenue = ordersData.reduce((sum: number, order: any) => sum + order.total, 0);
       const totalOrders = ordersData.length;
       const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-      const activeProducts = productsData.filter(p => p.isActive && p.inventory > 0).length;
+      const activeProducts = productsData.filter(p => (p.isActive !== false) && p.inventory > 0).length;
       const lowStockProducts = productsData.filter(p => p.inventory < 10).length;
 
       setSellerData({
@@ -275,8 +275,8 @@ export default function EnhancedSellerDashboard() {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          product.category.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = filterStatus === 'all' || 
-                         (filterStatus === 'active' && product.isActive && product.inventory > 0) ||
-                         (filterStatus === 'inactive' && (!product.isActive || product.inventory === 0)) ||
+                         (filterStatus === 'active' && (product.isActive !== false) && product.inventory > 0) ||
+                         (filterStatus === 'inactive' && ((product.isActive === false) || product.inventory === 0)) ||
                          (filterStatus === 'low-stock' && product.inventory < 10);
     return matchesSearch && matchesFilter;
   });
@@ -456,8 +456,8 @@ export default function EnhancedSellerDashboard() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-2">
                         <h3 className="font-semibold">{product.name}</h3>
-                        <Badge variant={product.isActive ? "default" : "secondary"}>
-                          {product.isActive ? "Active" : "Inactive"}
+                        <Badge variant={(product.isActive !== false) ? "default" : "secondary"}>
+                          {(product.isActive !== false) ? "Active" : "Inactive"}
                         </Badge>
                         {product.isFeatured && (
                           <Badge variant="outline" className="text-yellow-600 border-yellow-300">
