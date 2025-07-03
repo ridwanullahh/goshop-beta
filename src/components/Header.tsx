@@ -1,486 +1,477 @@
 
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { SidebarModal } from '@/components/SidebarModal';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useCommerce } from '@/context/CommerceContext';
 import { useRealTimeData } from '@/hooks/useRealTimeData';
+import { SidebarModal } from '@/components/SidebarModal';
 import { 
+  Search, 
   ShoppingCart, 
   Heart, 
   Bell, 
-  Search, 
-  Menu, 
   User, 
-  Store, 
-  Settings,
-  LogOut,
-  Package,
+  Menu, 
   Grid3X3,
-  Tag,
-  Percent,
+  Store,
   Phone,
   Mail,
   MapPin,
-  Clock,
   Star,
   TrendingUp,
-  Home,
-  ShoppingBag,
+  Package,
   Users,
-  MessageSquare,
-  Radio,
-  HelpCircle,
-  FileText,
-  Shield,
-  X
+  Zap
 } from 'lucide-react';
+import { Product, Notification } from '@/lib/commerce-sdk';
 
 export function Header() {
   const navigate = useNavigate();
-  const { currentUser, cartItems, wishlistItems, notifications, logout, searchProducts } = useCommerce();
-  const { data: products } = useRealTimeData('products');
+  const location = useLocation();
+  const { currentUser, cart, logout } = useCommerce();
+  const { data: products } = useRealTimeData<Product>('products');
+  const { data: notifications } = useRealTimeData<Notification>('notifications', [], [currentUser?.id]);
+  
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const cartItemsCount = cartItems?.length || 0;
-  const wishlistItemsCount = wishlistItems?.length || 0;
-  const unreadNotifications = notifications?.filter((n: any) => !n.read).length || 0;
+  const cartItemCount = cart?.items?.length || 0;
+  const unreadNotifications = notifications.filter(n => !n.read).length;
 
-  // Real-time search functionality
-  useEffect(() => {
-    const performSearch = async () => {
-      if (searchQuery.trim().length > 2) {
-        try {
-          const results = await searchProducts(searchQuery);
-          setSearchResults(results.slice(0, 8)); // Limit to 8 results
-          setShowSearchResults(true);
-        } catch (error) {
-          console.error('Search error:', error);
-          setSearchResults([]);
-        }
-      } else {
-        setSearchResults([]);
-        setShowSearchResults(false);
-      }
-    };
-
-    const debounceTimer = setTimeout(performSearch, 300);
-    return () => clearTimeout(debounceTimer);
-  }, [searchQuery, searchProducts]);
+  // Real-time search
+  React.useEffect(() => {
+    if (searchQuery.length >= 2) {
+      const results = products
+        .filter(product => 
+          product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.category?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        .slice(0, 6);
+      setSearchResults(results);
+      setShowSearchResults(true);
+    } else {
+      setShowSearchResults(false);
+    }
+  }, [searchQuery, products]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
-      setSearchQuery('');
       setShowSearchResults(false);
+      setSearchQuery('');
     }
   };
 
   const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+    await logout();
+    navigate('/');
   };
 
-  const megaMenuSections = [
-    {
-      title: 'Categories',
-      icon: Grid3X3,
-      items: [
-        { name: 'Electronics', href: '/category/electronics' },
-        { name: 'Fashion', href: '/category/fashion' },
-        { name: 'Home & Garden', href: '/category/home-garden' },
-        { name: 'Sports', href: '/category/sports' },
-        { name: 'Books', href: '/category/books' }
-      ]
-    },
-    {
-      title: 'Featured Stores',
-      icon: Store,
-      items: [
-        { name: 'Tech Hub Store', href: '/tech-hub-store' },
-        { name: 'Fashion Forward', href: '/fashion-forward' },
-        { name: 'Home Essentials', href: '/home-essentials' },
-        { name: 'Sports Pro', href: '/sports-pro' }
-      ]
-    },
-    {
-      title: 'Deals & Offers',
-      icon: Tag,
-      items: [
-        { name: 'Flash Sales', href: '/deals/flash-sales' },
-        { name: 'Weekly Deals', href: '/deals/weekly' },
-        { name: 'Clearance', href: '/deals/clearance' },
-        { name: 'Bulk Discounts', href: '/deals/bulk' }
-      ]
-    }
-  ];
-
-  const quickLinks = [
-    { name: 'Track Order', href: '/track-order', icon: Package },
-    { name: 'Customer Service', href: '/contact', icon: Phone },
-    { name: 'Returns & Refunds', href: '/returns-refunds', icon: Shield },
-    { name: 'Shipping Info', href: '/shipping-info', icon: MapPin }
+  const megaMenuCategories = [
+    { name: 'Electronics', icon: Zap, featured: ['Smartphones', 'Laptops', 'Gaming'] },
+    { name: 'Fashion', icon: Star, featured: ['Men\'s Wear', 'Women\'s Wear', 'Accessories'] },
+    { name: 'Home & Garden', icon: Package, featured: ['Furniture', 'Decor', 'Appliances'] },
+    { name: 'Sports', icon: TrendingUp, featured: ['Fitness', 'Outdoor', 'Team Sports'] }
   ];
 
   return (
-    <>
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      {/* Top Bar - Desktop Only */}
+      <div className="hidden md:block border-b bg-muted/30">
         <div className="container mx-auto px-4">
-          <div className="flex h-16 items-center justify-between">
-            {/* Logo */}
-            <Link to="/" className="flex items-center space-x-2">
-              <ShoppingBag className="h-8 w-8 text-primary" />
-              <span className="font-bold text-xl hidden sm:inline">GoShop</span>
-            </Link>
-
-            {/* Desktop Search Bar */}
-            <div className="hidden md:flex flex-1 max-w-lg mx-8 relative">
-              <form onSubmit={handleSearch} className="w-full">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search products, stores, categories..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 pr-4"
-                    onFocus={() => searchResults.length > 0 && setShowSearchResults(true)}
-                  />
-                  {showSearchResults && searchResults.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-1 max-h-96 overflow-y-auto z-50">
-                      <div className="p-2">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium">Search Results</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setShowSearchResults(false)}
-                            className="h-6 w-6 p-0"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        {searchResults.map((product: any) => (
-                          <Link
-                            key={product.id}
-                            to={`/product/${product.id}`}
-                            onClick={() => setShowSearchResults(false)}
-                            className="flex items-center gap-3 p-2 hover:bg-muted rounded-lg"
-                          >
-                            <img
-                              src={product.images[0] || '/placeholder.svg'}
-                              alt={product.name}
-                              className="w-10 h-10 object-cover rounded"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm truncate">{product.name}</p>
-                              <p className="text-xs text-muted-foreground">${product.price.toFixed(2)}</p>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </form>
+          <div className="flex items-center justify-between py-2 text-sm">
+            <div className="flex items-center space-x-4 text-muted-foreground">
+              <div className="flex items-center space-x-1">
+                <Phone className="h-3 w-3" />
+                <span>+1 (555) 123-4567</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <Mail className="h-3 w-3" />
+                <span>support@platform.com</span>
+              </div>
             </div>
+            
+            <div className="flex items-center space-x-4">
+              <Link to="/help" className="hover:text-foreground">Help</Link>
+              <Link to="/track-order" className="hover:text-foreground">Track Order</Link>
+              <div className="flex items-center space-x-1">
+                <MapPin className="h-3 w-3" />
+                <span>Ship to: USA</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-2">
-              {/* Categories Mega Menu */}
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <Grid3X3 className="h-5 w-5 mr-2" />
-                    Categories
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-80">
-                  <SheetHeader>
-                    <SheetTitle>Browse Categories</SheetTitle>
-                  </SheetHeader>
-                  <div className="mt-6 space-y-6">
-                    {megaMenuSections.map((section) => {
-                      const Icon = section.icon;
+      {/* Main Header */}
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between py-4">
+          {/* Logo */}
+          <Link to="/" className="flex items-center space-x-2">
+            <div className="flex items-center justify-center w-8 h-8 bg-primary rounded-lg">
+              <Store className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <span className="text-xl font-bold">Platform</span>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex items-center space-x-6 mx-8">
+            <div className="group relative">
+              <Button variant="ghost" className="flex items-center space-x-1">
+                <Grid3X3 className="h-4 w-4" />
+                <span>Categories</span>
+              </Button>
+              
+              {/* Mega Menu */}
+              <div className="absolute top-full left-0 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 pt-2">
+                <div className="bg-background border rounded-lg shadow-lg p-6 w-96">
+                  <div className="grid grid-cols-2 gap-4">
+                    {megaMenuCategories.map((category) => {
+                      const Icon = category.icon;
                       return (
-                        <div key={section.title}>
-                          <h3 className="font-semibold text-sm mb-3 flex items-center">
-                            <Icon className="h-4 w-4 mr-2" />
-                            {section.title}
-                          </h3>
-                          <div className="space-y-2">
-                            {section.items.map((item) => (
+                        <div key={category.name} className="space-y-2">
+                          <Link 
+                            to={`/category/${category.name.toLowerCase()}`}
+                            className="flex items-center space-x-2 font-medium hover:text-primary"
+                          >
+                            <Icon className="h-4 w-4" />
+                            <span>{category.name}</span>
+                          </Link>
+                          <div className="space-y-1">
+                            {category.featured.map((item) => (
                               <Link
-                                key={item.href}
-                                to={item.href}
-                                className="block text-sm text-muted-foreground hover:text-foreground transition-colors"
+                                key={item}
+                                to={`/search?q=${encodeURIComponent(item)}`}
+                                className="block text-sm text-muted-foreground hover:text-foreground pl-6"
                               >
-                                {item.name}
+                                {item}
                               </Link>
                             ))}
                           </div>
                         </div>
                       );
                     })}
-                    
-                    <div className="pt-4 border-t">
-                      <h3 className="font-semibold text-sm mb-3">Quick Links</h3>
-                      <div className="space-y-2">
-                        {quickLinks.map((link) => {
-                          const Icon = link.icon;
-                          return (
-                            <Link
-                              key={link.href}
-                              to={link.href}
-                              className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
-                            >
-                              <Icon className="h-4 w-4 mr-2" />
-                              {link.name}
-                            </Link>
-                          );
-                        })}
+                  </div>
+                  
+                  <div className="mt-4 pt-4 border-t">
+                    <Link 
+                      to="/categories" 
+                      className="text-sm text-primary hover:underline"
+                    >
+                      View All Categories →
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <Link to="/stores" className="hover:text-primary">Stores</Link>
+            <Link to="/products" className="hover:text-primary">Products</Link>
+            {currentUser?.role === 'seller' && (
+              <Link to="/seller-dashboard" className="hover:text-primary">Dashboard</Link>
+            )}
+          </nav>
+
+          {/* Search Bar */}
+          <div className="hidden md:block flex-1 max-w-md mx-4 relative">
+            <form onSubmit={handleSearch} className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search products, stores, categories..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-4"
+                onFocus={() => setShowSearchResults(searchQuery.length >= 2)}
+                onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
+              />
+            </form>
+            
+            {/* Search Results Dropdown */}
+            {showSearchResults && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-1 z-50">
+                <div className="py-2">
+                  {searchResults.map((product) => (
+                    <Link
+                      key={product.id}
+                      to={`/product/${product.id}`}
+                      className="flex items-center space-x-3 px-4 py-2 hover:bg-muted"
+                      onClick={() => setShowSearchResults(false)}
+                    >
+                      <img
+                        src={product.images?.[0] || '/placeholder.svg'}
+                        alt={product.name}
+                        className="w-10 h-10 object-cover rounded"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{product.name}</p>
+                        <p className="text-xs text-muted-foreground">${product.price}</p>
                       </div>
+                    </Link>
+                  ))}
+                  
+                  <div className="border-t mt-2 pt-2 px-4">
+                    <button
+                      onClick={() => {
+                        navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+                        setShowSearchResults(false);
+                        setSearchQuery('');
+                      }}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      View all results for "{searchQuery}"
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center space-x-2">
+            {/* Mobile Search */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => navigate('/search')}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+
+            {/* Notifications */}
+            <SidebarModal type="notifications">
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-4 w-4" />
+                {unreadNotifications > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
+                    {unreadNotifications}
+                  </Badge>
+                )}
+              </Button>
+            </SidebarModal>
+
+            {/* Wishlist */}
+            <SidebarModal type="wishlist">
+              <Button variant="ghost" size="icon">
+                <Heart className="h-4 w-4" />
+              </Button>
+            </SidebarModal>
+
+            {/* Cart */}
+            <SidebarModal type="cart">
+              <Button variant="ghost" size="icon" className="relative">
+                <ShoppingCart className="h-4 w-4" />
+                {cartItemCount > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
+                    {cartItemCount}
+                  </Badge>
+                )}
+              </Button>
+            </SidebarModal>
+
+            {/* User Menu */}
+            {currentUser ? (
+              <div className="relative group">
+                <Button variant="ghost" size="icon">
+                  {currentUser.avatar ? (
+                    <img 
+                      src={currentUser.avatar} 
+                      alt={currentUser.name}
+                      className="w-6 h-6 rounded-full"
+                    />
+                  ) : (
+                    <User className="h-4 w-4" />
+                  )}
+                </Button>
+                
+                {/* User Dropdown */}
+                <div className="absolute right-0 top-full invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 pt-2">
+                  <div className="bg-background border rounded-lg shadow-lg py-2 w-48">
+                    <div className="px-4 py-2 border-b">
+                      <p className="font-medium text-sm">{currentUser.name}</p>
+                      <p className="text-xs text-muted-foreground">{currentUser.email}</p>
+                    </div>
+                    
+                    <div className="py-1">
+                      <Link 
+                        to="/customer-dashboard" 
+                        className="block px-4 py-2 text-sm hover:bg-muted"
+                      >
+                        Dashboard
+                      </Link>
+                      <Link 
+                        to="/orders" 
+                        className="block px-4 py-2 text-sm hover:bg-muted"
+                      >
+                        My Orders
+                      </Link>
+                      <Link 
+                        to="/wishlist" 
+                        className="block px-4 py-2 text-sm hover:bg-muted"
+                      >
+                        Wishlist
+                      </Link>
+                      <div className="border-t my-1"></div>
+                      <button
+                        onClick={handleLogout}
+                        className="block w-full text-left px-4 py-2 text-sm hover:bg-muted"
+                      >
+                        Logout
+                      </button>
                     </div>
                   </div>
-                </SheetContent>
-              </Sheet>
-
-              {/* Notifications */}
-              <SidebarModal
-                type="notifications"
-                title={`Notifications${unreadNotifications > 0 ? ` (${unreadNotifications})` : ''}`}
-                trigger={
-                  <Button variant="ghost" size="sm" className="relative">
-                    <Bell className="h-5 w-5" />
-                    {unreadNotifications > 0 && (
-                      <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs">
-                        {unreadNotifications}
-                      </Badge>
-                    )}
-                  </Button>
-                }
-              />
-
-              {/* Wishlist */}
-              <SidebarModal
-                type="wishlist"
-                title={`Wishlist${wishlistItemsCount > 0 ? ` (${wishlistItemsCount})` : ''}`}
-                trigger={
-                  <Button variant="ghost" size="sm" className="relative">
-                    <Heart className="h-5 w-5" />
-                    {wishlistItemsCount > 0 && (
-                      <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs">
-                        {wishlistItemsCount}
-                      </Badge>
-                    )}
-                  </Button>
-                }
-              />
-
-              {/* Cart */}
-              <SidebarModal
-                type="cart"
-                title={`Shopping Cart${cartItemsCount > 0 ? ` (${cartItemsCount})` : ''}`}
-                trigger={
-                  <Button variant="ghost" size="sm" className="relative">
-                    <ShoppingCart className="h-5 w-5" />
-                    {cartItemsCount > 0 && (
-                      <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs">
-                        {cartItemsCount}
-                      </Badge>
-                    )}
-                  </Button>
-                }
-              />
-
-              {/* User Menu */}
-              {currentUser ? (
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="ghost" size="sm" className="flex items-center space-x-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={currentUser.avatar} />
-                        <AvatarFallback>
-                          {currentUser.name?.charAt(0)?.toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="hidden lg:inline">{currentUser.name}</span>
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="right" className="w-80">
-                    <SheetHeader>
-                      <SheetTitle>Account Menu</SheetTitle>
-                    </SheetHeader>
-                    <div className="mt-6 space-y-4">
-                      <div className="flex items-center space-x-3 p-3 border rounded-lg">
-                        <Avatar>
-                          <AvatarImage src={currentUser.avatar} />
-                          <AvatarFallback>
-                            {currentUser.name?.charAt(0)?.toUpperCase() || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{currentUser.name}</p>
-                          <p className="text-sm text-muted-foreground">{currentUser.email}</p>
-                          <Badge variant="outline" className="mt-1 text-xs">
-                            {currentUser.role}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Link to={`/${currentUser.role}-dashboard`}>
-                          <Button variant="ghost" className="w-full justify-start">
-                            <User className="h-4 w-4 mr-2" />
-                            Dashboard
-                          </Button>
-                        </Link>
-                        <Link to="/orders">
-                          <Button variant="ghost" className="w-full justify-start">
-                            <Package className="h-4 w-4 mr-2" />
-                            My Orders
-                          </Button>
-                        </Link>
-                        <Link to="/profile">
-                          <Button variant="ghost" className="w-full justify-start">
-                            <Settings className="h-4 w-4 mr-2" />
-                            Settings
-                          </Button>
-                        </Link>
-                        <Button 
-                          variant="ghost" 
-                          className="w-full justify-start text-destructive"
-                          onClick={handleLogout}
-                        >
-                          <LogOut className="h-4 w-4 mr-2" />
-                          Sign Out
-                        </Button>
-                      </div>
-                    </div>
-                  </SheetContent>
-                </Sheet>
-              ) : (
-                <div className="flex items-center space-x-2">
-                  <Link to="/login">
-                    <Button variant="ghost" size="sm">Sign In</Button>
-                  </Link>
-                  <Link to="/signup">
-                    <Button size="sm">Sign Up</Button>
-                  </Link>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="hidden md:flex items-center space-x-2">
+                <Link to="/login">
+                  <Button variant="ghost" size="sm">Login</Button>
+                </Link>
+                <Link to="/signup">
+                  <Button size="sm">Sign Up</Button>
+                </Link>
+              </div>
+            )}
 
-            {/* Mobile Menu Toggle */}
+            {/* Mobile Menu */}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="sm" className="md:hidden">
-                  <Menu className="h-5 w-5" />
+                <Button variant="ghost" size="icon" className="lg:hidden">
+                  <Menu className="h-4 w-4" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-80">
-                <SheetHeader>
-                  <SheetTitle>Menu</SheetTitle>
-                </SheetHeader>
-                <div className="mt-6 space-y-6">
-                  {/* Mobile Search */}
-                  <form onSubmit={handleSearch}>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="search"
-                        placeholder="Search..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </form>
-
-                  {/* Mobile Navigation Links */}
-                  <div className="space-y-4">
-                    <Link to="/categories" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start">
-                        <Grid3X3 className="h-4 w-4 mr-2" />
-                        Categories
-                      </Button>
-                    </Link>
-                    <Link to="/stores" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start">
-                        <Store className="h-4 w-4 mr-2" />
-                        Stores
-                      </Button>
-                    </Link>
-                    <Link to="/deals" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start">
-                        <Tag className="h-4 w-4 mr-2" />
-                        Deals
-                      </Button>
-                    </Link>
-                    <Link to="/contact" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start">
-                        <Phone className="h-4 w-4 mr-2" />
-                        Contact
-                      </Button>
-                    </Link>
-                  </div>
-
+                <div className="py-4">
+                  {/* User Section */}
                   {currentUser ? (
-                    <div className="space-y-2 pt-4 border-t">
-                      <Link to={`/${currentUser.role}-dashboard`} onClick={() => setMobileMenuOpen(false)}>
-                        <Button variant="ghost" className="w-full justify-start">
-                          <User className="h-4 w-4 mr-2" />
-                          Dashboard
-                        </Button>
-                      </Link>
-                      <Button 
-                        variant="ghost" 
-                        className="w-full justify-start text-destructive"
-                        onClick={() => {
-                          handleLogout();
-                          setMobileMenuOpen(false);
-                        }}
-                      >
-                        <LogOut className="h-4 w-4 mr-2" />
-                        Sign Out
-                      </Button>
+                    <div className="flex items-center space-x-3 pb-4 border-b">
+                      <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                        {currentUser.avatar ? (
+                          <img 
+                            src={currentUser.avatar} 
+                            alt={currentUser.name}
+                            className="w-10 h-10 rounded-full"
+                          />
+                        ) : (
+                          <User className="h-5 w-5 text-primary-foreground" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium">{currentUser.name}</p>
+                        <p className="text-sm text-muted-foreground">{currentUser.email}</p>
+                      </div>
                     </div>
                   ) : (
-                    <div className="space-y-2 pt-4 border-t">
+                    <div className="space-y-2 pb-4 border-b">
                       <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-                        <Button variant="ghost" className="w-full">Sign In</Button>
+                        <Button className="w-full">Login</Button>
                       </Link>
                       <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
-                        <Button className="w-full">Sign Up</Button>
+                        <Button variant="outline" className="w-full">Sign Up</Button>
                       </Link>
                     </div>
                   )}
+
+                  {/* Navigation Links */}
+                  <nav className="space-y-2 pt-4">
+                    <Link 
+                      to="/categories" 
+                      className="flex items-center space-x-3 py-2 hover:text-primary"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Grid3X3 className="h-4 w-4" />
+                      <span>Categories</span>
+                    </Link>
+                    
+                    <Link 
+                      to="/products" 
+                      className="flex items-center space-x-3 py-2 hover:text-primary"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Package className="h-4 w-4" />
+                      <span>Products</span>
+                    </Link>
+                    
+                    <Link 
+                      to="/stores" 
+                      className="flex items-center space-x-3 py-2 hover:text-primary"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Store className="h-4 w-4" />
+                      <span>Stores</span>
+                    </Link>
+
+                    {currentUser && (
+                      <>
+                        <Link 
+                          to="/customer-dashboard" 
+                          className="flex items-center space-x-3 py-2 hover:text-primary"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          <User className="h-4 w-4" />
+                          <span>Dashboard</span>
+                        </Link>
+                        
+                        {currentUser.role === 'seller' && (
+                          <Link 
+                            to="/seller-dashboard" 
+                            className="flex items-center space-x-3 py-2 hover:text-primary"
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            <Users className="h-4 w-4" />
+                            <span>Seller Dashboard</span>
+                          </Link>
+                        )}
+                      </>
+                    )}
+                    
+                    <Link 
+                      to="/help" 
+                      className="flex items-center space-x-3 py-2 hover:text-primary"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Phone className="h-4 w-4" />
+                      <span>Help</span>
+                    </Link>
+                    
+                    <Link 
+                      to="/contact" 
+                      className="flex items-center space-x-3 py-2 hover:text-primary"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Mail className="h-4 w-4" />
+                      <span>Contact</span>
+                    </Link>
+
+                    {currentUser && (
+                      <>
+                        <div className="border-t my-4"></div>
+                        <button
+                          onClick={() => {
+                            handleLogout();
+                            setMobileMenuOpen(false);
+                          }}
+                          className="flex items-center space-x-3 py-2 hover:text-primary w-full text-left"
+                        >
+                          <span>Logout</span>
+                        </button>
+                      </>
+                    )}
+                  </nav>
                 </div>
               </SheetContent>
             </Sheet>
           </div>
         </div>
-      </header>
-
-      {/* Click overlay to close search results */}
-      {showSearchResults && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setShowSearchResults(false)}
-        />
-      )}
-    </>
+      </div>
+    </header>
   );
 }
