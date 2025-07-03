@@ -1,305 +1,227 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import CommerceSDK, { Product, Order, Seller } from '@/lib/commerce-sdk';
-import { useToast } from '@/hooks/use-toast';
+
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { CommerceSDK, Product, Order, Seller, User, CartItem, WishlistItem, Notification } from '@/lib/commerce-sdk';
+import { toast } from 'sonner';
 
 interface CommerceContextType {
-  sdk: CommerceSDK | null;
-  currentUser: any;
-  cart: any;
+  sdk: CommerceSDK;
+  currentUser: User | null;
   products: Product[];
+  cartItems: CartItem[];
+  wishlistItems: WishlistItem[];
+  notifications: Notification[];
+  orders: Order[];
   isLoading: boolean;
-  cartItems: any[];
-  wishlistItems: any[];
-  notifications: any[];
-  orders: any[];
-  // Auth methods
-  login: (email: string, password: string) => Promise<string | { otpRequired: boolean }>;
-  register: (email: string, password: string, profile?: any) => Promise<void>;
-  logout: () => void;
-  // Product methods
-  refreshProducts: () => Promise<void>;
-  searchProducts: (query: string) => Promise<Product[]>;
+  login: (credentials: { email: string; password: string }) => Promise<any>;
+  logout: () => Promise<void>;
+  register: (userData: any) => Promise<any>;
   addToCart: (productId: string, quantity?: number) => Promise<void>;
-  removeFromCart: (productId: string) => Promise<void>;
-  // State
-  sessionToken: string | null;
+  removeFromCart: (itemId: string) => Promise<void>;
+  addToWishlist: (productId: string) => Promise<void>;
+  removeFromWishlist: (itemId: string) => Promise<void>;
+  loadUserData: () => Promise<void>;
 }
 
 const CommerceContext = createContext<CommerceContextType | undefined>(undefined);
 
-export function CommerceProvider({ children }: { children: React.ReactNode }) {
-  const [sdk, setSdk] = useState<CommerceSDK | null>(null);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [cart, setCart] = useState<any>(null);
+export function CommerceProvider({ children }: { children: ReactNode }) {
+  const [sdk] = useState(() => new CommerceSDK());
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [sessionToken, setSessionToken] = useState<string | null>(
-    localStorage.getItem('commerce_token')
-  );
-  const [cartItems, setCartItems] = useState<any[]>([]);
-  const [wishlistItems, setWishlistItems] = useState<any[]>([]);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
-  const { toast } = useToast();
 
-  // Initialize SDK
-  useEffect(() => {
-    async function initSDK() {
-      try {
-        const commerceSDK = new CommerceSDK();
+  const loadUserData = async () => {
+    if (!currentUser) return;
 
-        await commerceSDK.init();
-        setSdk(commerceSDK);
-
-        // Load initial data
-        if (sessionToken) {
-          const user = commerceSDK.getCurrentUser(sessionToken);
-          if (user) {
-            setCurrentUser(user);
-            const userCart = await commerceSDK.getCart(user.id);
-            setCart(userCart);
-          }
-        }
-
-        const allProducts = await commerceSDK.getProducts();
-        setProducts(allProducts);
-      } catch (error) {
-        console.error('Failed to initialize Commerce SDK:', error);
-        toast({
-          title: "Connection Error",
-          description: "Failed to connect to commerce backend. Using demo mode.",
-          variant: "destructive"
-        });
-        
-        // Set demo products for development
-        setProducts([
-          {
-            id: '1',
-            uid: 'demo-1',
-            name: 'Wireless Headphones Pro',
-            description: 'Premium noise-canceling wireless headphones with 30-hour battery life.',
-            price: 299.99,
-            originalPrice: 399.99,
-            category: 'Electronics',
-            tags: ['wireless', 'audio', 'premium'],
-            images: ['/placeholder.svg'],
-            sellerId: 'seller1',
-            sellerName: 'TechCorp',
-            inventory: 50,
-            rating: 4.8,
-            reviewCount: 1247,
-            isActive: true,
-            isFeatured: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          },
-          {
-            id: '2',
-            uid: 'demo-2',
-            name: 'Smart Fitness Watch',
-            description: 'Track your fitness goals with this advanced smartwatch featuring health monitoring.',
-            price: 199.99,
-            category: 'Wearables',
-            tags: ['fitness', 'smartwatch', 'health'],
-            images: ['/placeholder.svg'],
-            sellerId: 'seller2',
-            sellerName: 'FitTech',
-            inventory: 30,
-            rating: 4.6,
-            reviewCount: 892,
-            isActive: true,
-            isFeatured: false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        ]);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    initSDK();
-  }, [sessionToken, toast]);
-
-  // Load user-specific data when user changes
-  useEffect(() => {
-    if (currentUser && sdk) {
-      // Load cart items
-      sdk.getCart(currentUser.id).then(cart => {
-        setCartItems(cart?.items || []);
-      }).catch(console.error);
-
-      // Load wishlist items
-      sdk.getWishlist(currentUser.id).then(wishlist => {
-        setWishlistItems(wishlist?.items || []);
-      }).catch(console.error);
-
-      // Load notifications
-      sdk.getNotifications(currentUser.id).then(notifications => {
-        setNotifications(notifications || []);
-      }).catch(console.error);
-
-      // Load orders
-      sdk.getOrders(currentUser.id).then(orders => {
-        setOrders(orders || []);
-      }).catch(console.error);
-    }
-  }, [currentUser, sdk]);
-
-  const login = async (email: string, password: string): Promise<string | { otpRequired: boolean }> => {
-    if (!sdk) throw new Error('SDK not initialized');
-    
     try {
-      const result = await sdk.login(email, password);
+      const [userCart, userWishlist, userNotifications, userOrders] = await Promise.all([
+        sdk.getCart(currentUser.id),
+        sdk.getWishlist(currentUser.id),
+        sdk.getNotifications(currentUser.id),
+        sdk.getOrders(currentUser.id)
+      ]);
+
+      setCartItems(userCart);
+      setWishlistItems(userWishlist);
+      setNotifications(userNotifications);
+      setOrders(userOrders);
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  };
+
+  const login = async (credentials: { email: string; password: string }) => {
+    try {
+      setIsLoading(true);
+      const result = await sdk.login(credentials);
       
-      if (typeof result === 'string') {
-        // Direct login success
-        setSessionToken(result);
-        localStorage.setItem('commerce_token', result);
-        
-        const user = sdk.getCurrentUser(result);
+      if (result) {
+        const user = await sdk.getCurrentUser();
         setCurrentUser(user);
-        
-        if (user) {
-          const userCart = await sdk.getCart(user.id);
-          setCart(userCart);
-        }
-        
-        return result;
-      } else {
-        // OTP required
+        await loadUserData();
+        toast.success('Login successful!');
         return result;
       }
     } catch (error) {
+      console.error('Login error:', error);
+      toast.error('Login failed. Please try again.');
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const register = async (email: string, password: string, profile = {}) => {
-    if (!sdk) throw new Error('SDK not initialized');
-    
+  const logout = async () => {
     try {
-      const user = await sdk.register(email, password, profile);
-      toast({
-        title: "Account Created",
-        description: "Welcome to CommerceOS! Please verify your email."
-      });
+      await sdk.logout();
+      setCurrentUser(null);
+      setCartItems([]);
+      setWishlistItems([]);
+      setNotifications([]);
+      setOrders([]);
+      toast.success('Logged out successfully!');
     } catch (error) {
-      toast({
-        title: "Registration Failed",
-        description: error instanceof Error ? error.message : "Failed to create account",
-        variant: "destructive"
-      });
+      console.error('Logout error:', error);
+      toast.error('Logout failed. Please try again.');
+    }
+  };
+
+  const register = async (userData: any) => {
+    try {
+      setIsLoading(true);
+      const result = await sdk.register(userData);
+      
+      if (result) {
+        const user = await sdk.getCurrentUser();
+        setCurrentUser(user);
+        toast.success('Registration successful!');
+        return result;
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast.error('Registration failed. Please try again.');
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const logout = () => {
-    if (sessionToken && sdk) {
-      sdk.logout(sessionToken);
-    }
-    setSessionToken(null);
-    setCurrentUser(null);
-    setCart(null);
-    localStorage.removeItem('commerce_token');
-    
-    toast({
-      title: "Logged Out",
-      description: "You have been successfully logged out."
-    });
-  };
-
-  const refreshProducts = async () => {
-    if (!sdk) return;
-    
-    try {
-      const allProducts = await sdk.getProducts();
-      setProducts(allProducts);
-    } catch (error) {
-      console.error('Failed to refresh products:', error);
-    }
-  };
-
-  const searchProducts = async (query: string): Promise<Product[]> => {
-    if (!sdk) return [];
-    
-    try {
-      return await sdk.searchProducts(query);
-    } catch (error) {
-      console.error('Search failed:', error);
-      return [];
-    }
-  };
-
-  const addToCart = async (productId: string, quantity = 1) => {
-    if (!sdk || !currentUser) {
-      toast({
-        title: "Login Required",
-        description: "Please log in to add items to cart.",
-        variant: "destructive"
-      });
+  const addToCart = async (productId: string, quantity: number = 1) => {
+    if (!currentUser) {
+      toast.error('Please login to add items to cart');
       return;
     }
-    
+
     try {
-      const updatedCart = await sdk.addToCart(currentUser.id, productId, quantity);
-      setCart(updatedCart);
-      
-      toast({
-        title: "Added to Cart",
-        description: "Item successfully added to your cart."
-      });
+      await sdk.addToCart(currentUser.id, productId, quantity);
+      await loadUserData();
+      toast.success('Item added to cart');
     } catch (error) {
-      toast({
-        title: "Failed to Add Item",
-        description: error instanceof Error ? error.message : "Could not add to cart",
-        variant: "destructive"
-      });
+      console.error('Add to cart error:', error);
+      toast.error('Failed to add item to cart');
     }
   };
 
-  const removeFromCart = async (productId: string) => {
-    if (!sdk || !currentUser) return;
-    
+  const removeFromCart = async (itemId: string) => {
     try {
-      const updatedCart = await sdk.removeFromCart(currentUser.id, productId);
-      setCart(updatedCart);
-      
-      toast({
-        title: "Removed from Cart",
-        description: "Item removed from your cart."
-      });
+      await sdk.sdk.delete('cart_items', itemId);
+      await loadUserData();
+      toast.success('Item removed from cart');
     } catch (error) {
-      toast({
-        title: "Failed to Remove Item",
-        description: error instanceof Error ? error.message : "Could not remove from cart",
-        variant: "destructive"
-      });
+      console.error('Remove from cart error:', error);
+      toast.error('Failed to remove item from cart');
     }
+  };
+
+  const addToWishlist = async (productId: string) => {
+    if (!currentUser) {
+      toast.error('Please login to add items to wishlist');
+      return;
+    }
+
+    try {
+      await sdk.sdk.create('wishlist_items', {
+        userId: currentUser.id,
+        productId
+      });
+      await loadUserData();
+      toast.success('Item added to wishlist');
+    } catch (error) {
+      console.error('Add to wishlist error:', error);
+      toast.error('Failed to add item to wishlist');
+    }
+  };
+
+  const removeFromWishlist = async (itemId: string) => {
+    try {
+      await sdk.sdk.delete('wishlist_items', itemId);
+      await loadUserData();
+      toast.success('Item removed from wishlist');
+    } catch (error) {
+      console.error('Remove from wishlist error:', error);
+      toast.error('Failed to remove item from wishlist');
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      const productsData = await sdk.getProducts();
+      setProducts(productsData);
+    } catch (error) {
+      console.error('Error loading products:', error);
+    }
+  };
+
+  const checkCurrentUser = async () => {
+    try {
+      const user = await sdk.getCurrentUser();
+      if (user) {
+        setCurrentUser(user);
+        await loadUserData();
+      }
+    } catch (error) {
+      console.error('Error checking current user:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    checkCurrentUser();
+    loadProducts();
+  }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      loadUserData();
+    }
+  }, [currentUser]);
+
+  const value: CommerceContextType = {
+    sdk,
+    currentUser,
+    products,
+    cartItems,
+    wishlistItems,
+    notifications,
+    orders,
+    isLoading,
+    login,
+    logout,
+    register,
+    addToCart,
+    removeFromCart,
+    addToWishlist,
+    removeFromWishlist,
+    loadUserData
   };
 
   return (
-    <CommerceContext.Provider
-      value={{
-        sdk,
-        currentUser,
-        cart,
-        products,
-        isLoading,
-        cartItems,
-        wishlistItems,
-        notifications,
-        orders,
-        login,
-        register,
-        logout,
-        refreshProducts,
-        searchProducts,
-        addToCart,
-        removeFromCart,
-        sessionToken
-      }}
-    >
+    <CommerceContext.Provider value={value}>
       {children}
     </CommerceContext.Provider>
   );
