@@ -1,120 +1,142 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { CommerceSDK, User, Product, Order, CartItem } from '@/lib/commerce-sdk';
-import { toast } from 'sonner';
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import CommerceSDK, {
+  User,
+  Product,
+  Order,
+  Category,
+  CartItem,
+  WishlistItem
+} from '@/lib/commerce-sdk';
 
-interface Cart {
-  items: CartItem[];
-  total: number;
-}
-
-interface CommerceContextType {
-  // SDK
-  sdk: CommerceSDK;
-  
-  // Auth
+// Define the context type
+type CommerceContextType = {
   currentUser: User | null;
-  login: (credentials: { email: string; password: string }) => Promise<User | null>;
-  register: (userData: any) => Promise<void>;
-  logout: () => Promise<void>;
-  
-  // Data
   products: Product[];
+  categories: Category[];
   orders: Order[];
-  cart: Cart | null;
-  loading: boolean;
+  cart: { items: CartItem[] };
+  wishlistItems: WishlistItem[];
   isLoading: boolean;
-  wishlistItems: Product[];
-  
-  // Actions
-  addToCart: (productId: string, quantity?: number) => void;
-  removeFromCart: (productId: string) => void;
-  updateCartQuantity: (productId: string, quantity: number) => void;
-  clearCart: () => void;
-  addToWishlist: (productId: string) => void;
-  loadUserData: () => Promise<void>;
-  searchProducts: (query: string) => Promise<Product[]>;
-}
+  sdk: CommerceSDK;
+  login: (credentials: { email: string; password: string }) => Promise<User>;
+  logout: () => Promise<void>;
+  addToCart: (productId: string, quantity?: number) => Promise<CartItem>;
+  removeFromCart: (productId: string) => Promise<void>;
+  updateCartQuantity: (productId: string, quantity: number) => Promise<void>;
+  clearCart: () => Promise<void>;
+  searchProducts: (query: string, filters?: any) => Promise<Product[]>;
+};
 
-const CommerceContext = createContext<CommerceContextType | undefined>(undefined);
+// Create the context with a default value
+export const CommerceContext = createContext<CommerceContextType>({
+  currentUser: null,
+  products: [],
+  categories: [],
+  orders: [],
+  cart: { items: [] },
+  wishlistItems: [],
+  isLoading: false,
+  sdk: new CommerceSDK(),
+  login: async () => { throw new Error('Login function not implemented'); },
+  logout: async () => { throw new Error('Logout function not implemented'); },
+  addToCart: async () => { throw new Error('AddToCart function not implemented'); },
+  removeFromCart: async () => { throw new Error('removeFromCart function not implemented'); },
+  updateCartQuantity: async () => { throw new Error('updateCartQuantity function not implemented'); },
+  clearCart: async () => { throw new Error('clearCart function not implemented'); },
+  searchProducts: async () => { return []; }
+});
 
-export function CommerceProvider({ children }: { children: ReactNode }) {
-  const [sdk] = useState(() => new CommerceSDK());
+// Create a custom hook to use the context
+export const useCommerce = () => useContext(CommerceContext);
+
+export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [cart, setCart] = useState<Cart | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
+  const [cart, setCart] = useState<{ items: CartItem[] }>({ items: [] });
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [sdk] = useState(() => new CommerceSDK());
 
-  // Initialize
   useEffect(() => {
     initializeApp();
   }, []);
 
   const initializeApp = async () => {
     try {
-      // Check for existing user session
+      setIsLoading(true);
       const user = await sdk.getCurrentUser();
+      setCurrentUser(user);
+      
       if (user) {
-        setCurrentUser(user);
-        await loadUserData();
+        await Promise.all([
+          loadUserCart(user.id),
+          loadUserWishlist(user.id)
+        ]);
       }
       
-      // Load initial products
-      const productsData = await sdk.getProducts();
-      setProducts(productsData);
+      await Promise.all([
+        loadProducts(),
+        loadCategories()
+      ]);
     } catch (error) {
       console.error('Failed to initialize app:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const loadUserData = async () => {
-    if (!currentUser) return;
-    
+  const loadUserCart = async (userId: string) => {
     try {
-      // Load user's cart
-      const cartItems = await sdk.getCart(currentUser.id);
-      const total = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-      setCart({ items: cartItems, total });
-      
-      // Load user's orders
-      const userOrders = await sdk.getOrders(currentUser.id);
-      setOrders(userOrders);
-
-      // Load wishlist items
-      const saved = localStorage.getItem(`wishlist_${currentUser.uid}`);
-      if (saved) {
-        const wishlistProductIds = JSON.parse(saved);
-        const items = products.filter(p => wishlistProductIds.includes(p.id));
-        setWishlistItems(items);
-      }
+      const cartItems = await sdk.getCart(userId);
+      setCart({ items: cartItems });
     } catch (error) {
-      console.error('Failed to load user data:', error);
+      console.error('Error loading cart:', error);
     }
   };
 
-  const login = async (credentials: { email: string; password: string }): Promise<User | null> => {
+  const loadUserWishlist = async (userId: string) => {
+    try {
+      const wishlist = await sdk.getWishlist(userId);
+      setWishlistItems(wishlist);
+    } catch (error) {
+      console.error('Error loading wishlist:', error);
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      const productsData = await sdk.getProducts();
+      setProducts(productsData);
+    } catch (error) {
+      console.error('Error loading products:', error);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const categoriesData = await sdk.getCategories();
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
+
+  const login = async (credentials: { email: string; password: string }) => {
     try {
       const user = await sdk.login(credentials);
       setCurrentUser(user);
-      await loadUserData();
-      toast.success('Login successful!');
+      
+      // Load user-specific data after login
+      await Promise.all([
+        loadUserCart(user.id),
+        loadUserWishlist(user.id)
+      ]);
+      
       return user;
-    } catch (error: any) {
-      toast.error(error.message || 'Login failed');
-      throw error;
-    }
-  };
-
-  const register = async (userData: any) => {
-    try {
-      const user = await sdk.register(userData);
-      setCurrentUser(user);
-      toast.success('Registration successful!');
-    } catch (error: any) {
-      toast.error(error.message || 'Registration failed');
+    } catch (error) {
+      console.error('Login error:', error);
       throw error;
     }
   };
@@ -123,199 +145,134 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
     try {
       await sdk.logout();
       setCurrentUser(null);
-      setCart(null);
-      setOrders([]);
+      setCart({ items: [] });
       setWishlistItems([]);
-      toast.success('Logged out successfully');
-    } catch (error: any) {
-      toast.error(error.message || 'Logout failed');
-    }
-  };
-
-  const searchProducts = async (query: string): Promise<Product[]> => {
-    try {
-      const results = await sdk.searchProducts(query);
-      return results;
     } catch (error) {
-      console.error('Search failed:', error);
-      return [];
+      console.error('Logout error:', error);
     }
   };
 
   const addToCart = async (productId: string, quantity: number = 1) => {
     if (!currentUser) {
-      // Handle guest cart in localStorage
-      const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
-      const existingItem = guestCart.find((item: any) => item.productId === productId);
-      
-      if (existingItem) {
-        existingItem.quantity += quantity;
-      } else {
-        guestCart.push({ productId, quantity });
-      }
-      
-      localStorage.setItem('guestCart', JSON.stringify(guestCart));
-      
-      // Update cart state
-      const product = products.find(p => p.id === productId);
-      if (product) {
-        const cartItems = guestCart.map((item: any) => {
-          const prod = products.find(p => p.id === item.productId);
-          return prod ? { ...item, product: prod } : null;
-        }).filter(Boolean);
-        
-        const total = cartItems.reduce((sum: number, item: any) => sum + (item.product.price * item.quantity), 0);
-        setCart({ items: cartItems, total });
-      }
-      
-      toast.success('Added to cart');
-      return;
+      throw new Error('Please login to add items to cart');
     }
 
     try {
-      await sdk.addToCart(currentUser.id, productId, quantity);
-      await loadUserData(); // Refresh cart
-      toast.success('Added to cart');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to add to cart');
+      const cartItem = await sdk.addToCart(currentUser.id, productId, quantity);
+      
+      // Update local cart state immediately for better UX
+      setCart(prevCart => {
+        const existingItemIndex = prevCart.items.findIndex(item => item.productId === productId);
+        
+        if (existingItemIndex >= 0) {
+          // Update existing item
+          const updatedItems = [...prevCart.items];
+          updatedItems[existingItemIndex] = {
+            ...updatedItems[existingItemIndex],
+            quantity: updatedItems[existingItemIndex].quantity + quantity
+          };
+          return { items: updatedItems };
+        } else {
+          // Add new item
+          return { items: [...prevCart.items, cartItem] };
+        }
+      });
+      
+      return cartItem;
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      throw error;
     }
   };
 
   const removeFromCart = async (productId: string) => {
-    if (!currentUser) {
-      // Handle guest cart
-      const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
-      const updatedCart = guestCart.filter((item: any) => item.productId !== productId);
-      localStorage.setItem('guestCart', JSON.stringify(updatedCart));
-      
-      // Update cart state
-      const cartItems = updatedCart.map((item: any) => {
-        const prod = products.find(p => p.id === item.productId);
-        return prod ? { ...item, product: prod } : null;
-      }).filter(Boolean);
-      
-      const total = cartItems.reduce((sum: number, item: any) => sum + (item.product.price * item.quantity), 0);
-      setCart({ items: cartItems, total });
-      
-      toast.success('Removed from cart');
-      return;
-    }
+    if (!currentUser) return;
 
     try {
-      // For authenticated users, we'd need to implement this in the SDK
-      await loadUserData(); // Refresh cart
-      toast.success('Removed from cart');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to remove from cart');
+      // Remove from backend
+      await sdk.delete('cart_items', productId);
+      
+      // Update local state immediately
+      setCart(prevCart => ({
+        items: prevCart.items.filter(item => item.productId !== productId)
+      }));
+    } catch (error) {
+      console.error('Error removing from cart:', error);
+      // Revert local state on error
+      await loadUserCart(currentUser.id);
+      throw error;
     }
   };
 
   const updateCartQuantity = async (productId: string, quantity: number) => {
-    if (quantity === 0) {
-      removeFromCart(productId);
-      return;
-    }
-
-    if (!currentUser) {
-      // Handle guest cart
-      const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
-      const existingItem = guestCart.find((item: any) => item.productId === productId);
-      
-      if (existingItem) {
-        existingItem.quantity = quantity;
-        localStorage.setItem('guestCart', JSON.stringify(guestCart));
-        
-        // Update cart state
-        const cartItems = guestCart.map((item: any) => {
-          const prod = products.find(p => p.id === item.productId);
-          return prod ? { ...item, product: prod } : null;
-        }).filter(Boolean);
-        
-        const total = cartItems.reduce((sum: number, item: any) => sum + (item.product.price * item.quantity), 0);
-        setCart({ items: cartItems, total });
-      }
-      return;
-    }
+    if (!currentUser) return;
 
     try {
-      // For authenticated users, we'd need to implement this in the SDK
-      await loadUserData(); // Refresh cart
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update cart');
+      if (quantity <= 0) {
+        await removeFromCart(productId);
+        return;
+      }
+
+      // Update in backend
+      await sdk.update('cart_items', productId, { quantity });
+      
+      // Update local state
+      setCart(prevCart => ({
+        items: prevCart.items.map(item =>
+          item.productId === productId
+            ? { ...item, quantity }
+            : item
+        )
+      }));
+    } catch (error) {
+      console.error('Error updating cart quantity:', error);
+      // Revert local state on error
+      await loadUserCart(currentUser.id);
+      throw error;
     }
   };
 
   const clearCart = async () => {
-    if (!currentUser) {
-      localStorage.removeItem('guestCart');
-      setCart({ items: [], total: 0 });
-      return;
-    }
+    if (!currentUser) return;
 
     try {
-      // For authenticated users, we'd need to implement this in the SDK
-      await loadUserData(); // Refresh cart
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to clear cart');
-    }
-  };
-
-  const addToWishlist = (productId: string) => {
-    if (!currentUser) {
-      toast.error('Please login to add items to wishlist');
-      return;
-    }
-
-    const wishlist = JSON.parse(localStorage.getItem(`wishlist_${currentUser.uid}`) || '[]');
-    if (!wishlist.includes(productId)) {
-      wishlist.push(productId);
-      localStorage.setItem(`wishlist_${currentUser.uid}`, JSON.stringify(wishlist));
-      toast.success('Added to wishlist');
+      // Clear all cart items for user
+      const cartItems = await sdk.getCart(currentUser.id);
+      await Promise.all(
+        cartItems.map(item => sdk.delete('cart_items', item.id))
+      );
       
-      // Update wishlist items state
-      const product = products.find(p => p.id === productId);
-      if (product) {
-        setWishlistItems(prev => [...prev, product]);
-      }
-    } else {
-      toast.info('Item already in wishlist');
+      setCart({ items: [] });
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+      throw error;
     }
   };
 
-  // Load guest cart on products update
-  useEffect(() => {
-    if (!currentUser && products.length > 0) {
-      const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
-      if (guestCart.length > 0) {
-        const cartItems = guestCart.map((item: any) => {
-          const prod = products.find(p => p.id === item.productId);
-          return prod ? { ...item, product: prod } : null;
-        }).filter(Boolean);
-        
-        const total = cartItems.reduce((sum: number, item: any) => sum + (item.product.price * item.quantity), 0);
-        setCart({ items: cartItems, total });
-      }
+  const searchProducts = async (query: string, filters?: any): Promise<Product[]> => {
+    try {
+      return await sdk.searchProducts(query, filters);
+    } catch (error) {
+      console.error('Error searching products:', error);
+      return [];
     }
-  }, [currentUser, products]);
+  };
 
   const value: CommerceContextType = {
-    sdk,
     currentUser,
-    login,
-    register,
-    logout,
     products,
+    categories,
     orders,
     cart,
-    loading,
-    isLoading: loading,
     wishlistItems,
+    isLoading,
+    sdk,
+    login,
+    logout,
     addToCart,
     removeFromCart,
     updateCartQuantity,
     clearCart,
-    addToWishlist,
-    loadUserData,
     searchProducts
   };
 
@@ -324,12 +281,6 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       {children}
     </CommerceContext.Provider>
   );
-}
+};
 
-export function useCommerce() {
-  const context = useContext(CommerceContext);
-  if (context === undefined) {
-    throw new Error('useCommerce must be used within a CommerceProvider');
-  }
-  return context;
-}
+export default CommerceContext;
