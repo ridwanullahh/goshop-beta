@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -17,7 +18,7 @@ import {
   Plus, 
   Search,
   Filter,
-  Trending,
+  TrendingUp,
   Users,
   Clock,
   Send
@@ -68,7 +69,7 @@ export default function CommunityHub() {
     
     setLoading(true);
     try {
-      const fetchedPosts = await sdk.get<Post>('posts');
+      const fetchedPosts = await sdk.sdk.get<Post>('posts');
       setPosts(fetchedPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -93,7 +94,7 @@ export default function CommunityHub() {
         createdAt: new Date().toISOString()
       };
 
-      await sdk.insert<Post>('posts', postData);
+      await sdk.sdk.insert<Post>('posts', postData);
       toast.success('Post created successfully');
       setNewPost({ content: '', tags: '' });
       setShowCreatePost(false);
@@ -112,7 +113,7 @@ export default function CommunityHub() {
 
     try {
       const newLikes = isLiked ? currentLikes - 1 : currentLikes + 1;
-      await sdk.update<Post>('posts', postId, { 
+      await sdk.sdk.update<Post>('posts', postId, { 
         likes: newLikes,
         isLiked: !isLiked 
       });
@@ -133,7 +134,7 @@ export default function CommunityHub() {
     if (!sdk) return;
 
     try {
-      const fetchedComments = await sdk.queryBuilder<Comment>('comments')
+      const fetchedComments = await sdk.sdk.queryBuilder<Comment>('comments')
         .where(comment => comment.postId === postId)
         .sort('createdAt', 'desc')
         .exec();
@@ -156,10 +157,10 @@ export default function CommunityHub() {
         createdAt: new Date().toISOString()
       };
 
-      await sdk.insert<Comment>('comments', commentData);
+      await sdk.sdk.insert<Comment>('comments', commentData);
       
       // Update post comment count
-      await sdk.update<Post>('posts', selectedPost.id!, { 
+      await sdk.sdk.update<Post>('posts', selectedPost.id!, { 
         comments: selectedPost.comments + 1 
       });
 
@@ -221,7 +222,7 @@ export default function CommunityHub() {
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
-                <Trending className="h-8 w-8 mx-auto mb-2 text-purple-500" />
+                <TrendingUp className="h-8 w-8 mx-auto mb-2 text-purple-500" />
                 <p className="text-2xl font-bold">24</p>
                 <p className="text-sm text-muted-foreground">Active Today</p>
               </CardContent>
@@ -428,3 +429,4 @@ export default function CommunityHub() {
     </div>
   );
 }
+
