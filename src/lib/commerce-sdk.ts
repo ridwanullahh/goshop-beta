@@ -1,4 +1,3 @@
-
 import { UniversalSDK } from './sdk';
 
 // Type definitions
@@ -35,6 +34,16 @@ export interface Product {
   quantity?: number;
   subtotal?: number;
   isFeatured: boolean;
+  isActive?: boolean;
+  tags?: string[];
+  sku?: string;
+  weight?: number;
+  dimensions?: string;
+  shippingClass?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  metaKeywords?: string;
+  soldCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -475,6 +484,21 @@ export class CommerceSDK {
     } catch (error) {
       console.error('Error fetching orders:', error);
       return [];
+    }
+  }
+
+  async createOrder(orderData: any): Promise<Order> {
+    try {
+      const order = await this.sdk.insert('orders', {
+        ...orderData,
+        id: 'order_' + Date.now(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      return order;
+    } catch (error) {
+      console.error('Error creating order:', error);
+      throw error;
     }
   }
 
