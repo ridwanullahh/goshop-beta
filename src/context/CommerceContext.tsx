@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { CommerceSDK, Product, Order, Seller, User, CartItem, WishlistItem, Notification } from '@/lib/commerce-sdk';
 import { toast } from 'sonner';
@@ -77,8 +78,14 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       
       if (result) {
         const user = await sdk.getCurrentUser();
-        setCurrentUser(user);
-        await loadUserData();
+        if (user) {
+          setCurrentUser({
+            ...user,
+            createdAt: user.createdAt || new Date().toISOString(),
+            updatedAt: user.updatedAt || new Date().toISOString()
+          });
+          await loadUserData();
+        }
         toast.success('Login successful!');
         return result;
       }
@@ -113,7 +120,13 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       
       if (result) {
         const user = await sdk.getCurrentUser();
-        setCurrentUser(user);
+        if (user) {
+          setCurrentUser({
+            ...user,
+            createdAt: user.createdAt || new Date().toISOString(),
+            updatedAt: user.updatedAt || new Date().toISOString()
+          });
+        }
         toast.success('Registration successful!');
         return result;
       }
@@ -160,7 +173,7 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      await sdk.sdk.create('wishlist_items', {
+      await sdk.sdk.insert('wishlist_items', {
         userId: currentUser.id,
         productId
       });
@@ -196,7 +209,11 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
     try {
       const user = await sdk.getCurrentUser();
       if (user) {
-        setCurrentUser(user);
+        setCurrentUser({
+          ...user,
+          createdAt: user.createdAt || new Date().toISOString(),
+          updatedAt: user.updatedAt || new Date().toISOString()
+        });
         await loadUserData();
       }
     } catch (error) {

@@ -1,4 +1,5 @@
-import UniversalSDK from './sdk';
+
+import { UniversalSDK } from './sdk';
 
 // Type definitions
 export interface User {
@@ -229,26 +230,34 @@ export class CommerceSDK {
     return await this.sdk.destroySession('');
   }
 
-  // AI Helper method
-  async aiHelper(query: string) {
-    try {
-      return {
-        response: `AI Response for: ${query}`,
-        buyerAssistant: (subQuery: string) => ({ response: `Buyer help: ${subQuery}` }),
-        sellerAssistant: (subQuery: string) => ({ response: `Seller help: ${subQuery}` }),
-        chat: (message: string) => ({ response: `Chat response: ${message}` }),
-        enhancedSearch: (searchQuery: string) => ({ response: `Enhanced search: ${searchQuery}` })
-      };
-    } catch (error) {
-      console.error('AI Helper error:', error);
-      return { response: 'Sorry, I could not process your request at the moment.' };
-    }
+  // AI Helper method - returns the helper object directly
+  get aiHelper() {
+    return {
+      buyerAssistant: async (query: string, context?: any) => {
+        return `AI Buyer Assistant: ${query}`;
+      },
+      sellerAssistant: async (query: string, context?: any) => {
+        return `AI Seller Assistant: ${query}`;
+      },
+      chat: async (messages: any[]) => {
+        return `AI Chat response for ${messages.length} messages`;
+      },
+      enhancedSearch: async (searchQuery: string, products: any[]) => {
+        return {
+          results: products.filter(p => 
+            p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.description?.toLowerCase().includes(searchQuery.toLowerCase())
+          ),
+          suggestions: [`${searchQuery} alternatives`, `${searchQuery} reviews`, `${searchQuery} deals`]
+        };
+      }
+    };
   }
 
   // Product methods
   async getProducts(filters?: any): Promise<Product[]> {
     try {
-      const products = await this.sdk.get('products', filters);
+      const products = await this.sdk.get('products');
       return products || [];
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -258,8 +267,8 @@ export class CommerceSDK {
 
   async getProduct(id: string): Promise<Product | null> {
     try {
-      const product = await this.sdk.get('products', { id });
-      return product?.[0] || null;
+      const product = await this.sdk.getItem('products', id);
+      return product;
     } catch (error) {
       console.error('Error fetching product:', error);
       return null;
@@ -268,7 +277,11 @@ export class CommerceSDK {
 
   async createProduct(productData: any): Promise<Product> {
     try {
-      const product = await this.sdk.create('products', productData);
+      const product = await this.sdk.insert('products', {
+        ...productData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
       return product;
     } catch (error) {
       console.error('Error creating product:', error);
@@ -278,7 +291,10 @@ export class CommerceSDK {
 
   async updateProduct(id: string, updates: any): Promise<Product> {
     try {
-      const product = await this.sdk.update('products', id, updates);
+      const product = await this.sdk.update('products', id, {
+        ...updates,
+        updatedAt: new Date().toISOString()
+      });
       return product;
     } catch (error) {
       console.error('Error updating product:', error);
@@ -297,8 +313,11 @@ export class CommerceSDK {
 
   async searchProducts(query: string, filters?: any): Promise<Product[]> {
     try {
-      const products = await this.sdk.get('products', { ...filters, search: query });
-      return products || [];
+      const products = await this.sdk.get('products');
+      return products.filter(p => 
+        p.name?.toLowerCase().includes(query.toLowerCase()) ||
+        p.description?.toLowerCase().includes(query.toLowerCase())
+      ) || [];
     } catch (error) {
       console.error('Error searching products:', error);
       return [];
@@ -307,8 +326,8 @@ export class CommerceSDK {
 
   async getProductReviews(productId: string) {
     try {
-      const reviews = await this.sdk.get('reviews', { productId });
-      return reviews || [];
+      const reviews = await this.sdk.get('reviews');
+      return reviews.filter(r => r.productId === productId) || [];
     } catch (error) {
       console.error('Error fetching product reviews:', error);
       return [];
@@ -328,8 +347,8 @@ export class CommerceSDK {
 
   async getCategory(slug: string): Promise<Category | null> {
     try {
-      const category = await this.sdk.get('categories', { slug });
-      return category?.[0] || null;
+      const categories = await this.sdk.get('categories');
+      return categories.find(c => c.slug === slug) || null;
     } catch (error) {
       console.error('Error fetching category:', error);
       return null;
@@ -349,8 +368,8 @@ export class CommerceSDK {
 
   async getStore(id: string): Promise<Store | null> {
     try {
-      const store = await this.sdk.get('stores', { id });
-      return store?.[0] || null;
+      const store = await this.sdk.getItem('stores', id);
+      return store;
     } catch (error) {
       console.error('Error fetching store:', error);
       return null;
@@ -359,8 +378,8 @@ export class CommerceSDK {
 
   async getStoreProducts(storeId: string): Promise<Product[]> {
     try {
-      const products = await this.sdk.get('products', { storeId });
-      return products || [];
+      const products = await this.sdk.get('products');
+      return products.filter(p => p.storeId === storeId) || [];
     } catch (error) {
       console.error('Error fetching store products:', error);
       return [];
@@ -370,7 +389,11 @@ export class CommerceSDK {
   // Seller methods
   async createSeller(sellerData: any): Promise<Seller> {
     try {
-      const seller = await this.sdk.create('sellers', sellerData);
+      const seller = await this.sdk.insert('sellers', {
+        ...sellerData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
       return seller;
     } catch (error) {
       console.error('Error creating seller:', error);
@@ -380,8 +403,8 @@ export class CommerceSDK {
 
   async getSellerProducts(sellerId: string): Promise<Product[]> {
     try {
-      const products = await this.sdk.get('products', { sellerId });
-      return products || [];
+      const products = await this.sdk.get('products');
+      return products.filter(p => p.sellerId === sellerId) || [];
     } catch (error) {
       console.error('Error fetching seller products:', error);
       return [];
@@ -390,8 +413,8 @@ export class CommerceSDK {
 
   async getSellerAnalytics(sellerId: string) {
     try {
-      const analytics = await this.sdk.get('seller_analytics', { sellerId });
-      return analytics?.[0] || null;
+      const analytics = await this.sdk.get('seller_analytics');
+      return analytics.find(a => a.sellerId === sellerId) || null;
     } catch (error) {
       console.error('Error fetching seller analytics:', error);
       return null;
@@ -401,8 +424,8 @@ export class CommerceSDK {
   // Order methods
   async getOrders(userId?: string): Promise<Order[]> {
     try {
-      const orders = await this.sdk.get('orders', userId ? { userId } : {});
-      return orders || [];
+      const orders = await this.sdk.get('orders');
+      return userId ? orders.filter(o => o.userId === userId) : orders || [];
     } catch (error) {
       console.error('Error fetching orders:', error);
       return [];
@@ -411,7 +434,10 @@ export class CommerceSDK {
 
   async updateOrderStatus(orderId: string, status: string): Promise<Order> {
     try {
-      const order = await this.sdk.update('orders', orderId, { status });
+      const order = await this.sdk.update('orders', orderId, { 
+        status,
+        updatedAt: new Date().toISOString()
+      });
       return order;
     } catch (error) {
       console.error('Error updating order status:', error);
@@ -422,8 +448,8 @@ export class CommerceSDK {
   // Cart methods
   async getCart(userId: string): Promise<CartItem[]> {
     try {
-      const cartItems = await this.sdk.get('cart_items', { userId });
-      return cartItems || [];
+      const cartItems = await this.sdk.get('cart_items');
+      return cartItems.filter(item => item.userId === userId) || [];
     } catch (error) {
       console.error('Error fetching cart:', error);
       return [];
@@ -432,7 +458,7 @@ export class CommerceSDK {
 
   async addToCart(userId: string, productId: string, quantity: number = 1): Promise<CartItem> {
     try {
-      const cartItem = await this.sdk.create('cart_items', {
+      const cartItem = await this.sdk.insert('cart_items', {
         userId,
         productId,
         quantity
@@ -447,8 +473,8 @@ export class CommerceSDK {
   // Wishlist methods
   async getWishlist(userId: string): Promise<WishlistItem[]> {
     try {
-      const wishlistItems = await this.sdk.get('wishlist_items', { userId });
-      return wishlistItems || [];
+      const wishlistItems = await this.sdk.get('wishlist_items');
+      return wishlistItems.filter(item => item.userId === userId) || [];
     } catch (error) {
       console.error('Error fetching wishlist:', error);
       return [];
@@ -458,8 +484,8 @@ export class CommerceSDK {
   // Notification methods
   async getNotifications(userId: string): Promise<Notification[]> {
     try {
-      const notifications = await this.sdk.get('notifications', { userId });
-      return notifications || [];
+      const notifications = await this.sdk.get('notifications');
+      return notifications.filter(n => n.userId === userId) || [];
     } catch (error) {
       console.error('Error fetching notifications:', error);
       return [];
@@ -469,7 +495,11 @@ export class CommerceSDK {
   // Affiliate methods
   async createAffiliate(affiliateData: any): Promise<Affiliate> {
     try {
-      const affiliate = await this.sdk.create('affiliates', affiliateData);
+      const affiliate = await this.sdk.insert('affiliates', {
+        ...affiliateData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
       return affiliate;
     } catch (error) {
       console.error('Error creating affiliate:', error);
@@ -479,8 +509,8 @@ export class CommerceSDK {
 
   async getAffiliate(userId: string): Promise<Affiliate | null> {
     try {
-      const affiliate = await this.sdk.get('affiliates', { userId });
-      return affiliate?.[0] || null;
+      const affiliates = await this.sdk.get('affiliates');
+      return affiliates.find(a => a.userId === userId) || null;
     } catch (error) {
       console.error('Error fetching affiliate:', error);
       return null;
@@ -489,8 +519,8 @@ export class CommerceSDK {
 
   async getAffiliateLinks(affiliateId: string): Promise<AffiliateLink[]> {
     try {
-      const links = await this.sdk.get('affiliate_links', { affiliateId });
-      return links || [];
+      const links = await this.sdk.get('affiliate_links');
+      return links.filter(l => l.affiliateId === affiliateId) || [];
     } catch (error) {
       console.error('Error fetching affiliate links:', error);
       return [];
@@ -499,7 +529,11 @@ export class CommerceSDK {
 
   async createAffiliateLink(linkData: any): Promise<AffiliateLink> {
     try {
-      const link = await this.sdk.create('affiliate_links', linkData);
+      const link = await this.sdk.insert('affiliate_links', {
+        ...linkData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
       return link;
     } catch (error) {
       console.error('Error creating affiliate link:', error);
@@ -509,8 +543,8 @@ export class CommerceSDK {
 
   async getCommissions(affiliateId: string): Promise<Commission[]> {
     try {
-      const commissions = await this.sdk.get('commissions', { affiliateId });
-      return commissions || [];
+      const commissions = await this.sdk.get('commissions');
+      return commissions.filter(c => c.affiliateId === affiliateId) || [];
     } catch (error) {
       console.error('Error fetching commissions:', error);
       return [];
@@ -530,7 +564,11 @@ export class CommerceSDK {
 
   async createHelpArticle(articleData: any): Promise<HelpArticle> {
     try {
-      const article = await this.sdk.create('help_articles', articleData);
+      const article = await this.sdk.insert('help_articles', {
+        ...articleData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
       return article;
     } catch (error) {
       console.error('Error creating help article:', error);
@@ -550,7 +588,11 @@ export class CommerceSDK {
 
   async createBlog(blogData: any): Promise<Blog> {
     try {
-      const blog = await this.sdk.create('blogs', blogData);
+      const blog = await this.sdk.insert('blogs', {
+        ...blogData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
       return blog;
     } catch (error) {
       console.error('Error creating blog:', error);
@@ -561,7 +603,7 @@ export class CommerceSDK {
   // Community methods
   async getPosts(filters?: any) {
     try {
-      const posts = await this.sdk.get('posts', filters);
+      const posts = await this.sdk.get('posts');
       return posts || [];
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -571,7 +613,11 @@ export class CommerceSDK {
 
   async createPost(postData: any): Promise<Post> {
     try {
-      const post = await this.sdk.insert('posts', postData);
+      const post = await this.sdk.insert('posts', {
+        ...postData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
       return post;
     } catch (error) {
       console.error('Error creating post:', error);
@@ -581,7 +627,10 @@ export class CommerceSDK {
 
   async updatePost(id: string, updates: any): Promise<Post> {
     try {
-      const post = await this.sdk.update('posts', id, updates);
+      const post = await this.sdk.update('posts', id, {
+        ...updates,
+        updatedAt: new Date().toISOString()
+      });
       return post;
     } catch (error) {
       console.error('Error updating post:', error);
@@ -591,8 +640,8 @@ export class CommerceSDK {
 
   async getComments(postId: string) {
     try {
-      const comments = await this.sdk.get('comments', { postId });
-      return comments || [];
+      const comments = await this.sdk.get('comments');
+      return comments.filter(c => c.postId === postId) || [];
     } catch (error) {
       console.error('Error fetching comments:', error);
       return [];
@@ -601,7 +650,11 @@ export class CommerceSDK {
 
   async createComment(commentData: any): Promise<Comment> {
     try {
-      const comment = await this.sdk.insert('comments', commentData);
+      const comment = await this.sdk.insert('comments', {
+        ...commentData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
       return comment;
     } catch (error) {
       console.error('Error creating comment:', error);
@@ -623,7 +676,11 @@ export class CommerceSDK {
   // Wallet methods
   async createWallet(walletData: any) {
     try {
-      const wallet = await this.sdk.create('wallets', walletData);
+      const wallet = await this.sdk.insert('wallets', {
+        ...walletData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
       return wallet;
     } catch (error) {
       console.error('Error creating wallet:', error);
