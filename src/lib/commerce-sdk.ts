@@ -69,6 +69,10 @@ export interface OrderItem {
   quantity: number;
   price: number;
   product?: Product;
+  productName?: string;
+  name?: string;
+  images?: string[];
+  subtotal?: number;
 }
 
 export interface Address {
@@ -138,6 +142,7 @@ export interface Notification {
 export interface Post {
   id: string;
   userId: string;
+  userName?: string;
   title: string;
   content: string;
   images?: string[];
@@ -151,6 +156,7 @@ export interface Comment {
   id: string;
   postId: string;
   userId: string;
+  userName?: string;
   content: string;
   createdAt: string;
   updatedAt: string;
@@ -219,17 +225,17 @@ export default class CommerceSDK {
     generateSearchSuggestions: async (query: string) => {
       return [];
     },
-    buyerAssistant: async (query: string) => {
-      return { response: `AI assistance for: ${query}` };
+    buyerAssistant: async (query: string, context?: any) => {
+      return `AI assistance for: ${query}`;
     },
-    sellerAssistant: async (query: string) => {
-      return { response: `Seller AI assistance for: ${query}` };
+    sellerAssistant: async (query: string, context?: any) => {
+      return `Seller AI assistance for: ${query}`;
     },
     chat: async (message: string) => {
-      return { response: `AI chat response to: ${message}` };
+      return `AI chat response to: ${message}`;
     },
-    enhancedSearch: async (query: string, filters: any) => {
-      return [];
+    enhancedSearch: async (query: string, products: any[]) => {
+      return { results: [], suggestions: [] };
     }
   };
 
@@ -493,7 +499,7 @@ export default class CommerceSDK {
     }
   }
 
-  async register(userData: { email: string; password: string; name: string }): Promise<User> {
+  async register(userData: { email: string; password: string; name: string; firstName?: string }): Promise<User> {
     try {
       const users = await this.getData('users');
       
@@ -506,6 +512,7 @@ export default class CommerceSDK {
         id: Date.now().toString(),
         email: userData.email,
         name: userData.name,
+        firstName: userData.firstName,
         role: 'customer',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
