@@ -503,7 +503,19 @@ export default class CommerceSDK {
     }
   }
 
-  async register(userData: { email: string; password: string; name: string; firstName?: string; [key: string]: any }): Promise<User> {
+  async register(userData: { 
+    email: string; 
+    password: string; 
+    name: string; 
+    firstName?: string; 
+    lastName?: string;
+    role?: string;
+    roles?: string[];
+    businessName?: string;
+    phone?: string;
+    onboardingCompleted?: boolean;
+    [key: string]: any;
+  }): Promise<User> {
     try {
       const users = await this.getData('users');
       
@@ -517,6 +529,7 @@ export default class CommerceSDK {
         email: userData.email,
         name: userData.name,
         firstName: userData.firstName,
+        lastName: userData.lastName,
         role: userData.role || 'customer',
         roles: userData.roles || ['customer'],
         businessName: userData.businessName,
