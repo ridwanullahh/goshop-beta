@@ -188,7 +188,7 @@ export default function TrackOrder() {
                       <Package className="h-5 w-5 text-muted-foreground" />
                       <div>
                         <p className="text-sm text-muted-foreground">Items</p>
-                        <p className="font-semibold">{trackedOrder.products.length} item(s)</p>
+                        <p className="font-semibold">{trackedOrder.items.length} item(s)</p>
                       </div>
                     </div>
                   </div>
@@ -242,21 +242,21 @@ export default function TrackOrder() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {trackedOrder.products.map((item, index) => (
+                    {trackedOrder.items.map((item, index) => (
                       <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
                         <img
-                          src={item.images?.[0] || '/placeholder.svg'}
-                          alt={item.productName || item.name}
+                          src={item.product?.images?.[0] || '/placeholder.svg'}
+                          alt={item.product?.name || 'Product'}
                           className="w-16 h-16 object-cover rounded"
                         />
                         <div className="flex-1">
-                          <h4 className="font-medium">{item.productName || item.name}</h4>
+                          <h4 className="font-medium">{item.product?.name || 'Product'}</h4>
                           <p className="text-sm text-muted-foreground">
                             Quantity: {item.quantity} × ${item.price}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold">${item.subtotal?.toFixed(2)}</p>
+                          <p className="font-semibold">${(item.price * item.quantity).toFixed(2)}</p>
                         </div>
                       </div>
                     ))}
@@ -278,9 +278,9 @@ export default function TrackOrder() {
                       <p className="font-medium">
                         {trackedOrder.shippingAddress.firstName} {trackedOrder.shippingAddress.lastName}
                       </p>
-                      <p>{trackedOrder.shippingAddress.address}</p>
+                      <p>{trackedOrder.shippingAddress.address || trackedOrder.shippingAddress.street}</p>
                       <p>
-                        {trackedOrder.shippingAddress.city}, {trackedOrder.shippingAddress.state} {trackedOrder.shippingAddress.zipCode}
+                        {trackedOrder.shippingAddress.city}, {trackedOrder.shippingAddress.state} {trackedOrder.shippingAddress.zipCode || trackedOrder.shippingAddress.zip}
                       </p>
                       {trackedOrder.shippingAddress.phone && (
                         <p className="flex items-center gap-2 text-sm text-muted-foreground">
