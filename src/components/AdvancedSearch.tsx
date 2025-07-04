@@ -87,16 +87,7 @@ export function AdvancedSearch({ onResults, onSuggestions }: AdvancedSearchProps
         
         if (sdk?.aiHelper) {
           // Use AI to analyze image and suggest search terms
-          const imageAnalysis = await sdk.aiHelper.chat([
-            {
-              role: 'system',
-              content: 'Analyze this product image and suggest search terms that would help find similar products. Return only the search terms, comma-separated.'
-            },
-            {
-              role: 'user',
-              content: `Analyze this image and suggest product search terms: ${base64.slice(0, 100)}...`
-            }
-          ]);
+          const imageAnalysis = await sdk.aiHelper.chat(`Analyze this product image and suggest search terms that would help find similar products. Return only the search terms, comma-separated. Image data: ${base64.slice(0, 100)}...`);
           
           const searchTerms = imageAnalysis.split(',')[0]?.trim();
           if (searchTerms) {
@@ -136,8 +127,8 @@ export function AdvancedSearch({ onResults, onSuggestions }: AdvancedSearchProps
       if (sdk?.aiHelper) {
         // Use AI-enhanced search
         const enhancedResults = await sdk.aiHelper.enhancedSearch(searchQuery, products);
-        results = enhancedResults.results;
-        suggestions = enhancedResults.suggestions;
+        results = enhancedResults.results || [];
+        suggestions = enhancedResults.suggestions || [];
       } else {
         // Fallback to basic search
         results = await sdk?.searchProducts(searchQuery) || [];
