@@ -20,7 +20,18 @@ type CommerceContextType = {
   sdk: CommerceSDK;
   login: (credentials: { email: string; password: string }) => Promise<User>;
   logout: () => Promise<void>;
-  register: (userData: { email: string; password: string; name: string }) => Promise<User>;
+  register: (userData: { 
+    email: string; 
+    password: string; 
+    name: string;
+    firstName?: string;
+    lastName?: string;
+    role?: string;
+    roles?: string[];
+    businessName?: string;
+    phone?: string;
+    onboardingCompleted?: boolean;
+  }) => Promise<User>;
   addToCart: (productId: string, quantity?: number) => Promise<CartItem>;
   removeFromCart: (productId: string) => Promise<void>;
   updateCartQuantity: (productId: string, quantity: number) => Promise<void>;
@@ -142,7 +153,18 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const register = async (userData: { email: string; password: string; name: string }) => {
+  const register = async (userData: { 
+    email: string; 
+    password: string; 
+    name: string;
+    firstName?: string;
+    lastName?: string;
+    role?: string;
+    roles?: string[];
+    businessName?: string;
+    phone?: string;
+    onboardingCompleted?: boolean;
+  }) => {
     try {
       const user = await sdk.register(userData);
       setCurrentUser(user);
