@@ -1,9 +1,10 @@
-
 export interface User {
   id: string;
   uid?: string;
   email: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
   avatar?: string;
   role?: string;
   roles?: string[];
@@ -52,6 +53,7 @@ export interface Order {
   id: string;
   userId: string;
   items: OrderItem[];
+  products?: OrderItem[];
   total: number;
   status: string;
   paymentMethod: string;
@@ -66,6 +68,7 @@ export interface OrderItem {
   productId: string;
   quantity: number;
   price: number;
+  product?: Product;
 }
 
 export interface Address {
@@ -73,7 +76,12 @@ export interface Address {
   city: string;
   state: string;
   zip: string;
+  zipCode?: string;
   country: string;
+  firstName?: string;
+  lastName?: string;
+  address?: string;
+  phone?: string;
 }
 
 export interface Category {
@@ -93,6 +101,7 @@ export interface CartItem {
   quantity: number;
   createdAt?: string;
   updatedAt?: string;
+  product?: Product;
 }
 
 export interface WishlistItem {
@@ -110,6 +119,7 @@ export interface Store {
   banner?: string;
   address?: Address;
   ownerId?: string;
+  sellerId?: string;
   createdAt?: string;
   updatedAt?: string;
   slug?: string;
@@ -122,6 +132,67 @@ export interface Notification {
   message: string;
   type: 'info' | 'success' | 'warning' | 'error';
   read: boolean;
+  createdAt: string;
+}
+
+export interface Post {
+  id: string;
+  userId: string;
+  title: string;
+  content: string;
+  images?: string[];
+  likes: number;
+  comments: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Comment {
+  id: string;
+  postId: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HelpArticle {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  slug: string;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Blog {
+  id: string;
+  title: string;
+  content: string;
+  slug: string;
+  author: string;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AffiliateLink {
+  id: string;
+  affiliateId: string;
+  productId: string;
+  link: string;
+  commissionRate: number;
+  createdAt: string;
+}
+
+export interface Commission {
+  id: string;
+  affiliateId: string;
+  orderId: string;
+  amount: number;
+  status: string;
   createdAt: string;
 }
 
@@ -143,11 +214,21 @@ export default class CommerceSDK {
   // AI Helper methods
   aiHelper = {
     generateProductRecommendations: async (query: string) => {
-      // Mock AI recommendations
       return [];
     },
     generateSearchSuggestions: async (query: string) => {
-      // Mock AI suggestions
+      return [];
+    },
+    buyerAssistant: async (query: string) => {
+      return { response: `AI assistance for: ${query}` };
+    },
+    sellerAssistant: async (query: string) => {
+      return { response: `Seller AI assistance for: ${query}` };
+    },
+    chat: async (message: string) => {
+      return { response: `AI chat response to: ${message}` };
+    },
+    enhancedSearch: async (query: string, filters: any) => {
       return [];
     }
   };
@@ -230,6 +311,10 @@ export default class CommerceSDK {
     }
   }
 
+  async get<T = any>(collection: string): Promise<T[]> {
+    return await this.getData(collection) as T[];
+  }
+
   async getProducts(): Promise<Product[]> {
     return await this.getData('products') as Product[];
   }
@@ -269,13 +354,11 @@ export default class CommerceSDK {
       const existingItem = cartItems.find(item => item.productId === productId);
 
       if (existingItem) {
-        // Update quantity if item already exists
         existingItem.quantity += quantity;
         existingItem.updatedAt = new Date().toISOString();
         await this.update('cart_items', existingItem.id, { quantity: existingItem.quantity });
         return existingItem;
       } else {
-        // Create new cart item
         const newCartItem: CartItem = {
           id: Date.now().toString(),
           userId,
@@ -414,7 +497,6 @@ export default class CommerceSDK {
     try {
       const users = await this.getData('users');
       
-      // Check if user already exists
       const existingUser = users.find((user: User) => user.email === userData.email);
       if (existingUser) {
         throw new Error('User already exists with this email');
@@ -432,7 +514,6 @@ export default class CommerceSDK {
       users.push(newUser);
       await this.saveData('users', users);
       
-      // Store current user
       localStorage.setItem('currentUser', JSON.stringify(newUser));
       
       return newUser;
@@ -453,7 +534,6 @@ export default class CommerceSDK {
 
       const wishlist = await this.getData('wishlist');
       
-      // Check if item already exists
       const existingItem = wishlist.find((item: WishlistItem) => 
         item.userId === userId && item.productId === productId
       );
@@ -479,7 +559,6 @@ export default class CommerceSDK {
   }
 
   async getSellerAnalytics(sellerId: string): Promise<any> {
-    // Mock analytics data
     return {
       totalRevenue: 0,
       totalOrders: 0,
@@ -516,10 +595,197 @@ export default class CommerceSDK {
     await this.delete('products', id);
   }
 
+  async updateOrderStatus(orderId: string, status: string): Promise<Order> {
+    return await this.update('orders', orderId, { status });
+  }
+
   // Notification methods
-  async getNotifications(userId: string): Promise<Notification[]> {
+  async getNotifications(userId?: string): Promise<Notification[]> {
     const notifications = await this.getData('notifications') as Notification[];
-    return notifications.filter(notification => notification.userId === userId);
+    return userId ? notifications.filter(notification => notification.userId === userId) : notifications;
+  }
+
+  // Community methods
+  async getPosts(): Promise<Post[]> {
+    return await this.getData('posts') as Post[];
+  }
+
+  async createPost(postData: any): Promise<Post> {
+    try {
+      const newPost: Post = {
+        ...postData,
+        id: Date.now().toString(),
+        likes: 0,
+        comments: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const posts = await this.getData('posts');
+      posts.push(newPost);
+      await this.saveData('posts', posts);
+      
+      return newPost;
+    } catch (error) {
+      console.error('Error creating post:', error);
+      throw error;
+    }
+  }
+
+  async updatePost(id: string, updates: any): Promise<Post> {
+    return await this.update('posts', id, updates);
+  }
+
+  async getComments(postId: string): Promise<Comment[]> {
+    const comments = await this.getData('comments') as Comment[];
+    return comments.filter(comment => comment.postId === postId);
+  }
+
+  async createComment(commentData: any): Promise<Comment> {
+    try {
+      const newComment: Comment = {
+        ...commentData,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const comments = await this.getData('comments');
+      comments.push(newComment);
+      await this.saveData('comments', comments);
+      
+      return newComment;
+    } catch (error) {
+      console.error('Error creating comment:', error);
+      throw error;
+    }
+  }
+
+  // Admin methods
+  async getHelpArticles(): Promise<HelpArticle[]> {
+    return await this.getData('help_articles') as HelpArticle[];
+  }
+
+  async createHelpArticle(articleData: any): Promise<HelpArticle> {
+    try {
+      const newArticle: HelpArticle = {
+        ...articleData,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const articles = await this.getData('help_articles');
+      articles.push(newArticle);
+      await this.saveData('help_articles', articles);
+      
+      return newArticle;
+    } catch (error) {
+      console.error('Error creating help article:', error);
+      throw error;
+    }
+  }
+
+  async getBlogs(): Promise<Blog[]> {
+    return await this.getData('blogs') as Blog[];
+  }
+
+  async createBlog(blogData: any): Promise<Blog> {
+    try {
+      const newBlog: Blog = {
+        ...blogData,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const blogs = await this.getData('blogs');
+      blogs.push(newBlog);
+      await this.saveData('blogs', blogs);
+      
+      return newBlog;
+    } catch (error) {
+      console.error('Error creating blog:', error);
+      throw error;
+    }
+  }
+
+  async getPlatformAnalytics(): Promise<any> {
+    return {
+      totalUsers: 0,
+      totalOrders: 0,
+      totalRevenue: 0,
+      totalProducts: 0
+    };
+  }
+
+  // Affiliate methods
+  async getAffiliate(id: string): Promise<User | undefined> {
+    const users = await this.getUsers();
+    return users.find(user => user.id === id && user.role === 'affiliate');
+  }
+
+  async getAffiliateLinks(affiliateId: string): Promise<AffiliateLink[]> {
+    const links = await this.getData('affiliate_links') as AffiliateLink[];
+    return links.filter(link => link.affiliateId === affiliateId);
+  }
+
+  async getCommissions(affiliateId: string): Promise<Commission[]> {
+    const commissions = await this.getData('commissions') as Commission[];
+    return commissions.filter(commission => commission.affiliateId === affiliateId);
+  }
+
+  async createAffiliateLink(linkData: any): Promise<AffiliateLink> {
+    try {
+      const newLink: AffiliateLink = {
+        ...linkData,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString()
+      };
+
+      const links = await this.getData('affiliate_links');
+      links.push(newLink);
+      await this.saveData('affiliate_links', links);
+      
+      return newLink;
+    } catch (error) {
+      console.error('Error creating affiliate link:', error);
+      throw error;
+    }
+  }
+
+  // Store methods
+  async getStoreProducts(storeId: string): Promise<Product[]> {
+    const products = await this.getProducts();
+    return products.filter(product => product.storeId === storeId);
+  }
+
+  // Product reviews
+  async getProductReviews(productId: string): Promise<any[]> {
+    const reviews = await this.getData('reviews');
+    return reviews.filter((review: any) => review.productId === productId);
+  }
+
+  // Wallet methods
+  async createWallet(userId: string): Promise<any> {
+    try {
+      const newWallet = {
+        id: Date.now().toString(),
+        userId,
+        balance: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const wallets = await this.getData('wallets');
+      wallets.push(newWallet);
+      await this.saveData('wallets', wallets);
+      
+      return newWallet;
+    } catch (error) {
+      console.error('Error creating wallet:', error);
+      throw error;
+    }
   }
 
   // Onboarding methods
