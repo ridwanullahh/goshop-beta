@@ -143,11 +143,14 @@ export interface Post {
   id: string;
   userId: string;
   userName?: string;
+  userAvatar?: string;
   title: string;
   content: string;
   images?: string[];
   likes: number;
   comments: number;
+  tags?: string[];
+  isLiked?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -157,6 +160,7 @@ export interface Comment {
   postId: string;
   userId: string;
   userName?: string;
+  userAvatar?: string;
   content: string;
   createdAt: string;
   updatedAt: string;
@@ -514,7 +518,6 @@ export default class CommerceSDK {
     businessName?: string;
     phone?: string;
     onboardingCompleted?: boolean;
-    [key: string]: any;
   }): Promise<User> {
     try {
       const users = await this.getData('users');
