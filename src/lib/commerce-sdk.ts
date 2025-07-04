@@ -321,8 +321,12 @@ export default class CommerceSDK {
     return await this.getData(collection) as T[];
   }
 
-  async getProducts(): Promise<Product[]> {
-    return await this.getData('products') as Product[];
+  async getProducts(filters?: any): Promise<Product[]> {
+    const products = await this.getData('products') as Product[];
+    if (filters?.featured) {
+      return products.filter(product => product.isFeatured);
+    }
+    return products;
   }
 
   async getProduct(id: string): Promise<Product | undefined> {
@@ -499,7 +503,7 @@ export default class CommerceSDK {
     }
   }
 
-  async register(userData: { email: string; password: string; name: string; firstName?: string }): Promise<User> {
+  async register(userData: { email: string; password: string; name: string; firstName?: string; [key: string]: any }): Promise<User> {
     try {
       const users = await this.getData('users');
       
@@ -513,9 +517,13 @@ export default class CommerceSDK {
         email: userData.email,
         name: userData.name,
         firstName: userData.firstName,
-        role: 'customer',
+        role: userData.role || 'customer',
+        roles: userData.roles || ['customer'],
+        businessName: userData.businessName,
+        phone: userData.phone,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        onboardingCompleted: userData.onboardingCompleted || false
       };
 
       users.push(newUser);
