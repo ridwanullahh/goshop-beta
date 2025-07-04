@@ -1,5 +1,7 @@
+
 export interface User {
   id: string;
+  uid?: string;
   email: string;
   name?: string;
   avatar?: string;
@@ -8,6 +10,12 @@ export interface User {
   createdAt?: string;
   updatedAt?: string;
   onboardingCompleted?: boolean;
+  businessName?: string;
+  phone?: string;
+  address?: any;
+  verified?: boolean;
+  permissions?: string[];
+  walletBalance?: number;
 }
 
 export interface Product {
@@ -15,7 +23,8 @@ export interface Product {
   name: string;
   description?: string;
   images?: string[];
-  price?: number;
+  price: number;
+  originalPrice?: number;
   discount?: number;
   rating?: number;
   reviewCount?: number;
@@ -25,6 +34,18 @@ export interface Product {
   sellerName?: string;
   createdAt?: string;
   updatedAt?: string;
+  inventory?: number;
+  tags?: string[];
+  isFeatured?: boolean;
+  isActive?: boolean;
+  sku?: string;
+  weight?: number;
+  dimensions?: string;
+  shippingClass?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  metaKeywords?: string;
+  soldCount?: number;
 }
 
 export interface Order {
@@ -38,6 +59,7 @@ export interface Order {
   billingAddress: Address;
   createdAt: string;
   updatedAt: string;
+  sellerId?: string;
 }
 
 export interface OrderItem {
@@ -90,6 +112,17 @@ export interface Store {
   ownerId?: string;
   createdAt?: string;
   updatedAt?: string;
+  slug?: string;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  read: boolean;
+  createdAt: string;
 }
 
 export default class CommerceSDK {
@@ -97,13 +130,27 @@ export default class CommerceSDK {
   private githubToken: string;
   private owner: string;
   private repo: string;
+  public sdk: CommerceSDK;
 
   constructor() {
     this.baseURL = 'https://api.github.com';
     this.githubToken = import.meta.env.VITE_GITHUB_TOKEN || '';
     this.owner = import.meta.env.VITE_GITHUB_OWNER || 'lovable-dev';
     this.repo = import.meta.env.VITE_GITHUB_REPO || 'gpt-engineer-vawz6h';
+    this.sdk = this;
   }
+
+  // AI Helper methods
+  aiHelper = {
+    generateProductRecommendations: async (query: string) => {
+      // Mock AI recommendations
+      return [];
+    },
+    generateSearchSuggestions: async (query: string) => {
+      // Mock AI suggestions
+      return [];
+    }
+  };
 
   private async fetchData(path: string, method: string = 'GET', body: any = null) {
     const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/data/${path}.json`;
@@ -184,7 +231,7 @@ export default class CommerceSDK {
   }
 
   async getProducts(): Promise<Product[]> {
-    return this.getData('products') as Product[];
+    return await this.getData('products') as Product[];
   }
 
   async getProduct(id: string): Promise<Product | undefined> {
@@ -193,7 +240,7 @@ export default class CommerceSDK {
   }
 
   async getCategories(): Promise<Category[]> {
-    return this.getData('categories') as Category[];
+    return await this.getData('categories') as Category[];
   }
 
   async getCategory(slug: string): Promise<Category | undefined> {
@@ -201,8 +248,9 @@ export default class CommerceSDK {
     return categories.find(category => category.slug === slug);
   }
 
-  async getOrders(): Promise<Order[]> {
-    return this.getData('orders') as Order[];
+  async getOrders(userId?: string): Promise<Order[]> {
+    const orders = await this.getData('orders') as Order[];
+    return userId ? orders.filter(order => order.userId === userId || order.sellerId === userId) : orders;
   }
 
   async getOrder(id: string): Promise<Order | undefined> {
@@ -253,7 +301,7 @@ export default class CommerceSDK {
   }
 
   async getStores(): Promise<Store[]> {
-    return this.getData('stores') as Store[];
+    return await this.getData('stores') as Store[];
   }
 
   async getStore(id: string): Promise<Store | undefined> {
@@ -262,7 +310,7 @@ export default class CommerceSDK {
   }
 
   async getUsers(): Promise<User[]> {
-    return this.getData('users') as User[];
+    return await this.getData('users') as User[];
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -422,5 +470,88 @@ export default class CommerceSDK {
       console.error('Error adding to wishlist:', error);
       throw error;
     }
+  }
+
+  // Seller-specific methods
+  async getSellerProducts(sellerId: string): Promise<Product[]> {
+    const products = await this.getProducts();
+    return products.filter(product => product.sellerId === sellerId);
+  }
+
+  async getSellerAnalytics(sellerId: string): Promise<any> {
+    // Mock analytics data
+    return {
+      totalRevenue: 0,
+      totalOrders: 0,
+      averageOrderValue: 0,
+      topSellingProduct: null
+    };
+  }
+
+  async createProduct(productData: any): Promise<Product> {
+    try {
+      const newProduct: Product = {
+        ...productData,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const products = await this.getData('products');
+      products.push(newProduct);
+      await this.saveData('products', products);
+      
+      return newProduct;
+    } catch (error) {
+      console.error('Error creating product:', error);
+      throw error;
+    }
+  }
+
+  async updateProduct(id: string, productData: any): Promise<Product> {
+    return await this.update('products', id, productData);
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    await this.delete('products', id);
+  }
+
+  // Notification methods
+  async getNotifications(userId: string): Promise<Notification[]> {
+    const notifications = await this.getData('notifications') as Notification[];
+    return notifications.filter(notification => notification.userId === userId);
+  }
+
+  // Onboarding methods
+  async createSeller(sellerData: any): Promise<User> {
+    const newSeller: User = {
+      ...sellerData,
+      id: Date.now().toString(),
+      role: 'seller',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const users = await this.getData('users');
+    users.push(newSeller);
+    await this.saveData('users', users);
+    
+    return newSeller;
+  }
+
+  async createAffiliate(affiliateData: any): Promise<User> {
+    const newAffiliate: User = {
+      ...affiliateData,
+      id: Date.now().toString(),
+      role: 'affiliate',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const users = await this.getData('users');
+    users.push(newAffiliate);
+    await this.saveData('users', users);
+    
+    return newAffiliate;
   }
 }

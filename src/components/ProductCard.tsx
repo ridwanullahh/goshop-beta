@@ -34,7 +34,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
       <Card className={`group overflow-hidden hover:shadow-lg transition-all duration-300 h-full ${className}`}>
         <div className="relative">
           <img
-            src={product.images[0] || '/placeholder.svg'}
+            src={product.images?.[0] || '/placeholder.svg'}
             alt={product.name}
             className="w-full h-40 object-cover transition-transform duration-300 group-hover:scale-105"
           />
@@ -77,8 +77,8 @@ export function ProductCard({ product, className }: ProductCardProps) {
             
             <div className="flex items-center gap-1">
               <Star className="h-3 w-3 fill-secondary text-secondary" />
-              <span className="text-xs font-medium">{product.rating}</span>
-              <span className="text-xs text-muted-foreground">({product.reviewCount})</span>
+              <span className="text-xs font-medium">{product.rating || 0}</span>
+              <span className="text-xs text-muted-foreground">({product.reviewCount || 0})</span>
             </div>
             
             <div className="flex items-center gap-2">
@@ -96,7 +96,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
               by {product.sellerName}
             </p>
             
-            {product.inventory < 10 && product.inventory > 0 && (
+            {product.inventory && product.inventory < 10 && product.inventory > 0 && (
               <p className="text-xs text-destructive font-medium">
                 Only {product.inventory} left
               </p>
