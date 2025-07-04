@@ -216,8 +216,8 @@ export default class CommerceSDK {
   constructor() {
     this.baseURL = 'https://api.github.com';
     this.githubToken = import.meta.env.VITE_GITHUB_TOKEN || '';
-    this.owner = import.meta.env.VITE_GITHUB_OWNER || 'lovable-dev';
-    this.repo = import.meta.env.VITE_GITHUB_REPO || 'gpt-engineer-vawz6h';
+    this.owner = import.meta.env.VITE_GITHUB_OWNER || 'ridwanullahh';
+    this.repo = import.meta.env.VITE_GITHUB_REPO || 'goshopdb';
     this.sdk = this;
   }
 
@@ -244,7 +244,7 @@ export default class CommerceSDK {
   };
 
   private async fetchData(path: string, method: string = 'GET', body: any = null) {
-    const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/data/${path}.json`;
+    const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/${path}.json`;
     const headers = {
       'Accept': 'application/vnd.github.v3+json',
       'Authorization': `Bearer ${this.githubToken}`,
@@ -257,7 +257,7 @@ export default class CommerceSDK {
       headers
     };
 
-    if (body) {
+    if (body && method === 'PUT') {
       options.body = JSON.stringify({
         message: `Update ${path}.json`,
         content: btoa(JSON.stringify(body, null, 2)),
@@ -268,32 +268,116 @@ export default class CommerceSDK {
     const response = await fetch(url, options);
 
     if (!response.ok) {
+      if (response.status === 404) {
+        // File doesn't exist, initialize it
+        if (method === 'GET') {
+          await this.initializeFile(path);
+          return { content: btoa(JSON.stringify([], null, 2)) };
+        }
+      }
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     return response.json();
   }
 
+  private async initializeFile(path: string): Promise<void> {
+    try {
+      const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/${path}.json`;
+      const headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': `Bearer ${this.githubToken}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json'
+      };
+
+      const initialData = this.getInitialData(path);
+      
+      await fetch(url, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          message: `Initialize ${path}.json`,
+          content: btoa(JSON.stringify(initialData, null, 2))
+        })
+      });
+    } catch (error) {
+      console.warn(`Failed to initialize ${path}.json:`, error);
+    }
+  }
+
+  private getInitialData(path: string): any[] {
+    switch (path) {
+      case 'products':
+        return [
+          {
+            id: "1",
+            name: "Sample Product",
+            description: "This is a sample product",
+            price: 29.99,
+            images: ["/placeholder.svg"],
+            category: "Electronics",
+            rating: 4.5,
+            reviewCount: 12,
+            isFeatured: true,
+            isActive: true,
+            inventory: 50,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        ];
+      case 'categories':
+        return [
+          {
+            id: "1",
+            name: "Electronics",
+            slug: "electronics",
+            description: "Electronic devices and gadgets",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        ];
+      case 'users':
+        return [
+          {
+            id: "1",
+            email: "admin@platform.com",
+            name: "Admin User",
+            role: "admin",
+            verified: true,
+            onboardingCompleted: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        ];
+      default:
+        return [];
+    }
+  }
+
   private async getSHA(path: string): Promise<string> {
-    const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/data/${path}.json`;
-    const headers = {
-      'Accept': 'application/vnd.github.v3+json',
-      'Authorization': `Bearer ${this.githubToken}`,
-      'X-GitHub-Api-Version': '2022-11-28'
-    };
+    try {
+      const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/${path}.json`;
+      const headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': `Bearer ${this.githubToken}`,
+        'X-GitHub-Api-Version': '2022-11-28'
+      };
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers
-    });
+      const response = await fetch(url, {
+        method: 'GET',
+        headers
+      });
 
-    if (!response.ok) {
-      console.warn(`Could not retrieve SHA for ${path}.json, assuming file does not exist or is inaccessible.`);
+      if (!response.ok) {
+        return '';
+      }
+
+      const data = await response.json();
+      return data.sha || '';
+    } catch (error) {
       return '';
     }
-
-    const data = await response.json();
-    return data.sha || '';
   }
 
   async getData(path: string): Promise<any[]> {
@@ -303,7 +387,6 @@ export default class CommerceSDK {
         const content = atob(response.content);
         return JSON.parse(content);
       } else {
-        console.warn(`Content is empty for ${path}`);
         return [];
       }
     } catch (error: any) {
