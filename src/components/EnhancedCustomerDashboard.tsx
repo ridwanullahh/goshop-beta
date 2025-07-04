@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCommerce } from '@/context/CommerceContext';
-import { useEnhancedRealTime } from '@/context/EnhancedRealTimeContext';
+import { useRealTime } from '@/context/RealTimeContext';
 import { toast } from 'sonner';
 import { 
   ShoppingBag, 
@@ -36,7 +36,7 @@ import {
 
 export default function EnhancedCustomerDashboard() {
   const { currentUser, sdk, cart } = useCommerce();
-  const { subscribe, getCollectionData, forceRefresh } = useEnhancedRealTime();
+  const { subscribe, forceRefresh } = useRealTime();
   const [activeView, setActiveView] = useState('home');
   const [loading, setLoading] = useState(true);
   const [customerData, setCustomerData] = useState<any>(null);

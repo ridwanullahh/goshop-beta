@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,8 @@ import { useCommerce } from '@/context/CommerceContext';
 import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, CreditCard } from 'lucide-react';
 
 const Cart = () => {
-  const { cart, products, removeFromCart, currentUser } = useCommerce();
+  const { cart, products, removeFromCart, currentUser, updateCartQuantity } = useCommerce();
+  const navigate = useNavigate();
 
   // Get cart items with product details
   const cartItems = cart?.items?.map(item => {
@@ -28,9 +29,20 @@ const Cart = () => {
     removeFromCart(productId);
   };
 
-  const handleQuantityChange = (productId: string, newQuantity: number) => {
-    // In a real app, you'd have an updateCartQuantity function
-    console.log('Update quantity:', productId, newQuantity);
+  const handleQuantityChange = async (productId: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      handleRemoveItem(productId);
+    } else {
+      await updateCartQuantity(productId, newQuantity);
+    }
+  };
+
+  const handleProceedToCheckout = () => {
+    if (!currentUser) {
+      navigate('/login?redirect=/checkout');
+      return;
+    }
+    navigate('/checkout');
   };
 
   if (!currentUser) {
@@ -117,7 +129,7 @@ const Cart = () => {
                   {cartItems.map((item) => (
                     <div key={item.productId} className="flex gap-4 p-4 border rounded-lg">
                       <img
-                        src={item.product.images[0] || '/placeholder.svg'}
+                        src={item.product.images?.[0] || '/placeholder.svg'}
                         alt={item.product.name}
                         className="w-20 h-20 object-cover rounded-lg"
                       />
@@ -144,7 +156,7 @@ const Cart = () => {
                             <Input
                               type="number"
                               value={item.quantity}
-                              onChange={(e) => handleQuantityChange(item.productId, parseInt(e.target.value))}
+                              onChange={(e) => handleQuantityChange(item.productId, parseInt(e.target.value) || 1)}
                               className="w-16 text-center"
                               min="1"
                             />
@@ -219,7 +231,12 @@ const Cart = () => {
                     </div>
                   )}
 
-                  <Button className="w-full" size="lg" variant="commerce">
+                  <Button 
+                    className="w-full" 
+                    size="lg" 
+                    variant="commerce"
+                    onClick={handleProceedToCheckout}
+                  >
                     <CreditCard className="w-4 h-4 mr-2" />
                     Proceed to Checkout
                   </Button>
