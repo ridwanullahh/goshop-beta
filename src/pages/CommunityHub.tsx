@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -11,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCommerce } from '@/context/CommerceContext';
 import { toast } from 'sonner';
+import { Post, Comment } from '@/lib/commerce-sdk';
 import { 
   MessageSquare, 
   Heart, 
@@ -23,32 +23,6 @@ import {
   Clock,
   Send
 } from 'lucide-react';
-
-interface Post {
-  id?: string;
-  uid?: string;
-  userId: string;
-  userName: string;
-  userAvatar?: string;
-  content: string;
-  images?: string[];
-  likes: number;
-  comments: number;
-  isLiked?: boolean;
-  createdAt: string;
-  tags?: string[];
-}
-
-interface Comment {
-  id?: string;
-  uid?: string;
-  postId: string;
-  userId: string;
-  userName: string;
-  userAvatar?: string;
-  content: string;
-  createdAt: string;
-}
 
 export default function CommunityHub() {
   const { currentUser, sdk } = useCommerce();
@@ -302,12 +276,12 @@ export default function CommunityHub() {
                     <div className="flex items-start space-x-4">
                       <Avatar>
                         <AvatarImage src={post.userAvatar} />
-                        <AvatarFallback>{post.userName?.[0]?.toUpperCase()}</AvatarFallback>
+                        <AvatarFallback>{post.userName?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
                       </Avatar>
                       
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-2">
-                          <h3 className="font-semibold">{post.userName}</h3>
+                          <h3 className="font-semibold">{post.userName || 'Anonymous'}</h3>
                           <span className="text-sm text-muted-foreground flex items-center">
                             <Clock className="h-3 w-3 mr-1" />
                             {formatTimeAgo(post.createdAt)}
@@ -396,11 +370,11 @@ export default function CommunityHub() {
                       <div key={comment.id} className="flex space-x-3">
                         <Avatar className="w-8 h-8">
                           <AvatarImage src={comment.userAvatar} />
-                          <AvatarFallback>{comment.userName?.[0]?.toUpperCase()}</AvatarFallback>
+                          <AvatarFallback>{comment.userName?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
                         </Avatar>
                         <div>
                           <div className="flex items-center space-x-2">
-                            <span className="font-medium text-sm">{comment.userName}</span>
+                            <span className="font-medium text-sm">{comment.userName || 'Anonymous'}</span>
                             <span className="text-xs text-muted-foreground">
                               {formatTimeAgo(comment.createdAt)}
                             </span>
@@ -426,4 +400,3 @@ export default function CommunityHub() {
     </div>
   );
 }
-
