@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
@@ -7,27 +8,24 @@ import Register from './pages/Register';
 import Products from './pages/Products';
 import ProductDetail from './pages/ProductDetail';
 import Categories from './pages/Categories';
-import CategoryPage from './pages/CategoryPage';
+import Category from './pages/Category';
 import Stores from './pages/Stores';
-import StorePage from './pages/StorePage';
+import Store from './pages/Store';
 import Search from './pages/Search';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Orders from './pages/Orders';
 import Wishlist from './pages/Wishlist';
 import Profile from './pages/Profile';
-import Live from './pages/Live';
-import Community from './pages/Community';
-import Support from './pages/Support';
-import About from './pages/About';
-import Contact from './pages/Contact';
-import Privacy from './pages/Privacy';
-import Terms from './pages/Terms';
+import LiveShopping from './pages/LiveShopping';
+import CommunityHub from './pages/CommunityHub';
+import HelpCenter from './pages/HelpCenter';
+import ContactUs from './pages/ContactUs';
 import CustomerDashboard from './pages/CustomerDashboard';
 import SellerDashboard from './pages/SellerDashboard';
 import AffiliateDashboard from './pages/AffiliateDashboard';
 import AdminDashboard from './pages/AdminDashboard';
-import ProtectedRoute from './components/ProtectedRoute';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { CommerceProvider } from './context/CommerceContext';
 import { EnhancedRealTimeProvider } from './context/EnhancedRealTimeContext';
 import EnhancedCustomerDashboard from './components/EnhancedCustomerDashboard';
@@ -48,22 +46,19 @@ function App() {
               <Route path="/products" element={<Products />} />
               <Route path="/product/:id" element={<ProductDetail />} />
               <Route path="/categories" element={<Categories />} />
-              <Route path="/category/:slug" element={<CategoryPage />} />
+              <Route path="/category/:slug" element={<Category />} />
               <Route path="/stores" element={<Stores />} />
-              <Route path="/store/:id" element={<StorePage />} />
+              <Route path="/store/:id" element={<Store />} />
               <Route path="/search" element={<Search />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/orders" element={<Orders />} />
               <Route path="/wishlist" element={<Wishlist />} />
               <Route path="/profile" element={<Profile />} />
-              <Route path="/live" element={<Live />} />
-              <Route path="/community" element={<Community />} />
-              <Route path="/support" element={<Support />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/terms" element={<Terms />} />
+              <Route path="/live" element={<LiveShopping />} />
+              <Route path="/community" element={<CommunityHub />} />
+              <Route path="/support" element={<HelpCenter />} />
+              <Route path="/contact" element={<ContactUs />} />
               <Route 
                 path="/customer-dashboard" 
                 element={

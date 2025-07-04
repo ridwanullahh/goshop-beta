@@ -20,11 +20,14 @@ type CommerceContextType = {
   sdk: CommerceSDK;
   login: (credentials: { email: string; password: string }) => Promise<User>;
   logout: () => Promise<void>;
+  register: (userData: { email: string; password: string; name: string }) => Promise<User>;
   addToCart: (productId: string, quantity?: number) => Promise<CartItem>;
   removeFromCart: (productId: string) => Promise<void>;
   updateCartQuantity: (productId: string, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;
+  addToWishlist: (productId: string) => Promise<WishlistItem>;
   searchProducts: (query: string, filters?: any) => Promise<Product[]>;
+  loadUserData: () => Promise<void>;
 };
 
 // Create the context with a default value
@@ -39,11 +42,14 @@ export const CommerceContext = createContext<CommerceContextType>({
   sdk: new CommerceSDK(),
   login: async () => { throw new Error('Login function not implemented'); },
   logout: async () => { throw new Error('Logout function not implemented'); },
+  register: async () => { throw new Error('Register function not implemented'); },
   addToCart: async () => { throw new Error('AddToCart function not implemented'); },
   removeFromCart: async () => { throw new Error('removeFromCart function not implemented'); },
   updateCartQuantity: async () => { throw new Error('updateCartQuantity function not implemented'); },
   clearCart: async () => { throw new Error('clearCart function not implemented'); },
-  searchProducts: async () => { return []; }
+  addToWishlist: async () => { throw new Error('addToWishlist function not implemented'); },
+  searchProducts: async () => { return []; },
+  loadUserData: async () => { throw new Error('loadUserData function not implemented'); }
 });
 
 // Create a custom hook to use the context
@@ -123,6 +129,37 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const loadUserData = async () => {
+    if (!currentUser) return;
+    
+    try {
+      await Promise.all([
+        loadUserCart(currentUser.id),
+        loadUserWishlist(currentUser.id)
+      ]);
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  };
+
+  const register = async (userData: { email: string; password: string; name: string }) => {
+    try {
+      const user = await sdk.register(userData);
+      setCurrentUser(user);
+      
+      // Load user-specific data after registration
+      await Promise.all([
+        loadUserCart(user.id),
+        loadUserWishlist(user.id)
+      ]);
+      
+      return user;
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
+  };
+
   const login = async (credentials: { email: string; password: string }) => {
     try {
       const user = await sdk.login(credentials);
@@ -185,12 +222,40 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const addToWishlist = async (productId: string): Promise<WishlistItem> => {
+    if (!currentUser) {
+      throw new Error('Please login to add items to wishlist');
+    }
+
+    try {
+      const wishlistItem = await sdk.addToWishlist(currentUser.id, productId);
+      
+      // Update local wishlist state
+      setWishlistItems(prevItems => {
+        const existingItem = prevItems.find(item => item.productId === productId);
+        if (existingItem) {
+          return prevItems;
+        }
+        return [...prevItems, wishlistItem];
+      });
+      
+      return wishlistItem;
+    } catch (error) {
+      console.error('Error adding to wishlist:', error);
+      throw error;
+    }
+  };
+
   const removeFromCart = async (productId: string) => {
     if (!currentUser) return;
 
     try {
+      // Find the cart item to remove
+      const cartItem = cart.items.find(item => item.productId === productId);
+      if (!cartItem) return;
+
       // Remove from backend
-      await sdk.delete('cart_items', productId);
+      await sdk.delete('cart_items', cartItem.id);
       
       // Update local state immediately
       setCart(prevCart => ({
@@ -269,11 +334,14 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     sdk,
     login,
     logout,
+    register,
     addToCart,
     removeFromCart,
     updateCartQuantity,
     clearCart,
-    searchProducts
+    addToWishlist,
+    searchProducts,
+    loadUserData
   };
 
   return (
