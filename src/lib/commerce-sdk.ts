@@ -1,808 +1,426 @@
-import { UniversalSDK } from './sdk';
-
-// Type definitions
 export interface User {
   id: string;
-  uid: string;
   email: string;
-  name: string;
-  role: 'customer' | 'seller' | 'affiliate' | 'admin';
-  roles?: string[];
+  name?: string;
   avatar?: string;
-  verified?: boolean;
+  role?: string;
+  roles?: string[];
+  createdAt?: string;
+  updatedAt?: string;
   onboardingCompleted?: boolean;
-  businessName?: string;
-  walletBalance?: number;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface Product {
   id: string;
   name: string;
-  productName?: string;
-  description: string;
-  price: number;
-  originalPrice?: number;
-  images: string[];
-  category: string;
-  sellerName: string;
-  sellerId: string;
-  rating: number;
-  reviewCount: number;
-  inventory: number;
-  quantity?: number;
-  subtotal?: number;
-  isFeatured: boolean;
-  isActive?: boolean;
-  tags?: string[];
-  sku?: string;
-  weight?: number;
-  dimensions?: string;
-  shippingClass?: string;
-  seoTitle?: string;
-  seoDescription?: string;
-  metaKeywords?: string;
-  soldCount?: number;
-  createdAt: string;
-  updatedAt: string;
+  description?: string;
+  images?: string[];
+  price?: number;
+  discount?: number;
+  rating?: number;
+  reviewCount?: number;
+  category?: string;
+  storeId?: string;
+  sellerId?: string;
+  sellerName?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Order {
   id: string;
   userId: string;
-  sellerId: string;
-  products: Product[];
+  items: OrderItem[];
   total: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'confirmed';
-  shippingAddress: any;
+  status: string;
   paymentMethod: string;
+  shippingAddress: Address;
+  billingAddress: Address;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface Seller {
-  id: string;
-  userId: string;
-  businessName: string;
-  description: string;
-  logo?: string;
-  verified: boolean;
-  rating: number;
-  totalSales: number;
-  createdAt: string;
-  updatedAt: string;
+export interface OrderItem {
+  productId: string;
+  quantity: number;
+  price: number;
 }
 
-export interface Affiliate {
-  id: string;
-  userId: string;
-  businessName: string;
-  website?: string;
-  commissionRate: number;
-  totalEarnings: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+export interface Address {
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
 }
 
 export interface Category {
   id: string;
   name: string;
   slug: string;
-  description: string;
-  productCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Store {
-  id: string;
-  sellerId: string;
-  name: string;
-  description: string;
-  logo?: string;
-  banner?: string;
-  rating: number;
-  totalProducts: number;
-  createdAt: string;
-  updatedAt: string;
+  description?: string;
+  image?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CartItem {
   id: string;
+  userId: string;
   productId: string;
   quantity: number;
-  product: Product;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface WishlistItem {
   id: string;
+  userId: string;
   productId: string;
-  userId: string;
-  product: Product;
+  createdAt?: string;
 }
 
-export interface Notification {
+export interface Store {
   id: string;
-  userId: string;
-  title: string;
-  message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-  read: boolean;
-  createdAt: string;
+  name: string;
+  description?: string;
+  logo?: string;
+  banner?: string;
+  address?: Address;
+  ownerId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export interface HelpArticle {
-  id: string;
-  title: string;
-  content: string;
-  category: string;
-  slug: string;
-  isPublished: boolean;
-  authorId: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Blog {
-  id: string;
-  title: string;
-  content: string;
-  excerpt: string;
-  slug: string;
-  category: string;
-  tags: string[];
-  featuredImage?: string;
-  isPublished: boolean;
-  authorId: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AffiliateLink {
-  id: string;
-  affiliateId: string;
-  productId: string;
-  url: string;
-  shortUrl: string;
-  campaignName: string;
-  clicks: number;
-  conversions: number;
-  earnings: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Commission {
-  id: string;
-  affiliateId: string;
-  orderId: string;
-  amount: number;
-  rate: number;
-  status: 'pending' | 'approved' | 'paid';
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Post {
-  id: string;
-  userId: string;
-  title: string;
-  content: string;
-  category: string;
-  tags: string[];
-  likes: number;
-  comments: number;
-  isPublished: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Comment {
-  id: string;
-  postId: string;
-  userId: string;
-  content: string;
-  likes: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export class CommerceSDK {
-  public sdk: UniversalSDK;
+export default class CommerceSDK {
+  private baseURL: string;
+  private githubToken: string;
+  private owner: string;
+  private repo: string;
 
   constructor() {
-    this.sdk = new UniversalSDK({
-      owner: import.meta.env.VITE_GITHUB_OWNER,
-      repo: import.meta.env.VITE_GITHUB_REPO,
-      token: import.meta.env.VITE_GITHUB_TOKEN,
-      branch: 'main'
+    this.baseURL = 'https://api.github.com';
+    this.githubToken = import.meta.env.VITE_GITHUB_TOKEN || '';
+    this.owner = import.meta.env.VITE_GITHUB_OWNER || 'lovable-dev';
+    this.repo = import.meta.env.VITE_GITHUB_REPO || 'gpt-engineer-vawz6h';
+  }
+
+  private async fetchData(path: string, method: string = 'GET', body: any = null) {
+    const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/data/${path}.json`;
+    const headers = {
+      'Accept': 'application/vnd.github.v3+json',
+      'Authorization': `Bearer ${this.githubToken}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json'
+    };
+
+    const options: any = {
+      method,
+      headers
+    };
+
+    if (body) {
+      options.body = JSON.stringify({
+        message: `Update ${path}.json`,
+        content: btoa(JSON.stringify(body, null, 2)),
+        sha: await this.getSHA(path)
+      });
+    }
+
+    const response = await fetch(url, options);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  private async getSHA(path: string): Promise<string> {
+    const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/data/${path}.json`;
+    const headers = {
+      'Accept': 'application/vnd.github.v3+json',
+      'Authorization': `Bearer ${this.githubToken}`,
+      'X-GitHub-Api-Version': '2022-11-28'
+    };
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers
     });
+
+    if (!response.ok) {
+      console.warn(`Could not retrieve SHA for ${path}.json, assuming file does not exist or is inaccessible.`);
+      return '';
+    }
+
+    const data = await response.json();
+    return data.sha || '';
   }
 
-  // Authentication methods
-  async register(userData: any): Promise<User> {
-    const result = await this.sdk.register(userData);
-    return {
-      id: result.id,
-      uid: result.uid,
-      email: result.email,
-      name: result.name || '',
-      role: result.role,
-      roles: result.roles,
-      avatar: result.avatar,
-      verified: result.verified || false,
-      onboardingCompleted: result.onboardingCompleted || false,
-      businessName: result.businessName || '',
-      walletBalance: result.walletBalance || 0,
-      createdAt: result.createdAt || new Date().toISOString(),
-      updatedAt: result.updatedAt || new Date().toISOString()
-    };
-  }
-
-  async login(credentials: { email: string; password: string }): Promise<User> {
-    const result = await this.sdk.login(credentials);
-    return {
-      id: result.user.id || result.user.uid || '1',
-      uid: result.user.uid || result.user.id || '1',
-      email: result.user.email,
-      name: result.user.name || '',
-      role: result.user.role,
-      roles: result.user.roles,
-      avatar: result.user.avatar,
-      verified: result.user.verified || false,
-      onboardingCompleted: result.user.onboardingCompleted || false,
-      businessName: result.user.businessName || '',
-      walletBalance: result.user.walletBalance || 0,
-      createdAt: result.user.createdAt || new Date().toISOString(),
-      updatedAt: result.user.updatedAt || new Date().toISOString()
-    };
-  }
-
-  async getCurrentUser(): Promise<User | null> {
-    const user = await this.sdk.getCurrentUser();
-    if (!user) return null;
-    
-    return {
-      id: user.id || user.uid || '1',
-      uid: user.uid || user.id || '1',
-      email: user.email,
-      name: user.name || '',
-      role: user.role,
-      roles: user.roles,
-      avatar: user.avatar,
-      verified: user.verified || false,
-      onboardingCompleted: user.onboardingCompleted || false,
-      businessName: user.businessName || '',
-      walletBalance: user.walletBalance || 0,
-      createdAt: user.createdAt || new Date().toISOString(),
-      updatedAt: user.updatedAt || new Date().toISOString()
-    };
-  }
-
-  async logout(): Promise<void> {
-    return await this.sdk.destroySession('');
-  }
-
-  // AI Helper method - returns the helper object directly
-  get aiHelper() {
-    return {
-      buyerAssistant: async (query: string, context?: any) => {
-        return `AI Buyer Assistant: ${query}`;
-      },
-      sellerAssistant: async (query: string, context?: any) => {
-        return `AI Seller Assistant: ${query}`;
-      },
-      chat: async (messages: any[]) => {
-        return `AI Chat response for ${messages.length} messages`;
-      },
-      enhancedSearch: async (searchQuery: string, products: any[]) => {
-        return {
-          results: products.filter(p => 
-            p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.description?.toLowerCase().includes(searchQuery.toLowerCase())
-          ),
-          suggestions: [`${searchQuery} alternatives`, `${searchQuery} reviews`, `${searchQuery} deals`]
-        };
+  async getData(path: string): Promise<any[]> {
+    try {
+      const response = await this.fetchData(path);
+      if (response.content) {
+        const content = atob(response.content);
+        return JSON.parse(content);
+      } else {
+        console.warn(`Content is empty for ${path}`);
+        return [];
       }
-    };
-  }
-
-  // Product methods
-  async getProducts(filters?: any): Promise<Product[]> {
-    try {
-      const products = await this.sdk.get('products');
-      return products || [];
-    } catch (error) {
-      console.error('Error fetching products:', error);
+    } catch (error: any) {
+      console.error(`Error fetching data for ${path}:`, error);
       return [];
     }
   }
 
-  async getProduct(id: string): Promise<Product | null> {
+  async saveData(path: string, data: any): Promise<void> {
     try {
-      const product = await this.sdk.getItem('products', id);
-      return product;
+      await this.fetchData(path, 'PUT', data);
     } catch (error) {
-      console.error('Error fetching product:', error);
-      return null;
-    }
-  }
-
-  async createProduct(productData: any): Promise<Product> {
-    try {
-      const product = await this.sdk.insert('products', {
-        ...productData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-      return product;
-    } catch (error) {
-      console.error('Error creating product:', error);
+      console.error(`Error saving data for ${path}:`, error);
       throw error;
     }
   }
 
-  async updateProduct(id: string, updates: any): Promise<Product> {
-    try {
-      const product = await this.sdk.update('products', id, {
-        ...updates,
-        updatedAt: new Date().toISOString()
-      });
-      return product;
-    } catch (error) {
-      console.error('Error updating product:', error);
-      throw error;
-    }
+  async getProducts(): Promise<Product[]> {
+    return this.getData('products') as Product[];
   }
 
-  async deleteProduct(id: string): Promise<void> {
-    try {
-      await this.sdk.delete('products', id);
-    } catch (error) {
-      console.error('Error deleting product:', error);
-      throw error;
-    }
+  async getProduct(id: string): Promise<Product | undefined> {
+    const products = await this.getProducts();
+    return products.find(product => product.id === id);
   }
 
-  async searchProducts(query: string, filters?: any): Promise<Product[]> {
-    try {
-      const products = await this.sdk.get('products');
-      return products.filter(p => 
-        p.name?.toLowerCase().includes(query.toLowerCase()) ||
-        p.description?.toLowerCase().includes(query.toLowerCase())
-      ) || [];
-    } catch (error) {
-      console.error('Error searching products:', error);
-      return [];
-    }
-  }
-
-  async getProductReviews(productId: string) {
-    try {
-      const reviews = await this.sdk.get('reviews');
-      return reviews.filter(r => r.productId === productId) || [];
-    } catch (error) {
-      console.error('Error fetching product reviews:', error);
-      return [];
-    }
-  }
-
-  // Category methods
   async getCategories(): Promise<Category[]> {
-    try {
-      const categories = await this.sdk.get('categories');
-      return categories || [];
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      return [];
-    }
+    return this.getData('categories') as Category[];
   }
 
-  async getCategory(slug: string): Promise<Category | null> {
-    try {
-      const categories = await this.sdk.get('categories');
-      return categories.find(c => c.slug === slug) || null;
-    } catch (error) {
-      console.error('Error fetching category:', error);
-      return null;
-    }
+  async getCategory(slug: string): Promise<Category | undefined> {
+    const categories = await this.getCategories();
+    return categories.find(category => category.slug === slug);
   }
 
-  // Store methods
-  async getStores(): Promise<Store[]> {
-    try {
-      const stores = await this.sdk.get('stores');
-      return stores || [];
-    } catch (error) {
-      console.error('Error fetching stores:', error);
-      return [];
-    }
+  async getOrders(): Promise<Order[]> {
+    return this.getData('orders') as Order[];
   }
 
-  async getStore(id: string): Promise<Store | null> {
-    try {
-      const store = await this.sdk.getItem('stores', id);
-      return store;
-    } catch (error) {
-      console.error('Error fetching store:', error);
-      return null;
-    }
+  async getOrder(id: string): Promise<Order | undefined> {
+    const orders = await this.getOrders();
+    return orders.find(order => order.id === id);
   }
 
-  async getStoreProducts(storeId: string): Promise<Product[]> {
-    try {
-      const products = await this.sdk.get('products');
-      return products.filter(p => p.storeId === storeId) || [];
-    } catch (error) {
-      console.error('Error fetching store products:', error);
-      return [];
-    }
-  }
-
-  // Seller methods
-  async createSeller(sellerData: any): Promise<Seller> {
-    try {
-      const seller = await this.sdk.insert('sellers', {
-        ...sellerData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-      return seller;
-    } catch (error) {
-      console.error('Error creating seller:', error);
-      throw error;
-    }
-  }
-
-  async getSellerProducts(sellerId: string): Promise<Product[]> {
-    try {
-      const products = await this.sdk.get('products');
-      return products.filter(p => p.sellerId === sellerId) || [];
-    } catch (error) {
-      console.error('Error fetching seller products:', error);
-      return [];
-    }
-  }
-
-  async getSellerAnalytics(sellerId: string) {
-    try {
-      const analytics = await this.sdk.get('seller_analytics');
-      return analytics.find(a => a.sellerId === sellerId) || null;
-    } catch (error) {
-      console.error('Error fetching seller analytics:', error);
-      return null;
-    }
-  }
-
-  // Order methods
-  async getOrders(userId?: string): Promise<Order[]> {
-    try {
-      const orders = await this.sdk.get('orders');
-      return userId ? orders.filter(o => o.userId === userId) : orders || [];
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      return [];
-    }
-  }
-
-  async createOrder(orderData: any): Promise<Order> {
-    try {
-      const order = await this.sdk.insert('orders', {
-        ...orderData,
-        id: 'order_' + Date.now(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-      return order;
-    } catch (error) {
-      console.error('Error creating order:', error);
-      throw error;
-    }
-  }
-
-  async updateOrderStatus(orderId: string, status: string): Promise<Order> {
-    try {
-      const updatedOrder = await this.sdk.update('orders', orderId, { 
-        status,
-        updatedAt: new Date().toISOString()
-      });
-      
-      // Return the full updated order object
-      return updatedOrder as Order;
-    } catch (error) {
-      console.error('Error updating order status:', error);
-      throw error;
-    }
-  }
-
-  // Cart methods
   async getCart(userId: string): Promise<CartItem[]> {
-    try {
-      const cartItems = await this.sdk.get('cart_items');
-      const products = await this.sdk.get('products');
-      
-      return cartItems
-        .filter(item => item.userId === userId)
-        .map(item => ({
-          ...item,
-          product: products.find(p => p.id === item.productId) || {
-            id: item.productId,
-            name: 'Unknown Product',
-            description: '',
-            price: 0,
-            images: [],
-            category: '',
-            sellerName: '',
-            sellerId: '',
-            rating: 0,
-            reviewCount: 0,
-            inventory: 0,
-            isFeatured: false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        })) || [];
-    } catch (error) {
-      console.error('Error fetching cart:', error);
-      return [];
-    }
+    const cartItems = await this.getData('cart_items') as CartItem[];
+    return cartItems.filter(item => item.userId === userId);
   }
 
   async addToCart(userId: string, productId: string, quantity: number = 1): Promise<CartItem> {
     try {
-      const products = await this.sdk.get('products');
-      const product = products.find(p => p.id === productId);
-      
-      const cartItem = await this.sdk.insert('cart_items', {
-        userId,
-        productId,
-        quantity
-      });
-      
-      return {
-        ...cartItem,
-        product: product || {
-          id: productId,
-          name: 'Unknown Product',
-          description: '',
-          price: 0,
-          images: [],
-          category: '',
-          sellerName: '',
-          sellerId: '',
-          rating: 0,
-          reviewCount: 0,
-          inventory: 0,
-          isFeatured: false,
+      const cartItems = await this.getCart(userId);
+      const existingItem = cartItems.find(item => item.productId === productId);
+
+      if (existingItem) {
+        // Update quantity if item already exists
+        existingItem.quantity += quantity;
+        existingItem.updatedAt = new Date().toISOString();
+        await this.update('cart_items', existingItem.id, { quantity: existingItem.quantity });
+        return existingItem;
+      } else {
+        // Create new cart item
+        const newCartItem: CartItem = {
+          id: Date.now().toString(),
+          userId,
+          productId,
+          quantity,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
-        }
-      };
+        };
+        const allCartItems = await this.getData('cart_items');
+        allCartItems.push(newCartItem);
+        await this.saveData('cart_items', allCartItems);
+        return newCartItem;
+      }
     } catch (error) {
       console.error('Error adding to cart:', error);
       throw error;
     }
   }
 
-  // Wishlist methods
   async getWishlist(userId: string): Promise<WishlistItem[]> {
-    try {
-      const wishlistItems = await this.sdk.get('wishlist_items');
-      return wishlistItems.filter(item => item.userId === userId) || [];
-    } catch (error) {
-      console.error('Error fetching wishlist:', error);
-      return [];
-    }
+    const wishlistItems = await this.getData('wishlist') as WishlistItem[];
+    return wishlistItems.filter(item => item.userId === userId);
   }
 
-  // Notification methods
-  async getNotifications(userId: string): Promise<Notification[]> {
-    try {
-      const notifications = await this.sdk.get('notifications');
-      return notifications.filter(n => n.userId === userId) || [];
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      return [];
-    }
+  async getStores(): Promise<Store[]> {
+    return this.getData('stores') as Store[];
   }
 
-  // Affiliate methods
-  async createAffiliate(affiliateData: any): Promise<Affiliate> {
+  async getStore(id: string): Promise<Store | undefined> {
+    const stores = await this.getStores();
+    return stores.find(store => store.id === id);
+  }
+
+  async getUsers(): Promise<User[]> {
+    return this.getData('users') as User[];
+  }
+
+  async getUser(id: string): Promise<User | undefined> {
+    const users = await this.getUsers();
+    return users.find(user => user.id === id);
+  }
+
+  async getCurrentUser(): Promise<User | null> {
+    const user = localStorage.getItem('currentUser');
+    return user ? JSON.parse(user) : null;
+  }
+
+  async login(credentials: { email: string; password?: string }): Promise<User> {
+    const users = await this.getUsers();
+    const user = users.find(user => user.email === credentials.email);
+
+    if (!user) {
+      throw new Error('Invalid credentials');
+    }
+
+    localStorage.setItem('currentUser', JSON.stringify(user));
+    return user;
+  }
+
+  async logout(): Promise<void> {
+    localStorage.removeItem('currentUser');
+  }
+
+  async searchProducts(query: string, filters: any = {}): Promise<Product[]> {
+    const products = await this.getProducts();
+    let filteredProducts = products.filter(product =>
+      product.name.toLowerCase().includes(query.toLowerCase()) ||
+      (product.description && product.description.toLowerCase().includes(query.toLowerCase()))
+    );
+
+    if (filters.category) {
+      filteredProducts = filteredProducts.filter(product => product.category === filters.category);
+    }
+
+    return filteredProducts;
+  }
+
+  async delete(collection: string, id: string): Promise<void> {
     try {
-      const affiliate = await this.sdk.insert('affiliates', {
-        ...affiliateData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-      return affiliate;
+      const data = await this.getData(collection);
+      const filteredData = data.filter((item: any) => item.id !== id);
+      await this.saveData(collection, filteredData);
     } catch (error) {
-      console.error('Error creating affiliate:', error);
+      console.error(`Error deleting from ${collection}:`, error);
       throw error;
     }
   }
 
-  async getAffiliate(userId: string): Promise<Affiliate | null> {
+  async update(collection: string, id: string, updates: any): Promise<any> {
     try {
-      const affiliates = await this.sdk.get('affiliates');
-      return affiliates.find(a => a.userId === userId) || null;
-    } catch (error) {
-      console.error('Error fetching affiliate:', error);
-      return null;
-    }
-  }
+      const data = await this.getData(collection);
+      const itemIndex = data.findIndex((item: any) => item.id === id);
+      
+      if (itemIndex === -1) {
+        throw new Error(`Item with id ${id} not found in ${collection}`);
+      }
 
-  async getAffiliateLinks(affiliateId: string): Promise<AffiliateLink[]> {
-    try {
-      const links = await this.sdk.get('affiliate_links');
-      return links.filter(l => l.affiliateId === affiliateId) || [];
+      const updatedItem = { ...data[itemIndex], ...updates, updatedAt: new Date().toISOString() };
+      data[itemIndex] = updatedItem;
+      
+      await this.saveData(collection, data);
+      return updatedItem;
     } catch (error) {
-      console.error('Error fetching affiliate links:', error);
-      return [];
-    }
-  }
-
-  async createAffiliateLink(linkData: any): Promise<AffiliateLink> {
-    try {
-      const link = await this.sdk.insert('affiliate_links', {
-        ...linkData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-      return link;
-    } catch (error) {
-      console.error('Error creating affiliate link:', error);
+      console.error(`Error updating ${collection}:`, error);
       throw error;
     }
   }
 
-  async getCommissions(affiliateId: string): Promise<Commission[]> {
+  async createOrder(orderData: any): Promise<Order> {
     try {
-      const commissions = await this.sdk.get('commissions');
-      return commissions.filter(c => c.affiliateId === affiliateId) || [];
-    } catch (error) {
-      console.error('Error fetching commissions:', error);
-      return [];
-    }
-  }
-
-  // Help & Blog methods
-  async getHelpArticles(): Promise<HelpArticle[]> {
-    try {
-      const articles = await this.sdk.get('help_articles');
-      return articles || [];
-    } catch (error) {
-      console.error('Error fetching help articles:', error);
-      return [];
-    }
-  }
-
-  async createHelpArticle(articleData: any): Promise<HelpArticle> {
-    try {
-      const article = await this.sdk.insert('help_articles', {
-        ...articleData,
+      const newOrder: Order = {
+        id: Date.now().toString(),
+        userId: orderData.userId,
+        items: orderData.items,
+        total: orderData.total,
+        status: 'pending',
+        paymentMethod: orderData.paymentMethod,
+        shippingAddress: orderData.shippingAddress,
+        billingAddress: orderData.billingAddress,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      });
-      return article;
+      };
+
+      const orders = await this.getData('orders');
+      orders.push(newOrder);
+      await this.saveData('orders', orders);
+      
+      return newOrder;
     } catch (error) {
-      console.error('Error creating help article:', error);
+      console.error('Error creating order:', error);
       throw error;
     }
   }
 
-  async getBlogs(): Promise<Blog[]> {
+  async register(userData: { email: string; password: string; name: string }): Promise<User> {
     try {
-      const blogs = await this.sdk.get('blogs');
-      return blogs || [];
-    } catch (error) {
-      console.error('Error fetching blogs:', error);
-      return [];
-    }
-  }
+      const users = await this.getData('users');
+      
+      // Check if user already exists
+      const existingUser = users.find((user: User) => user.email === userData.email);
+      if (existingUser) {
+        throw new Error('User already exists with this email');
+      }
 
-  async createBlog(blogData: any): Promise<Blog> {
-    try {
-      const blog = await this.sdk.insert('blogs', {
-        ...blogData,
+      const newUser: User = {
+        id: Date.now().toString(),
+        email: userData.email,
+        name: userData.name,
+        role: 'customer',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      });
-      return blog;
+      };
+
+      users.push(newUser);
+      await this.saveData('users', users);
+      
+      // Store current user
+      localStorage.setItem('currentUser', JSON.stringify(newUser));
+      
+      return newUser;
     } catch (error) {
-      console.error('Error creating blog:', error);
+      console.error('Error registering user:', error);
       throw error;
     }
   }
 
-  // Community methods
-  async getPosts(filters?: any) {
+  async addToWishlist(userId: string, productId: string): Promise<WishlistItem> {
     try {
-      const posts = await this.sdk.get('posts');
-      return posts || [];
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-      return [];
-    }
-  }
+      const wishlistItem: WishlistItem = {
+        id: Date.now().toString(),
+        userId,
+        productId,
+        createdAt: new Date().toISOString()
+      };
 
-  async createPost(postData: any): Promise<Post> {
-    try {
-      const post = await this.sdk.insert('posts', {
-        ...postData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-      return post;
-    } catch (error) {
-      console.error('Error creating post:', error);
-      throw error;
-    }
-  }
+      const wishlist = await this.getData('wishlist');
+      
+      // Check if item already exists
+      const existingItem = wishlist.find((item: WishlistItem) => 
+        item.userId === userId && item.productId === productId
+      );
+      
+      if (existingItem) {
+        return existingItem;
+      }
 
-  async updatePost(id: string, updates: any): Promise<Post> {
-    try {
-      const post = await this.sdk.update('posts', id, {
-        ...updates,
-        updatedAt: new Date().toISOString()
-      });
-      return post;
+      wishlist.push(wishlistItem);
+      await this.saveData('wishlist', wishlist);
+      
+      return wishlistItem;
     } catch (error) {
-      console.error('Error updating post:', error);
-      throw error;
-    }
-  }
-
-  async getComments(postId: string) {
-    try {
-      const comments = await this.sdk.get('comments');
-      return comments.filter(c => c.postId === postId) || [];
-    } catch (error) {
-      console.error('Error fetching comments:', error);
-      return [];
-    }
-  }
-
-  async createComment(commentData: any): Promise<Comment> {
-    try {
-      const comment = await this.sdk.insert('comments', {
-        ...commentData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-      return comment;
-    } catch (error) {
-      console.error('Error creating comment:', error);
-      throw error;
-    }
-  }
-
-  // Admin methods
-  async getPlatformAnalytics() {
-    try {
-      const analytics = await this.sdk.get('platform_analytics');
-      return analytics?.[0] || null;
-    } catch (error) {
-      console.error('Error fetching platform analytics:', error);
-      return null;
-    }
-  }
-
-  // Wallet methods
-  async createWallet(walletData: any) {
-    try {
-      const wallet = await this.sdk.insert('wallets', {
-        ...walletData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-      return wallet;
-    } catch (error) {
-      console.error('Error creating wallet:', error);
+      console.error('Error adding to wishlist:', error);
       throw error;
     }
   }
 }
-
-export default CommerceSDK;
