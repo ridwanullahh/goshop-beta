@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCommerce } from '@/context/CommerceContext';
+import { useRealTime } from '@/context/RealTimeContext';
 import { toast } from 'sonner';
 import { 
   ShoppingBag, 
@@ -26,43 +27,69 @@ import {
   Eye,
   MessageSquare,
   Users,
-  Repeat
+  Repeat,
+  Wallet,
+  Mail
 } from 'lucide-react';
 
 export default function CustomerDashboard() {
-  const { currentUser, sdk, orders, wishlistItems } = useCommerce();
+  const { currentUser, sdk } = useCommerce();
+  const { subscribe } = useRealTime();
   const [activeSection, setActiveSection] = useState('overview');
   const [loading, setLoading] = useState(true);
-  const [customerOrders, setCustomerOrders] = useState([]);
-  const [recentProducts, setRecentProducts] = useState([]);
-  const [notifications, setNotifications] = useState([]);
+  const [customerOrders, setCustomerOrders] = useState<any[]>([]);
+  const [wishlistItems, setWishlistItems] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [wallet, setWallet] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
 
   useEffect(() => {
     if (currentUser && sdk) {
       fetchCustomerData();
+      
+      // Subscribe to real-time updates
+      const unsubscribeOrders = subscribe('orders', () => {
+        fetchCustomerOrders();
+      });
+      
+      const unsubscribeNotifications = subscribe('notifications', () => {
+        fetchNotifications();
+      });
+
+      return () => {
+        unsubscribeOrders();
+        unsubscribeNotifications();
+      };
     }
-  }, [currentUser, sdk]);
+  }, [currentUser, sdk, subscribe]);
 
   const fetchCustomerData = async () => {
     if (!currentUser || !sdk) return;
     
     setLoading(true);
     try {
-      const [
-        ordersData,
-        productsData,
-        notificationsData
-      ] = await Promise.all([
-        sdk.getOrders(currentUser.id), // Fixed: removed second argument
-        sdk.getProducts({ featured: true }),
-        sdk.getNotifications(currentUser.id)
+      await Promise.all([
+        fetchCustomerOrders(),
+        fetchWishlist(),
+        fetchNotifications(),
+        fetchMessages(),
+        fetchWallet()
       ]);
+    } catch (error) {
+      console.error('Error fetching customer data:', error);
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const fetchCustomerOrders = async () => {
+    if (!currentUser || !sdk) return;
+    try {
+      const ordersData = await sdk.getOrders(currentUser.id);
       setCustomerOrders(ordersData);
-      setRecentProducts(productsData.slice(0, 8));
-      setNotifications(notificationsData);
-
+      
       // Calculate analytics
       const totalSpent = ordersData.reduce((sum: number, order: any) => sum + order.total, 0);
       const totalOrders = ordersData.length;
@@ -74,15 +101,53 @@ export default function CustomerDashboard() {
         totalOrders,
         averageOrderValue,
         completedOrders,
-        pendingOrders: ordersData.filter((order: any) => ['pending', 'processing', 'shipped'].includes(order.status)).length,
-        wishlistCount: wishlistItems?.length || 0
+        pendingOrders: ordersData.filter((order: any) => ['pending', 'processing', 'shipped'].includes(order.status)).length
       });
-
     } catch (error) {
-      console.error('Error fetching customer data:', error);
-      toast.error('Failed to load dashboard data');
-    } finally {
-      setLoading(false);
+      console.error('Error fetching orders:', error);
+    }
+  };
+
+  const fetchWishlist = async () => {
+    if (!currentUser || !sdk) return;
+    try {
+      const wishlistData = await sdk.getWishlist(currentUser.id);
+      setWishlistItems(wishlistData);
+    } catch (error) {
+      console.error('Error fetching wishlist:', error);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    if (!currentUser || !sdk) return;
+    try {
+      const notificationsData = await sdk.getNotifications(currentUser.id);
+      setNotifications(notificationsData);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  const fetchMessages = async () => {
+    if (!currentUser || !sdk) return;
+    try {
+      const messagesData = await sdk.getMessages(currentUser.id);
+      setMessages(messagesData);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    }
+  };
+
+  const fetchWallet = async () => {
+    if (!currentUser || !sdk) return;
+    try {
+      let walletData = await sdk.getWallet(currentUser.id);
+      if (!walletData) {
+        walletData = await sdk.createWallet(currentUser.id);
+      }
+      setWallet(walletData);
+    } catch (error) {
+      console.error('Error fetching wallet:', error);
     }
   };
 
@@ -102,9 +167,10 @@ export default function CustomerDashboard() {
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'orders', label: 'My Orders', icon: Package },
     { id: 'wishlist', label: 'Wishlist', icon: Heart },
-    { id: 'recommendations', label: 'For You', icon: TrendingUp },
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'notifications', label: 'Notifications', icon: Bell }
+    { id: 'wallet', label: 'Wallet', icon: Wallet },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'messages', label: 'Messages', icon: Mail },
+    { id: 'profile', label: 'Profile', icon: User }
   ];
 
   if (loading) {
@@ -177,19 +243,19 @@ export default function CustomerDashboard() {
                   <Heart className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{analytics?.wishlistCount || 0}</div>
+                  <div className="text-2xl font-bold">{wishlistItems?.length || 0}</div>
                   <p className="text-xs text-muted-foreground">Saved products</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Avg Order Value</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">Wallet Balance</CardTitle>
+                  <Wallet className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">${analytics?.averageOrderValue?.toFixed(2) || '0.00'}</div>
-                  <p className="text-xs text-muted-foreground">Per order</p>
+                  <div className="text-2xl font-bold">${wallet?.balance?.toFixed(2) || '0.00'}</div>
+                  <p className="text-xs text-muted-foreground">Available balance</p>
                 </CardContent>
               </Card>
             </div>
@@ -247,9 +313,9 @@ export default function CustomerDashboard() {
                           <Package className="h-6 w-6" />
                         </div>
                         <div>
-                          <p className="font-medium">Order #{order.id}</p>
+                          <p className="font-medium">Order #{order.id.slice(-8)}</p>
                           <p className="text-sm text-muted-foreground">
-                            {order.products.length} item(s) • {new Date(order.createdAt).toLocaleDateString()}
+                            {order.items?.length || 0} item(s) • {new Date(order.createdAt).toLocaleDateString()}
                           </p>
                           <div className="flex items-center space-x-2 mt-1">
                             <Badge className={getOrderStatusColor(order.status)}>
@@ -301,7 +367,7 @@ export default function CustomerDashboard() {
                     <div key={order.id} className="p-6 border-b last:border-b-0">
                       <div className="flex items-start justify-between mb-4">
                         <div>
-                          <h3 className="font-semibold">Order #{order.id}</h3>
+                          <h3 className="font-semibold">Order #{order.id.slice(-8)}</h3>
                           <p className="text-sm text-muted-foreground">
                             Placed on {new Date(order.createdAt).toLocaleDateString()}
                           </p>
@@ -309,36 +375,14 @@ export default function CustomerDashboard() {
                             <Badge className={getOrderStatusColor(order.status)}>
                               {order.status}
                             </Badge>
-                            {order.trackingNumber && (
-                              <Badge variant="outline">
-                                Tracking: {order.trackingNumber}
-                              </Badge>
-                            )}
                           </div>
                         </div>
                         <div className="text-right">
                           <p className="font-semibold text-lg">${order.total.toFixed(2)}</p>
                           <p className="text-sm text-muted-foreground">
-                            {order.products.length} item(s)
+                            {order.items?.length || 0} item(s)
                           </p>
                         </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        {order.products.slice(0, 2).map((item: any, index: number) => (
-                          <div key={index} className="flex items-center space-x-3 text-sm">
-                            <div className="w-8 h-8 bg-muted rounded flex items-center justify-center">
-                              <Package className="h-4 w-4" />
-                            </div>
-                            <span>{item.productName}</span>
-                            <span className="text-muted-foreground">x{item.quantity}</span>
-                          </div>
-                        ))}
-                        {order.products.length > 2 && (
-                          <p className="text-sm text-muted-foreground">
-                            +{order.products.length - 2} more items
-                          </p>
-                        )}
                       </div>
 
                       <div className="flex space-x-2 mt-4">
@@ -360,12 +404,10 @@ export default function CustomerDashboard() {
                     </div>
                   ))}
                   {customerOrders.length === 0 && (
-                    <div className="p-12 text-center">
+                    <div className="text-center py-12">
                       <Package className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
                       <h3 className="text-lg font-semibold mb-2">No orders yet</h3>
-                      <p className="text-muted-foreground mb-4">
-                        Start shopping to see your orders here
-                      </p>
+                      <p className="text-muted-foreground mb-4">Start shopping to see your orders here</p>
                       <Link to="/products">
                         <Button>Browse Products</Button>
                       </Link>
@@ -377,39 +419,217 @@ export default function CustomerDashboard() {
           </div>
         )}
 
-        {/* Recommendations Section */}
-        {activeSection === 'recommendations' && (
+        {/* Wishlist Section */}
+        {activeSection === 'wishlist' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Recommended For You</h2>
+            <h2 className="text-2xl font-bold">My Wishlist</h2>
+            
+            {wishlistItems.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <Heart className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">Your wishlist is empty</h3>
+                  <p className="text-muted-foreground mb-4">Save items you love to your wishlist</p>
+                  <Link to="/products">
+                    <Button>Start Shopping</Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {wishlistItems.map((item: any) => (
+                  <Card key={item.id}>
+                    <CardContent className="p-4">
+                      <div className="text-center">
+                        <div className="h-12 w-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
+                          <Heart className="h-6 w-6" />
+                        </div>
+                        <p className="font-medium">Wishlist Item</p>
+                        <p className="text-sm text-muted-foreground">Added {new Date(item.createdAt).toLocaleDateString()}</p>
+                        <Button variant="outline" size="sm" className="mt-2">
+                          Add to Cart
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Wallet Section */}
+        {activeSection === 'wallet' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold">My Wallet</h2>
+            
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Current Balance</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">${wallet?.balance?.toFixed(2) || '0.00'}</div>
+                  <p className="text-muted-foreground">Available to spend</p>
+                  <div className="flex space-x-2 mt-4">
+                    <Button size="sm">Add Funds</Button>
+                    <Button variant="outline" size="sm">Withdraw</Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Transactions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {wallet?.transactions?.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Wallet className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground">No transactions yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {wallet?.transactions?.slice(0, 5).map((transaction: any) => (
+                        <div key={transaction.id} className="flex justify-between items-center">
+                          <div>
+                            <p className="font-medium">{transaction.description}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(transaction.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <span className={`font-semibold ${
+                            transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {transaction.type === 'credit' ? '+' : '-'}${transaction.amount.toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* Notifications Section */}
+        {activeSection === 'notifications' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold">Notifications</h2>
+            
+            <Card>
+              <CardContent className="p-0">
+                {notifications.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Bell className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">No notifications</h3>
+                    <p className="text-muted-foreground">You're all caught up!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-0">
+                    {notifications.map((notification: any) => (
+                      <div key={notification.id} className="p-4 border-b last:border-b-0">
+                        <div className="flex items-start space-x-3">
+                          <div className="h-8 w-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                            <Bell className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium">{notification.title}</h4>
+                            <p className="text-sm text-muted-foreground">{notification.message}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(notification.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          {!notification.read && (
+                            <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Messages Section */}
+        {activeSection === 'messages' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold">Messages</h2>
+            
+            <Card>
+              <CardContent className="p-0">
+                {messages.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Mail className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">No messages</h3>
+                    <p className="text-muted-foreground">Your inbox is empty</p>
+                  </div>
+                ) : (
+                  <div className="space-y-0">
+                    {messages.map((message: any) => (
+                      <div key={message.id} className="p-4 border-b last:border-b-0">
+                        <div className="flex items-start space-x-3">
+                          <div className="h-8 w-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                            <Mail className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm">{message.content}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(message.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          {!message.read && (
+                            <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Profile Section */}
+        {activeSection === 'profile' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold">Profile Settings</h2>
             
             <Card>
               <CardHeader>
-                <CardTitle>Featured Products</CardTitle>
-                <CardDescription>Products you might like based on your interests</CardDescription>
+                <CardTitle>Personal Information</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {recentProducts.map((product: any) => (
-                    <Link key={product.id} to={`/product/${product.id}`}>
-                      <Card className="h-full hover:shadow-lg transition-shadow">
-                        <CardContent className="p-4">
-                          <img 
-                            src={product.images[0] || '/placeholder.svg'} 
-                            alt={product.name}
-                            className="w-full h-32 object-cover rounded mb-3"
-                          />
-                          <h3 className="font-semibold text-sm mb-1 line-clamp-2">{product.name}</h3>
-                          <div className="flex items-center space-x-1 mb-2">
-                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                            <span className="text-xs">{product.rating}</span>
-                            <span className="text-xs text-muted-foreground">({product.reviewCount})</span>
-                          </div>
-                          <p className="font-bold text-primary">${product.price}</p>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  ))}
+              <CardContent className="space-y-4">
+                <div className="flex items-center space-x-4">
+                  <Avatar className="h-20 w-20">
+                    <AvatarImage src={currentUser?.avatar} />
+                    <AvatarFallback className="text-2xl">
+                      {currentUser?.name?.[0]?.toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <Button variant="outline">Change Photo</Button>
                 </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">Full Name</label>
+                    <div className="mt-1 p-2 border rounded bg-muted">
+                      {currentUser?.name || 'Not set'}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Email</label>
+                    <div className="mt-1 p-2 border rounded bg-muted">
+                      {currentUser?.email || 'Not set'}
+                    </div>
+                  </div>
+                </div>
+                
+                <Button>Edit Profile</Button>
               </CardContent>
             </Card>
           </div>
