@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
@@ -14,13 +15,17 @@ const Cart = () => {
   const { cart, products, removeFromCart, currentUser, updateCartQuantity } = useCommerce();
   const navigate = useNavigate();
 
-  // Get cart items with product details
+  // Get cart items with product details and safety checks
   const cartItems = cart?.items?.map(item => {
     const product = products.find(p => p.id === item.productId);
     return product ? { ...item, product } : null;
   }).filter(Boolean) || [];
 
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  const subtotal = cartItems.reduce((sum, item) => {
+    if (!item?.product?.price || !item?.quantity) return sum;
+    return sum + (item.product.price * item.quantity);
+  }, 0);
+  
   const shipping = subtotal > 50 ? 0 : 9.99;
   const tax = subtotal * 0.08; // 8% tax
   const total = subtotal + shipping + tax;
@@ -129,18 +134,18 @@ const Cart = () => {
                   {cartItems.map((item) => (
                     <div key={item.productId} className="flex gap-4 p-4 border rounded-lg">
                       <img
-                        src={item.product.images?.[0] || '/placeholder.svg'}
-                        alt={item.product.name}
+                        src={item.product?.images?.[0] || '/placeholder.svg'}
+                        alt={item.product?.name || 'Product'}
                         className="w-20 h-20 object-cover rounded-lg"
                       />
                       
                       <div className="flex-1">
-                        <h3 className="font-semibold">{item.product.name}</h3>
+                        <h3 className="font-semibold">{item.product?.name || 'Unknown Product'}</h3>
                         <p className="text-sm text-muted-foreground line-clamp-2">
-                          {item.product.description}
+                          {item.product?.description || 'No description'}
                         </p>
                         <Badge variant="outline" className="mt-1">
-                          {item.product.category}
+                          {item.product?.category || 'Uncategorized'}
                         </Badge>
                         
                         <div className="flex items-center justify-between mt-4">
@@ -171,7 +176,7 @@ const Cart = () => {
                           
                           <div className="flex items-center gap-4">
                             <span className="font-semibold text-lg">
-                              ${(item.product.price * item.quantity).toFixed(2)}
+                              ${((item.product?.price || 0) * item.quantity).toFixed(2)}
                             </span>
                             <Button
                               size="icon"
