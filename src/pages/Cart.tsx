@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
@@ -15,21 +14,15 @@ const Cart = () => {
   const { cart, products, removeFromCart, currentUser, updateCartQuantity } = useCommerce();
   const navigate = useNavigate();
 
-  // Get cart items with product details - fix the price error
+  // Get cart items with product details
   const cartItems = cart?.items?.map(item => {
-    const product = products?.find(p => p.id === item.productId);
-    if (!product) return null;
-    return { ...item, product };
+    const product = products.find(p => p.id === item.productId);
+    return product ? { ...item, product } : null;
   }).filter(Boolean) || [];
 
-  const subtotal = cartItems.reduce((sum, item) => {
-    const price = item?.product?.price || 0;
-    const quantity = item?.quantity || 0;
-    return sum + (price * quantity);
-  }, 0);
-  
+  const subtotal = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
   const shipping = subtotal > 50 ? 0 : 9.99;
-  const tax = subtotal * 0.08;
+  const tax = subtotal * 0.08; // 8% tax
   const total = subtotal + shipping + tax;
 
   const handleRemoveItem = (productId: string) => {
@@ -136,18 +129,18 @@ const Cart = () => {
                   {cartItems.map((item) => (
                     <div key={item.productId} className="flex gap-4 p-4 border rounded-lg">
                       <img
-                        src={item.product?.images?.[0] || '/placeholder.svg'}
-                        alt={item.product?.name || 'Product'}
+                        src={item.product.images?.[0] || '/placeholder.svg'}
+                        alt={item.product.name}
                         className="w-20 h-20 object-cover rounded-lg"
                       />
                       
                       <div className="flex-1">
-                        <h3 className="font-semibold">{item.product?.name}</h3>
+                        <h3 className="font-semibold">{item.product.name}</h3>
                         <p className="text-sm text-muted-foreground line-clamp-2">
-                          {item.product?.description}
+                          {item.product.description}
                         </p>
                         <Badge variant="outline" className="mt-1">
-                          {item.product?.category}
+                          {item.product.category}
                         </Badge>
                         
                         <div className="flex items-center justify-between mt-4">
@@ -178,7 +171,7 @@ const Cart = () => {
                           
                           <div className="flex items-center gap-4">
                             <span className="font-semibold text-lg">
-                              ${((item.product?.price || 0) * item.quantity).toFixed(2)}
+                              ${(item.product.price * item.quantity).toFixed(2)}
                             </span>
                             <Button
                               size="icon"
