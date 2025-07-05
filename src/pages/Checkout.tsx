@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -111,7 +110,11 @@ export default function Checkout() {
     }
   ];
 
-  const subtotal = cart?.items?.reduce((sum, item) => sum + (item.product.price * item.quantity), 0) || 0;
+  const subtotal = cart?.items?.reduce((sum, item) => {
+    if (!item?.product?.price || !item?.quantity) return sum;
+    return sum + (item.product.price * item.quantity);
+  }, 0) || 0;
+  
   const shipping = subtotal > 50 ? 0 : 9.99;
   const tax = subtotal * 0.08; // 8% tax
   const total = subtotal + shipping + tax;
@@ -483,14 +486,14 @@ export default function Checkout() {
                   {cart.items.map((item) => (
                     <div key={item.productId} className="flex items-center space-x-3">
                       <img
-                        src={item.product.images[0] || '/placeholder.svg'}
-                        alt={item.product.name}
+                        src={item.product?.images?.[0] || '/placeholder.svg'}
+                        alt={item.product?.name || 'Product'}
                         className="w-12 h-12 object-cover rounded"
                       />
                       <div className="flex-1">
-                        <p className="font-medium text-sm">{item.product.name}</p>
+                        <p className="font-medium text-sm">{item.product?.name || 'Unknown Product'}</p>
                         <p className="text-sm text-muted-foreground">
-                          ${item.product.price} × {item.quantity}
+                          ${item.product?.price || 0} × {item.quantity}
                         </p>
                       </div>
                       <div className="flex items-center space-x-2">
