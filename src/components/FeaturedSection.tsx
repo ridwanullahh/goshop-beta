@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ProductGrid } from './ProductGrid';
@@ -7,7 +8,7 @@ import { TrendingUp, Flame, Star } from 'lucide-react';
 export function FeaturedSection() {
   const { products } = useCommerce();
 
-  const featuredProducts = products.filter(p => p.isFeatured).slice(0, 8);
+  const featuredProducts = products.filter(p => p.featured || p.isFeatured).slice(0, 8);
   const trendingProducts = products.filter(p => p.rating >= 4.5).slice(0, 4);
 
   return (

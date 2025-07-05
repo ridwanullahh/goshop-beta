@@ -1,16 +1,19 @@
 
 export interface User {
   id?: string;
+  uid?: string;
   email: string;
   password?: string;
   name: string;
   firstName?: string;
   lastName?: string;
   role?: 'customer' | 'seller' | 'admin' | 'affiliate';
+  roles?: string[];
   businessName?: string;
   phone?: string;
   address?: string;
   avatar?: string;
+  onboardingCompleted?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -20,6 +23,7 @@ export interface Product {
   name: string;
   description: string;
   price: number;
+  originalPrice?: number;
   images: string[];
   category: string;
   inventory: number;
@@ -29,6 +33,26 @@ export interface Product {
   reviewCount: number;
   tags: string[];
   featured?: boolean;
+  isFeatured?: boolean;
+  isActive?: boolean;
+  sku?: string;
+  weight?: number;
+  dimensions?: string;
+  shippingClass?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  metaKeywords?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Category {
+  id?: string;
+  name: string;
+  slug: string;
+  description?: string;
+  image?: string;
+  parentId?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -36,6 +60,7 @@ export interface Product {
 export interface Order {
   id?: string;
   userId: string;
+  items: OrderItem[];
   products: OrderProduct[];
   total: number;
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
@@ -44,6 +69,14 @@ export interface Order {
   trackingNumber?: string;
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface OrderItem {
+  id?: string;
+  productId: string;
+  quantity: number;
+  price: number;
+  product?: Product;
 }
 
 export interface OrderProduct {
@@ -62,6 +95,7 @@ export interface Cart {
 }
 
 export interface CartItem {
+  id?: string;
   productId: string;
   quantity: number;
   product: Product;
@@ -135,6 +169,9 @@ export interface CommunityComment {
   createdAt: string;
 }
 
+export interface Post extends CommunityPost {}
+export interface Comment extends CommunityComment {}
+
 class CommerceSDK {
   private baseUrl: string;
   private token: string | null = null;
@@ -161,7 +198,6 @@ class CommerceSDK {
 
       if (!response.ok) {
         if (response.status === 404) {
-          // File doesn't exist, return empty array or create it
           await this.createDataFile(path, []);
           return [];
         }
@@ -181,7 +217,6 @@ class CommerceSDK {
     const url = `${this.baseUrl}/repos/${this.owner}/${this.repo}/contents/db/${path}`;
     
     try {
-      // Get current file to get SHA
       let sha: string | undefined;
       try {
         const currentResponse = await fetch(url, {
@@ -243,6 +278,7 @@ class CommerceSDK {
     const newUser: User = {
       ...userData,
       id: this.generateId(),
+      uid: this.generateId(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -253,14 +289,35 @@ class CommerceSDK {
     return newUser;
   }
 
-  async login(email: string, password: string): Promise<User | null> {
+  async login(credentials: { email: string; password: string }): Promise<User | null> {
     const users = await this.fetchData('users.json');
-    return users.find((user: User) => user.email === email && user.password === password) || null;
+    return users.find((user: User) => user.email === credentials.email && user.password === credentials.password) || null;
+  }
+
+  async getCurrentUser(): Promise<User | null> {
+    const storedUser = localStorage.getItem('currentUser');
+    return storedUser ? JSON.parse(storedUser) : null;
+  }
+
+  async logout(): Promise<void> {
+    localStorage.removeItem('currentUser');
   }
 
   async getUserById(id: string): Promise<User | null> {
     const users = await this.fetchData('users.json');
     return users.find((user: User) => user.id === id) || null;
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
+    const users = await this.fetchData('users.json');
+    const index = users.findIndex((u: User) => u.id === id);
+    
+    if (index === -1) return null;
+    
+    users[index] = { ...users[index], ...updates, updatedAt: new Date().toISOString() };
+    await this.saveData('users.json', users, 'Update user');
+    
+    return users[index];
   }
 
   // Product methods
@@ -276,7 +333,7 @@ class CommerceSDK {
     }
     
     if (filters.featured) {
-      filtered = filtered.filter((p: Product) => p.featured);
+      filtered = filtered.filter((p: Product) => p.featured || p.isFeatured);
     }
     
     if (filters.sellerId) {
@@ -296,6 +353,7 @@ class CommerceSDK {
     const newProduct: Product = {
       ...productData,
       id: this.generateId(),
+      isActive: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -328,7 +386,7 @@ class CommerceSDK {
     return true;
   }
 
-  async searchProducts(query: string): Promise<Product[]> {
+  async searchProducts(query: string, filters?: any): Promise<Product[]> {
     const products = await this.fetchData('products.json');
     const lowercaseQuery = query.toLowerCase();
     
@@ -342,6 +400,11 @@ class CommerceSDK {
 
   async getSellerProducts(sellerId: string): Promise<Product[]> {
     return this.getProducts({ sellerId });
+  }
+
+  // Categories
+  async getCategories(): Promise<Category[]> {
+    return this.fetchData('categories.json');
   }
 
   // Order methods
@@ -388,108 +451,58 @@ class CommerceSDK {
   }
 
   // Cart methods
-  async getCart(userId: string): Promise<Cart | null> {
+  async getCart(userId: string): Promise<CartItem[]> {
     const carts = await this.fetchData('carts.json');
-    const cart = carts.find((c: Cart) => c.userId === userId);
+    const userCart = carts.find((c: any) => c.userId === userId);
     
-    if (!cart) return null;
+    if (!userCart) return [];
     
-    // Populate product details
     const products = await this.fetchData('products.json');
-    cart.items = cart.items.map((item: CartItem) => ({
+    return userCart.items.map((item: CartItem) => ({
       ...item,
+      id: item.id || this.generateId(),
       product: products.find((p: Product) => p.id === item.productId) || null
     })).filter((item: CartItem) => item.product);
-    
-    return cart;
   }
 
-  async addToCart(userId: string, productId: string, quantity: number = 1): Promise<Cart> {
+  async addToCart(userId: string, productId: string, quantity: number = 1): Promise<CartItem> {
     const carts = await this.fetchData('carts.json');
     const products = await this.fetchData('products.json');
     
     const product = products.find((p: Product) => p.id === productId);
     if (!product) throw new Error('Product not found');
     
-    let cart = carts.find((c: Cart) => c.userId === userId);
+    let userCartIndex = carts.findIndex((c: any) => c.userId === userId);
     
-    if (!cart) {
-      cart = {
+    if (userCartIndex === -1) {
+      carts.push({
         userId,
         items: [],
         total: 0,
         updatedAt: new Date().toISOString()
-      };
-      carts.push(cart);
+      });
+      userCartIndex = carts.length - 1;
     }
     
-    const existingItem = cart.items.find((item: CartItem) => item.productId === productId);
+    const existingItemIndex = carts[userCartIndex].items.findIndex((item: CartItem) => item.productId === productId);
     
-    if (existingItem) {
-      existingItem.quantity += quantity;
+    if (existingItemIndex >= 0) {
+      carts[userCartIndex].items[existingItemIndex].quantity += quantity;
     } else {
-      cart.items.push({
+      carts[userCartIndex].items.push({
+        id: this.generateId(),
         productId,
         quantity,
         product
       });
     }
     
-    cart.total = cart.items.reduce((sum: number, item: CartItem) => sum + (item.product.price * item.quantity), 0);
-    cart.updatedAt = new Date().toISOString();
+    carts[userCartIndex].total = carts[userCartIndex].items.reduce((sum: number, item: CartItem) => sum + (item.product.price * item.quantity), 0);
+    carts[userCartIndex].updatedAt = new Date().toISOString();
     
     await this.saveData('carts.json', carts, 'Update cart');
-    return cart;
-  }
-
-  async updateCartQuantity(userId: string, productId: string, quantity: number): Promise<Cart | null> {
-    const carts = await this.fetchData('carts.json');
-    const cart = carts.find((c: Cart) => c.userId === userId);
     
-    if (!cart) return null;
-    
-    const item = cart.items.find((item: CartItem) => item.productId === productId);
-    if (!item) return null;
-    
-    if (quantity <= 0) {
-      cart.items = cart.items.filter((item: CartItem) => item.productId !== productId);
-    } else {
-      item.quantity = quantity;
-    }
-    
-    cart.total = cart.items.reduce((sum: number, item: CartItem) => sum + (item.product.price * item.quantity), 0);
-    cart.updatedAt = new Date().toISOString();
-    
-    await this.saveData('carts.json', carts, 'Update cart quantity');
-    return cart;
-  }
-
-  async removeFromCart(userId: string, productId: string): Promise<Cart | null> {
-    const carts = await this.fetchData('carts.json');
-    const cart = carts.find((c: Cart) => c.userId === userId);
-    
-    if (!cart) return null;
-    
-    cart.items = cart.items.filter((item: CartItem) => item.productId !== productId);
-    cart.total = cart.items.reduce((sum: number, item: CartItem) => sum + (item.product.price * item.quantity), 0);
-    cart.updatedAt = new Date().toISOString();
-    
-    await this.saveData('carts.json', carts, 'Remove from cart');
-    return cart;
-  }
-
-  async clearCart(userId: string): Promise<boolean> {
-    const carts = await this.fetchData('carts.json');
-    const cart = carts.find((c: Cart) => c.userId === userId);
-    
-    if (!cart) return false;
-    
-    cart.items = [];
-    cart.total = 0;
-    cart.updatedAt = new Date().toISOString();
-    
-    await this.saveData('carts.json', carts, 'Clear cart');
-    return true;
+    return carts[userCartIndex].items[existingItemIndex >= 0 ? existingItemIndex : carts[userCartIndex].items.length - 1];
   }
 
   // Wishlist methods
@@ -531,18 +544,6 @@ class CommerceSDK {
     await this.saveData('wishlist.json', wishlist, 'Add to wishlist');
     
     return newItem;
-  }
-
-  async removeFromWishlist(userId: string, productId: string): Promise<boolean> {
-    const wishlist = await this.fetchData('wishlist.json');
-    const filteredWishlist = wishlist.filter((item: WishlistItem) => 
-      !(item.userId === userId && item.productId === productId)
-    );
-    
-    if (filteredWishlist.length === wishlist.length) return false;
-    
-    await this.saveData('wishlist.json', filteredWishlist, 'Remove from wishlist');
-    return true;
   }
 
   // Notification methods
@@ -672,14 +673,53 @@ class CommerceSDK {
     return newComment;
   }
 
+  // Generic CRUD operations
+  async create(collection: string, data: any): Promise<any> {
+    const items = await this.fetchData(`${collection}.json`);
+    const newItem = {
+      ...data,
+      id: this.generateId(),
+      createdAt: new Date().toISOString()
+    };
+    
+    items.push(newItem);
+    await this.saveData(`${collection}.json`, items, `Add ${collection} item`);
+    
+    return newItem;
+  }
+
+  async update(collection: string, id: string, updates: any): Promise<any> {
+    const items = await this.fetchData(`${collection}.json`);
+    const index = items.findIndex((item: any) => item.id === id);
+    
+    if (index === -1) return null;
+    
+    items[index] = { ...items[index], ...updates, updatedAt: new Date().toISOString() };
+    await this.saveData(`${collection}.json`, items, `Update ${collection} item`);
+    
+    return items[index];
+  }
+
+  async delete(collection: string, id: string): Promise<boolean> {
+    const items = await this.fetchData(`${collection}.json`);
+    const filteredItems = items.filter((item: any) => item.id !== id);
+    
+    if (filteredItems.length === items.length) return false;
+    
+    await this.saveData(`${collection}.json`, filteredItems, `Delete ${collection} item`);
+    return true;
+  }
+
   // Analytics methods
   async getSellerAnalytics(sellerId: string): Promise<any> {
     const orders = await this.getOrders();
     const products = await this.getSellerProducts(sellerId);
     
     const sellerOrders = orders.filter(order => 
-      order.products.some(product => 
+      order.products?.some(product => 
         products.some(p => p.id === product.productId)
+      ) || order.items?.some(item => 
+        products.some(p => p.id === item.productId)
       )
     );
     
@@ -691,7 +731,7 @@ class CommerceSDK {
       totalRevenue,
       totalOrders,
       totalProducts: products.length,
-      activeProducts: products.filter(p => p.inventory > 0).length,
+      activeProducts: products.filter(p => p.inventory > 0 && (p.isActive !== false)).length,
       averageOrderValue,
       completedOrders: sellerOrders.filter(o => o.status === 'delivered').length,
       pendingOrders: sellerOrders.filter(o => ['pending', 'processing', 'shipped'].includes(o.status)).length
@@ -699,5 +739,6 @@ class CommerceSDK {
   }
 }
 
-export const sdk = new CommerceSDK();
-export default sdk;
+const sdk = new CommerceSDK();
+export { sdk };
+export default CommerceSDK;
