@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   uid?: string;
@@ -207,36 +206,6 @@ export interface Commission {
   createdAt: string;
 }
 
-export interface Message {
-  id: string;
-  fromUserId: string;
-  toUserId: string;
-  content: string;
-  read: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Wallet {
-  id: string;
-  userId: string;
-  balance: number;
-  currency: string;
-  transactions: Transaction[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Transaction {
-  id: string;
-  walletId: string;
-  type: 'credit' | 'debit';
-  amount: number;
-  description: string;
-  reference?: string;
-  createdAt: string;
-}
-
 export default class CommerceSDK {
   private baseURL: string;
   private githubToken: string;
@@ -275,7 +244,7 @@ export default class CommerceSDK {
   };
 
   private async fetchData(path: string, method: string = 'GET', body: any = null) {
-    const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/db/${path}.json`;
+    const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/${path}.json`;
     const headers = {
       'Accept': 'application/vnd.github.v3+json',
       'Authorization': `Bearer ${this.githubToken}`,
@@ -290,7 +259,7 @@ export default class CommerceSDK {
 
     if (body && method === 'PUT') {
       options.body = JSON.stringify({
-        message: `Update db/${path}.json`,
+        message: `Update ${path}.json`,
         content: btoa(JSON.stringify(body, null, 2)),
         sha: await this.getSHA(path)
       });
@@ -300,6 +269,7 @@ export default class CommerceSDK {
 
     if (!response.ok) {
       if (response.status === 404) {
+        // File doesn't exist, initialize it
         if (method === 'GET') {
           await this.initializeFile(path);
           return { content: btoa(JSON.stringify([], null, 2)) };
@@ -313,7 +283,7 @@ export default class CommerceSDK {
 
   private async initializeFile(path: string): Promise<void> {
     try {
-      const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/db/${path}.json`;
+      const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/${path}.json`;
       const headers = {
         'Accept': 'application/vnd.github.v3+json',
         'Authorization': `Bearer ${this.githubToken}`,
@@ -327,12 +297,12 @@ export default class CommerceSDK {
         method: 'PUT',
         headers,
         body: JSON.stringify({
-          message: `Initialize db/${path}.json`,
+          message: `Initialize ${path}.json`,
           content: btoa(JSON.stringify(initialData, null, 2))
         })
       });
     } catch (error) {
-      console.warn(`Failed to initialize db/${path}.json:`, error);
+      console.warn(`Failed to initialize ${path}.json:`, error);
     }
   }
 
@@ -342,35 +312,16 @@ export default class CommerceSDK {
         return [
           {
             id: "1",
-            name: "Premium Wireless Headphones",
-            description: "High-quality wireless headphones with noise cancellation",
-            price: 299.99,
+            name: "Sample Product",
+            description: "This is a sample product",
+            price: 29.99,
             images: ["/placeholder.svg"],
             category: "Electronics",
             rating: 4.5,
-            reviewCount: 128,
+            reviewCount: 12,
             isFeatured: true,
             isActive: true,
             inventory: 50,
-            sellerId: "1",
-            sellerName: "TechStore",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          },
-          {
-            id: "2",
-            name: "Smart Fitness Watch",
-            description: "Advanced fitness tracking with heart rate monitor",
-            price: 199.99,
-            images: ["/placeholder.svg"],
-            category: "Electronics",
-            rating: 4.3,
-            reviewCount: 89,
-            isFeatured: true,
-            isActive: true,
-            inventory: 75,
-            sellerId: "1",
-            sellerName: "TechStore",
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           }
@@ -384,14 +335,6 @@ export default class CommerceSDK {
             description: "Electronic devices and gadgets",
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
-          },
-          {
-            id: "2",
-            name: "Fashion",
-            slug: "fashion",
-            description: "Clothing and accessories",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
           }
         ];
       case 'users':
@@ -403,29 +346,10 @@ export default class CommerceSDK {
             role: "admin",
             verified: true,
             onboardingCompleted: true,
-            walletBalance: 0,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           }
         ];
-      case 'notifications':
-        return [];
-      case 'orders':
-        return [];
-      case 'cart_items':
-        return [];
-      case 'wishlist':
-        return [];
-      case 'posts':
-        return [];
-      case 'comments':
-        return [];
-      case 'messages':
-        return [];
-      case 'wallets':
-        return [];
-      case 'transactions':
-        return [];
       default:
         return [];
     }
@@ -433,7 +357,7 @@ export default class CommerceSDK {
 
   private async getSHA(path: string): Promise<string> {
     try {
-      const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/db/${path}.json`;
+      const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/${path}.json`;
       const headers = {
         'Accept': 'application/vnd.github.v3+json',
         'Authorization': `Bearer ${this.githubToken}`,
@@ -518,14 +442,7 @@ export default class CommerceSDK {
 
   async getCart(userId: string): Promise<CartItem[]> {
     const cartItems = await this.getData('cart_items') as CartItem[];
-    const userCartItems = cartItems.filter(item => item.userId === userId);
-    
-    // Populate with product data
-    const products = await this.getProducts();
-    return userCartItems.map(item => ({
-      ...item,
-      product: products.find(p => p.id === item.productId)
-    }));
+    return cartItems.filter(item => item.userId === userId);
   }
 
   async addToCart(userId: string, productId: string, quantity: number = 1): Promise<CartItem> {
@@ -550,10 +467,7 @@ export default class CommerceSDK {
         const allCartItems = await this.getData('cart_items');
         allCartItems.push(newCartItem);
         await this.saveData('cart_items', allCartItems);
-        
-        // Populate with product data
-        const product = await this.getProduct(productId);
-        return { ...newCartItem, product };
+        return newCartItem;
       }
     } catch (error) {
       console.error('Error adding to cart:', error);
@@ -708,8 +622,7 @@ export default class CommerceSDK {
         phone: userData.phone,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        onboardingCompleted: userData.onboardingCompleted || false,
-        walletBalance: 0
+        onboardingCompleted: userData.onboardingCompleted || false
       };
 
       users.push(newUser);
@@ -760,18 +673,11 @@ export default class CommerceSDK {
   }
 
   async getSellerAnalytics(sellerId: string): Promise<any> {
-    const orders = await this.getOrders(sellerId);
-    const products = await this.getSellerProducts(sellerId);
-    
-    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-    const totalOrders = orders.length;
-    
     return {
-      totalRevenue,
-      totalOrders,
-      totalProducts: products.length,
-      averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
-      topSellingProduct: products[0] || null
+      totalRevenue: 0,
+      totalOrders: 0,
+      averageOrderValue: 0,
+      topSellingProduct: null
     };
   }
 
@@ -811,26 +717,6 @@ export default class CommerceSDK {
   async getNotifications(userId?: string): Promise<Notification[]> {
     const notifications = await this.getData('notifications') as Notification[];
     return userId ? notifications.filter(notification => notification.userId === userId) : notifications;
-  }
-
-  async createNotification(notificationData: any): Promise<Notification> {
-    try {
-      const newNotification: Notification = {
-        ...notificationData,
-        id: Date.now().toString(),
-        read: false,
-        createdAt: new Date().toISOString()
-      };
-
-      const notifications = await this.getData('notifications');
-      notifications.push(newNotification);
-      await this.saveData('notifications', notifications);
-      
-      return newNotification;
-    } catch (error) {
-      console.error('Error creating notification:', error);
-      throw error;
-    }
   }
 
   // Community methods
@@ -889,64 +775,6 @@ export default class CommerceSDK {
     }
   }
 
-  // Messages methods
-  async getMessages(userId: string): Promise<Message[]> {
-    const messages = await this.getData('messages') as Message[];
-    return messages.filter(message => 
-      message.fromUserId === userId || message.toUserId === userId
-    );
-  }
-
-  async sendMessage(messageData: any): Promise<Message> {
-    try {
-      const newMessage: Message = {
-        ...messageData,
-        id: Date.now().toString(),
-        read: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      const messages = await this.getData('messages');
-      messages.push(newMessage);
-      await this.saveData('messages', messages);
-      
-      return newMessage;
-    } catch (error) {
-      console.error('Error sending message:', error);
-      throw error;
-    }
-  }
-
-  // Wallet methods
-  async getWallet(userId: string): Promise<Wallet | null> {
-    const wallets = await this.getData('wallets') as Wallet[];
-    return wallets.find(wallet => wallet.userId === userId) || null;
-  }
-
-  async createWallet(userId: string): Promise<Wallet> {
-    try {
-      const newWallet: Wallet = {
-        id: Date.now().toString(),
-        userId,
-        balance: 0,
-        currency: 'USD',
-        transactions: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      const wallets = await this.getData('wallets');
-      wallets.push(newWallet);
-      await this.saveData('wallets', wallets);
-      
-      return newWallet;
-    } catch (error) {
-      console.error('Error creating wallet:', error);
-      throw error;
-    }
-  }
-
   // Admin methods
   async getHelpArticles(): Promise<HelpArticle[]> {
     return await this.getData('help_articles') as HelpArticle[];
@@ -997,19 +825,11 @@ export default class CommerceSDK {
   }
 
   async getPlatformAnalytics(): Promise<any> {
-    const [users, orders, products] = await Promise.all([
-      this.getUsers(),
-      this.getOrders(),
-      this.getProducts()
-    ]);
-
-    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-
     return {
-      totalUsers: users.length,
-      totalOrders: orders.length,
-      totalRevenue,
-      totalProducts: products.length
+      totalUsers: 0,
+      totalOrders: 0,
+      totalRevenue: 0,
+      totalProducts: 0
     };
   }
 
@@ -1058,6 +878,28 @@ export default class CommerceSDK {
   async getProductReviews(productId: string): Promise<any[]> {
     const reviews = await this.getData('reviews');
     return reviews.filter((review: any) => review.productId === productId);
+  }
+
+  // Wallet methods
+  async createWallet(userId: string): Promise<any> {
+    try {
+      const newWallet = {
+        id: Date.now().toString(),
+        userId,
+        balance: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const wallets = await this.getData('wallets');
+      wallets.push(newWallet);
+      await this.saveData('wallets', wallets);
+      
+      return newWallet;
+    } catch (error) {
+      console.error('Error creating wallet:', error);
+      throw error;
+    }
   }
 
   // Onboarding methods
