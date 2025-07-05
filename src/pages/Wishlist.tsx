@@ -14,7 +14,7 @@ const Wishlist = () => {
 
   useEffect(() => {
     if (currentUser) {
-      const saved = localStorage.getItem(`wishlist_${currentUser.uid}`);
+      const saved = localStorage.getItem(`wishlist_${currentUser.id || currentUser.uid}`);
       if (saved) {
         const wishlistProductIds = JSON.parse(saved);
         const items = products.filter(p => wishlistProductIds.includes(p.id));
@@ -26,11 +26,11 @@ const Wishlist = () => {
   const removeFromWishlist = (productId: string) => {
     if (!currentUser) return;
     
-    const saved = localStorage.getItem(`wishlist_${currentUser.uid}`);
+    const saved = localStorage.getItem(`wishlist_${currentUser.id || currentUser.uid}`);
     const wishlistProductIds = saved ? JSON.parse(saved) : [];
     const updatedIds = wishlistProductIds.filter((id: string) => id !== productId);
     
-    localStorage.setItem(`wishlist_${currentUser.uid}`, JSON.stringify(updatedIds));
+    localStorage.setItem(`wishlist_${currentUser.id || currentUser.uid}`, JSON.stringify(updatedIds));
     setWishlistItems(prev => prev.filter(item => item.id !== productId));
   };
 
