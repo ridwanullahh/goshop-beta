@@ -27,15 +27,16 @@ import AffiliateDashboard from './pages/AffiliateDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { CommerceProvider } from './context/CommerceContext';
-import { RealTimeProvider } from './context/RealTimeContext';
+import { EnhancedRealTimeProvider } from './context/EnhancedRealTimeContext';
 import EnhancedCustomerDashboard from './components/EnhancedCustomerDashboard';
 import EnhancedSellerDashboard from './components/EnhancedSellerDashboard';
 import { MobileDashboardLayout } from '@/components/MobileDashboardLayout';
+import { BottomNavigation } from '@/components/BottomNavigation';
 
 function App() {
   return (
     <CommerceProvider>
-      <RealTimeProvider>
+      <EnhancedRealTimeProvider>
         <BrowserRouter>
           <div className="App">
             <Toaster />
@@ -100,9 +101,10 @@ function App() {
                 } 
               />
             </Routes>
+            <BottomNavigation />
           </div>
         </BrowserRouter>
-      </RealTimeProvider>
+      </EnhancedRealTimeProvider>
     </CommerceProvider>
   );
 }

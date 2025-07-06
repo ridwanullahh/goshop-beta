@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Search, Mic, Camera, Filter, TrendingUp, Clock, X } from 'lucide-react';
+import { Search, Mic, Camera, Filter, TrendingUp, Clock, X, Star, ArrowRight } from 'lucide-react';
 import { useCommerce } from '@/context/CommerceContext';
-import { ProductCard } from './ProductCard';
+import { useRealTimeData } from '@/hooks/useRealTimeData';
+import { Link } from 'react-router-dom';
 
 interface SearchModalProps {
   children: React.ReactNode;
@@ -28,7 +29,8 @@ export function SearchModal({ children }: SearchModalProps) {
   });
   
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const { products, searchProducts } = useCommerce();
+  const { data: products } = useRealTimeData('products');
+  const { data: categories } = useRealTimeData('categories');
 
   useEffect(() => {
     if (open && searchInputRef.current) {
@@ -52,7 +54,11 @@ export function SearchModal({ children }: SearchModalProps) {
     setIsSearching(true);
     
     try {
-      let filteredResults = await searchProducts(searchQuery);
+      let filteredResults = products.filter(product =>
+        product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.category?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
 
       // Apply filters
       if (filters.category) {
@@ -93,7 +99,7 @@ export function SearchModal({ children }: SearchModalProps) {
     handleSearch(searchTerm);
   };
 
-  const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
+  const categoryList = ['All', ...categories.map(c => c.name)];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -149,7 +155,7 @@ export function SearchModal({ children }: SearchModalProps) {
 
             {/* Quick Filters */}
             <div className="flex gap-2 mt-4 overflow-x-auto">
-              {categories.map((category) => (
+              {categoryList.map((category) => (
                 <Badge
                   key={category}
                   variant={filters.category === category ? "default" : "outline"}
@@ -223,14 +229,44 @@ export function SearchModal({ children }: SearchModalProps) {
                   </div>
                 ) : results.length > 0 ? (
                   <div>
-                    <p className="text-muted-foreground mb-4">
-                      Found {results.length} results for "{query}"
-                    </p>
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-muted-foreground">
+                        Found {results.length} results for "{query}"
+                      </p>
+                      <Link 
+                        to={`/search?q=${encodeURIComponent(query)}`}
+                        onClick={() => setOpen(false)}
+                        className="text-primary hover:underline text-sm flex items-center gap-1"
+                      >
+                        View all <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    </div>
+                    
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {results.slice(0, 12).map((product) => (
-                        <div key={product.id} onClick={() => setOpen(false)}>
-                          <ProductCard product={product} />
-                        </div>
+                        <Link 
+                          key={product.id} 
+                          to={`/product/${product.id}`}
+                          onClick={() => setOpen(false)}
+                        >
+                          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                            <CardContent className="p-4">
+                              <img
+                                src={product.images?.[0] || '/placeholder.svg'}
+                                alt={product.name}
+                                className="w-full h-32 object-cover rounded mb-3"
+                              />
+                              <h3 className="font-medium text-sm mb-1 line-clamp-2">{product.name}</h3>
+                              <div className="flex items-center justify-between">
+                                <p className="font-bold text-primary">${product.price}</p>
+                                <div className="flex items-center">
+                                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                  <span className="text-xs ml-1">{product.rating || 0}</span>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </Link>
                       ))}
                     </div>
                   </div>

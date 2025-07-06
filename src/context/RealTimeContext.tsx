@@ -13,11 +13,10 @@ interface RealTimeContextType {
 const RealTimeContext = createContext<RealTimeContextType | undefined>(undefined);
 
 export function RealTimeProvider({ children }: { children: ReactNode }) {
-  const { loadUserData } = useCommerce();
+  const { loadUserData, sdk } = useCommerce();
   const [isConnected, setIsConnected] = useState(true);
   const [subscribers, setSubscribers] = useState<Record<string, Set<(data: any) => void>>>({});
   
-  // Polling interval for real-time updates (every 5 seconds)
   const POLLING_INTERVAL = 5000;
 
   const subscribe = (collection: string, callback: (data: any) => void) => {
@@ -44,21 +43,62 @@ export function RealTimeProvider({ children }: { children: ReactNode }) {
   };
 
   const forceRefresh = async (collections?: string[]) => {
+    if (!sdk) return;
+    
     try {
       await loadUserData();
       
-      // Notify all subscribers
-      Object.keys(subscribers).forEach(collection => {
-        if (!collections || collections.includes(collection)) {
-          subscribers[collection]?.forEach(callback => callback({ refreshed: true }));
+      const collectionsToNotify = collections || Object.keys(subscribers);
+      
+      for (const collection of collectionsToNotify) {
+        const callbacks = subscribers[collection];
+        if (callbacks) {
+          let data;
+          try {
+            switch (collection) {
+              case 'products':
+                data = await sdk.getProducts();
+                break;
+              case 'orders':
+                data = await sdk.getOrders();
+                break;
+              case 'stores':
+                data = await sdk.getStores();
+                break;
+              case 'categories':
+                data = await sdk.getCategories();
+                break;
+              default:
+                data = await sdk.get(collection);
+            }
+            
+            // Ensure data is always an array
+            const arrayData = Array.isArray(data) ? data : [];
+            
+            callbacks.forEach(callback => {
+              try {
+                callback(arrayData);
+              } catch (error) {
+                console.error(`Error in callback for ${collection}:`, error);
+              }
+            });
+          } catch (error) {
+            console.error(`Error fetching ${collection}:`, error);
+            callbacks.forEach(callback => {
+              try {
+                callback([]);
+              } catch (callbackError) {
+                console.error(`Error in callback for ${collection}:`, callbackError);
+              }
+            });
+          }
         }
-      });
+      }
     } catch (error) {
       console.error('Force refresh error:', error);
     }
   };
 
-  // Set up polling for real-time updates
   useEffect(() => {
     const interval = setInterval(() => {
       if (Object.keys(subscribers).length > 0) {
