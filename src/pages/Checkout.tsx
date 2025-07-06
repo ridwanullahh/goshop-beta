@@ -111,7 +111,7 @@ export default function Checkout() {
     }
   ];
 
-  const subtotal = cart?.items?.reduce((sum, item) => sum + (item.product.price * item.quantity), 0) || 0;
+  const subtotal = cart?.items?.reduce((sum, item) => sum + ((item.product?.price || 0) * item.quantity), 0) || 0;
   const shipping = subtotal > 50 ? 0 : 9.99;
   const tax = subtotal * 0.08; // 8% tax
   const total = subtotal + shipping + tax;
