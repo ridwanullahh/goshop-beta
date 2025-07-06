@@ -58,7 +58,7 @@ export default function Wishlist() {
       // Fetch full product details for each wishlist item
       const itemsWithProducts = await Promise.all(
         userWishlist.map(async (item: any) => {
-          const product = await sdk.getItem('products', item.productId);
+          const product = await sdk.getProduct(item.productId);
           return { ...item, product };
         })
       );
