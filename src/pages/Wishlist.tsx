@@ -57,13 +57,13 @@ export default function Wishlist() {
       
       // Fetch full product details for each wishlist item
       const itemsWithProducts = await Promise.all(
-        userWishlist.map(async (item) => {
+        userWishlist.map(async (item: any) => {
           const product = await sdk.getItem('products', item.productId);
           return { ...item, product };
         })
       );
       
-      setWishlistItems(itemsWithProducts.filter(item => item.product));
+      setWishlistItems(itemsWithProducts.filter((item: any) => item.product));
     } catch (error) {
       console.error('Error fetching wishlist:', error);
       toast.error('Failed to load wishlist');

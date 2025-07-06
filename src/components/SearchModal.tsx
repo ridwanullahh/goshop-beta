@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -54,24 +53,24 @@ export function SearchModal({ children }: SearchModalProps) {
     setIsSearching(true);
     
     try {
-      let filteredResults = products.filter(product =>
-        product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.category?.toLowerCase().includes(searchQuery.toLowerCase())
+      let filteredResults = (products || []).filter((product: any) =>
+        product?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product?.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product?.category?.toLowerCase().includes(searchQuery.toLowerCase())
       );
 
       // Apply filters
       if (filters.category) {
-        filteredResults = filteredResults.filter(p => p.category === filters.category);
+        filteredResults = filteredResults.filter((p: any) => p?.category === filters.category);
       }
       if (filters.minPrice) {
-        filteredResults = filteredResults.filter(p => p.price >= parseFloat(filters.minPrice));
+        filteredResults = filteredResults.filter((p: any) => (p?.price || 0) >= parseFloat(filters.minPrice));
       }
       if (filters.maxPrice) {
-        filteredResults = filteredResults.filter(p => p.price <= parseFloat(filters.maxPrice));
+        filteredResults = filteredResults.filter((p: any) => (p?.price || 0) <= parseFloat(filters.maxPrice));
       }
       if (filters.rating) {
-        filteredResults = filteredResults.filter(p => p.rating >= parseFloat(filters.rating));
+        filteredResults = filteredResults.filter((p: any) => (p?.rating || 0) >= parseFloat(filters.rating));
       }
 
       setResults(filteredResults);
@@ -99,7 +98,7 @@ export function SearchModal({ children }: SearchModalProps) {
     handleSearch(searchTerm);
   };
 
-  const categoryList = ['All', ...categories.map(c => c.name)];
+  const categoryList = ['All', ...(categories || []).map((c: any) => c?.name || '')];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

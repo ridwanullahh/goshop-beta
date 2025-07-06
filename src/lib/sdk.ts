@@ -1,4 +1,3 @@
-
 interface CloudinaryConfig {
   uploadPreset?: string;
   cloudName?: string;
@@ -433,17 +432,19 @@ class UniversalSDK {
     });
   }
 
-  async insert<T = any>(collection: string, item: Partial<T>): Promise<T & { id: string; uid: string }> {
-    const arr = await this.get<T>(collection);
-    const schema = this.schemas[collection];
-    if (schema?.defaults) item = { ...schema.defaults, ...item };
-    this.validateSchema(collection, item);
-    const id = (Math.max(0, ...arr.map((x: any) => +x.id || 0)) + 1).toString();
-    const newItem = { uid: crypto.randomUUID(), id, createdAt: new Date().toISOString(), ...item } as T & { id: string; uid: string };
-    arr.push(newItem);
-    await this.save(collection, arr);
-    this._audit(collection, newItem, "insert");
-    return newItem;
+  async insert<T = any>(collection: string, data: Partial<T>): Promise<T & { id: string; uid: string }> {
+    const items = await this.get<T>(collection);
+    const newItem = {
+      uid: crypto.randomUUID(),
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      ...data
+    };
+    
+    const updatedItems = [...items, newItem];
+    await this.save(collection, updatedItems);
+    
+    return newItem as unknown as T & { id: string; uid: string };
   }
 
   async bulkInsert<T = any>(collection: string, items: Partial<T>[]): Promise<(T & { id: string; uid: string })[]> {
@@ -466,25 +467,24 @@ class UniversalSDK {
     return results;
   }
 
-  async update<T = any>(collection: string, key: string, updates: Partial<T>): Promise<T | null> {
-    const arr = await this.get<T>(collection);
-    const index = arr.findIndex((x: any) => x.id === key || x.uid === key);
-    if (index === -1) return null;
-    arr[index] = { ...arr[index], ...updates, updatedAt: new Date().toISOString() };
-    await this.save(collection, arr);
-    this._audit(collection, arr[index], "update");
-    return arr[index];
+  async update<T = any>(collection: string, id: string, data: Partial<T>): Promise<T & { id: string; uid: string }> {
+    const items = await this.get<T>(collection);
+    const index = items.findIndex((item: any) => item.id === id || item.uid === id);
+    if (index === -1) throw new Error('Item not found');
+    
+    const updatedItem = {
+      ...items[index],
+      ...data,
+      updatedAt: new Date().toISOString()
+    };
+    
+    items[index] = updatedItem;
+    await this.save(collection, items);
+    
+    return updatedItem as unknown as T & { id: string; uid: string };
   }
 
-  async delete(collection: string, key: string): Promise<boolean> {
-    const arr = await this.get(collection);
-    const index = arr.findIndex((x: any) => x.id === key || x.uid === key);
-    if (index === -1) return false;
-    const deleted = arr.splice(index, 1)[0];
-    await this.save(collection, arr);
-    this._audit(collection, deleted, "delete");
-    return true;
-  }
+  
 
   queryBuilder<T = any>(collection: string): QueryBuilder<T> {
     let query = this.get<T>(collection);
@@ -563,6 +563,12 @@ class UniversalSDK {
       data,
       timestamp: Date.now()
     });
+  }
+
+  async getItem<T = any>(collection: string, id: string): Promise<T | null> {
+    const items = await this.get<T>(collection);
+    const item = items.find((item: any) => item.id === id || item.uid === id);
+    return item || null;
   }
 }
 
