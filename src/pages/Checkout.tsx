@@ -45,7 +45,7 @@ export default function Checkout() {
   });
 
   // Calculate totals with null checks
-  const cartItems = cart.map(cartItem => {
+  const cartItems = cart.items.map(cartItem => {
     const product = products.find(p => p.id === cartItem.productId);
     return {
       ...cartItem,
@@ -62,10 +62,10 @@ export default function Checkout() {
   const total = subtotal + shipping + tax;
 
   useEffect(() => {
-    if (cart.length === 0) {
+    if (cart.items.length === 0) {
       navigate('/cart');
     }
-  }, [cart, navigate]);
+  }, [cart.items, navigate]);
 
   const handleShippingChange = (field: string, value: string) => {
     setShippingInfo(prev => ({ ...prev, [field]: value }));
@@ -119,7 +119,7 @@ export default function Checkout() {
     }
   };
 
-  if (cart.length === 0) {
+  if (cart.items.length === 0) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />

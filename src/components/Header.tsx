@@ -25,7 +25,7 @@ export function Header() {
   const navigate = useNavigate();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const cartItemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -104,7 +104,7 @@ export function Header() {
 
             {/* User Menu */}
             {currentUser ? (
-              <SidebarModal>
+              <SidebarModal type="notifications">
                 <Button variant="ghost" size="icon">
                   <User className="h-5 w-5" />
                 </Button>
