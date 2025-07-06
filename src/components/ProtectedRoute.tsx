@@ -41,7 +41,7 @@ export function ProtectedRoute({
 
   // Check role permissions
   if (allowedRoles.length > 0 && currentUser) {
-    const userRoles = currentUser.roles || (currentUser.role ? [currentUser.role] : []);
+    const userRoles = currentUser.roles || [currentUser.role];
     const hasPermission = allowedRoles.some(role => userRoles.includes(role));
     
     if (!hasPermission) {
