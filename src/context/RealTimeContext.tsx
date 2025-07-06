@@ -17,6 +17,7 @@ export function RealTimeProvider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(true);
   const [subscribers, setSubscribers] = useState<Record<string, Set<(data: any) => void>>>({});
   
+  // Polling interval for real-time updates (every 5 seconds)
   const POLLING_INTERVAL = 5000;
 
   const subscribe = (collection: string, callback: (data: any) => void) => {
@@ -46,18 +47,10 @@ export function RealTimeProvider({ children }: { children: ReactNode }) {
     try {
       await loadUserData();
       
+      // Notify all subscribers
       Object.keys(subscribers).forEach(collection => {
         if (!collections || collections.includes(collection)) {
-          const collectionCallbacks = subscribers[collection];
-          if (collectionCallbacks) {
-            collectionCallbacks.forEach(callback => {
-              try {
-                callback({ refreshed: true });
-              } catch (error) {
-                console.error(`Error calling callback for collection ${collection}:`, error);
-              }
-            });
-          }
+          subscribers[collection]?.forEach(callback => callback({ refreshed: true }));
         }
       });
     } catch (error) {
@@ -65,6 +58,7 @@ export function RealTimeProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Set up polling for real-time updates
   useEffect(() => {
     const interval = setInterval(() => {
       if (Object.keys(subscribers).length > 0) {
