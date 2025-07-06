@@ -1,4 +1,3 @@
-
 interface CloudinaryConfig {
   uploadPreset?: string;
   cloudName?: string;
@@ -52,7 +51,6 @@ interface User {
   businessName?: string;
   phone?: string;
   address?: any;
-  walletBalance?: number;
   [key: string]: any;
 }
 
@@ -231,7 +229,7 @@ class UniversalSDK {
     
     return this.insert<User>('users', {
       email: userData.email,
-      password: userData.password,
+      password: userData.password, // In production, hash this password
       verified: false,
       role: userData.role || 'customer',
       roles: [userData.role || 'customer'],
@@ -259,6 +257,7 @@ class UniversalSDK {
   }
 
   async getCurrentUser(): Promise<User | null> {
+    // For now, return the first user or null
     const users = await this.get<User>('users');
     return users.length > 0 ? users[0] : null;
   }
@@ -267,30 +266,7 @@ class UniversalSDK {
     delete this.sessionStore[token];
   }
 
-  async uploadToCloudinary(file: File): Promise<CloudinaryUploadResult> {
-    if (!this.cloudinary.cloudName || !this.cloudinary.uploadPreset) {
-      throw new Error('Cloudinary configuration is missing');
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', this.cloudinary.uploadPreset);
-
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${this.cloudinary.cloudName}/image/upload`,
-      {
-        method: 'POST',
-        body: formData,
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to upload to Cloudinary');
-    }
-
-    return response.json();
-  }
-
+  // Helper method for SHA1 hashing (for Cloudinary)
   private async _sha1(str: string): Promise<string> {
     const encoder = new TextEncoder();
     const data = encoder.encode(str);
@@ -301,6 +277,7 @@ class UniversalSDK {
 
   private async initializeSampleData(): Promise<void> {
     try {
+      // Initialize admin user
       const adminUser = {
         email: 'admin@platform.com',
         password: 'admin123',
@@ -324,6 +301,7 @@ class UniversalSDK {
         await this.insert('categories', category);
       }
 
+      // Initialize help articles
       const helpArticles = [
         {
           title: 'Getting Started Guide',
@@ -447,10 +425,12 @@ class UniversalSDK {
       exec: async (): Promise<T[]> => {
         let results = await query;
         
+        // Apply filters
         for (const filter of filters) {
           results = results.filter(filter);
         }
         
+        // Apply sorting
         if (sortField) {
           results.sort((a: any, b: any) => {
             const aVal = a[sortField];
@@ -463,6 +443,7 @@ class UniversalSDK {
           });
         }
         
+        // Apply projection
         if (projectionFields) {
           results = results.map(item => {
             const projected: any = {};

@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Search, Mic, Camera, Filter, TrendingUp, Clock, X, Star } from 'lucide-react';
+import { Search, Mic, Camera, Filter, TrendingUp, Clock, X } from 'lucide-react';
 import { useCommerce } from '@/context/CommerceContext';
-import { Link } from 'react-router-dom';
+import { ProductCard } from './ProductCard';
 
 interface SearchModalProps {
   children: React.ReactNode;
@@ -18,14 +18,17 @@ export function SearchModal({ children }: SearchModalProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  const [trendingSearches] = useState(['iPhone 15', 'MacBook Pro', 'AirPods', 'Gaming Chair', 'Coffee Maker']);
+  const [trendingSearches] = useState(['iPhone 15', 'MacBook Pro', 'AirPods', 'Gaming Chair']);
   const [isSearching, setIsSearching] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [filters, setFilters] = useState({
+    category: '',
+    minPrice: '',
+    maxPrice: '',
+    rating: ''
+  });
   
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const { products } = useCommerce();
-
-  const categories = ['all', 'electronics', 'fashion', 'home-garden', 'sports', 'books'];
+  const { products, searchProducts } = useCommerce();
 
   useEffect(() => {
     if (open && searchInputRef.current) {
@@ -49,18 +52,25 @@ export function SearchModal({ children }: SearchModalProps) {
     setIsSearching(true);
     
     try {
-      let filteredResults = products.filter(product => 
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.category?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      let filteredResults = await searchProducts(searchQuery);
 
-      if (activeFilter !== 'all') {
-        filteredResults = filteredResults.filter(p => p.category?.toLowerCase() === activeFilter);
+      // Apply filters
+      if (filters.category) {
+        filteredResults = filteredResults.filter(p => p.category === filters.category);
+      }
+      if (filters.minPrice) {
+        filteredResults = filteredResults.filter(p => p.price >= parseFloat(filters.minPrice));
+      }
+      if (filters.maxPrice) {
+        filteredResults = filteredResults.filter(p => p.price <= parseFloat(filters.maxPrice));
+      }
+      if (filters.rating) {
+        filteredResults = filteredResults.filter(p => p.rating >= parseFloat(filters.rating));
       }
 
-      setResults(filteredResults.slice(0, 20));
+      setResults(filteredResults);
 
+      // Save to recent searches
       if (searchQuery && !recentSearches.includes(searchQuery)) {
         const updatedSearches = [searchQuery, ...recentSearches.slice(0, 4)];
         setRecentSearches(updatedSearches);
@@ -83,10 +93,7 @@ export function SearchModal({ children }: SearchModalProps) {
     handleSearch(searchTerm);
   };
 
-  const clearRecentSearches = () => {
-    setRecentSearches([]);
-    localStorage.removeItem('recentSearches');
-  };
+  const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -140,19 +147,19 @@ export function SearchModal({ children }: SearchModalProps) {
               </div>
             </div>
 
-            {/* Category Filters */}
+            {/* Quick Filters */}
             <div className="flex gap-2 mt-4 overflow-x-auto">
               {categories.map((category) => (
                 <Badge
                   key={category}
-                  variant={activeFilter === category ? "default" : "outline"}
-                  className="cursor-pointer whitespace-nowrap capitalize"
-                  onClick={() => {
-                    setActiveFilter(category);
-                    if (query) handleSearch(query);
-                  }}
+                  variant={filters.category === category ? "default" : "outline"}
+                  className="cursor-pointer whitespace-nowrap"
+                  onClick={() => setFilters(prev => ({ 
+                    ...prev, 
+                    category: category === 'All' ? '' : category 
+                  }))}
                 >
-                  {category === 'all' ? 'All' : category.replace('-', ' ')}
+                  {category}
                 </Badge>
               ))}
             </div>
@@ -173,10 +180,9 @@ export function SearchModal({ children }: SearchModalProps) {
                       <Badge
                         key={term}
                         variant="secondary"
-                        className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                        className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
                         onClick={() => handleTrendingSearch(term)}
                       >
-                        <TrendingUp className="h-3 w-3 mr-1" />
                         {term}
                       </Badge>
                     ))}
@@ -186,29 +192,18 @@ export function SearchModal({ children }: SearchModalProps) {
                 {/* Recent Searches */}
                 {recentSearches.length > 0 && (
                   <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        <h3 className="font-semibold">Recent</h3>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={clearRecentSearches}
-                        className="text-xs"
-                      >
-                        Clear all
-                      </Button>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <h3 className="font-semibold">Recent</h3>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {recentSearches.map((term) => (
                         <Badge
                           key={term}
                           variant="outline"
-                          className="cursor-pointer hover:bg-muted transition-colors"
+                          className="cursor-pointer hover:bg-muted"
                           onClick={() => handleTrendingSearch(term)}
                         >
-                          <Clock className="h-3 w-3 mr-1" />
                           {term}
                         </Badge>
                       ))}
@@ -232,50 +227,19 @@ export function SearchModal({ children }: SearchModalProps) {
                       Found {results.length} results for "{query}"
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {results.map((product) => (
-                        <Link 
-                          key={product.id} 
-                          to={`/product/${product.id}`}
-                          onClick={() => setOpen(false)}
-                        >
-                          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                            <CardContent className="p-4">
-                              <img
-                                src={product.images?.[0] || '/placeholder.svg'}
-                                alt={product.name}
-                                className="w-full h-32 object-cover rounded-lg mb-3"
-                              />
-                              <h3 className="font-semibold text-sm mb-1 line-clamp-2">{product.name}</h3>
-                              <div className="flex items-center justify-between">
-                                <span className="text-primary font-bold">${product.price}</span>
-                                <div className="flex items-center">
-                                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                                  <span className="text-xs ml-1">{product.rating || 0}</span>
-                                </div>
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-1 capitalize">
-                                {product.category}
-                              </p>
-                            </CardContent>
-                          </Card>
-                        </Link>
+                      {results.slice(0, 12).map((product) => (
+                        <div key={product.id} onClick={() => setOpen(false)}>
+                          <ProductCard product={product} />
+                        </div>
                       ))}
                     </div>
-                    
-                    {results.length >= 20 && (
-                      <div className="text-center mt-6">
-                        <Link to={`/search?q=${encodeURIComponent(query)}`} onClick={() => setOpen(false)}>
-                          <Button variant="outline">View All Results</Button>
-                        </Link>
-                      </div>
-                    )}
                   </div>
                 ) : query ? (
                   <div className="text-center py-8">
                     <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
                     <h3 className="font-semibold mb-2">No results found</h3>
                     <p className="text-muted-foreground">
-                      Try adjusting your search terms or browse our categories
+                      Try adjusting your search terms or filters
                     </p>
                   </div>
                 ) : null}
