@@ -902,39 +902,6 @@ export default class CommerceSDK {
     }
   }
 
-  // Generic insert method
-  async insert(collection: string, data: any): Promise<any> {
-    try {
-      const newItem = {
-        id: Date.now().toString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        ...data
-      };
-
-      const items = await this.getData(collection);
-      items.push(newItem);
-      await this.saveData(collection, items);
-      
-      return newItem;
-    } catch (error) {
-      console.error(`Error inserting into ${collection}:`, error);
-      throw error;
-    }
-  }
-
-  // Generic getItem method
-  async getItem(collection: string, id: string): Promise<any | null> {
-    try {
-      const items = await this.getData(collection);
-      const item = items.find((item: any) => item.id === id || item.uid === id);
-      return item || null;
-    } catch (error) {
-      console.error(`Error getting item from ${collection}:`, error);
-      return null;
-    }
-  }
-
   // Onboarding methods
   async createSeller(sellerData: any): Promise<User> {
     const newSeller: User = {

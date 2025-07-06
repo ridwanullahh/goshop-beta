@@ -1,13 +1,13 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Search, Mic, Camera, Filter, TrendingUp, Clock, X, Star, ArrowRight } from 'lucide-react';
+import { Search, Mic, Camera, Filter, TrendingUp, Clock, X } from 'lucide-react';
 import { useCommerce } from '@/context/CommerceContext';
-import { useRealTimeData } from '@/hooks/useRealTimeData';
-import { Link } from 'react-router-dom';
+import { ProductCard } from './ProductCard';
 
 interface SearchModalProps {
   children: React.ReactNode;
@@ -28,8 +28,7 @@ export function SearchModal({ children }: SearchModalProps) {
   });
   
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const { data: products } = useRealTimeData('products');
-  const { data: categories } = useRealTimeData('categories');
+  const { products, searchProducts } = useCommerce();
 
   useEffect(() => {
     if (open && searchInputRef.current) {
@@ -53,24 +52,20 @@ export function SearchModal({ children }: SearchModalProps) {
     setIsSearching(true);
     
     try {
-      let filteredResults = (products || []).filter((product: any) =>
-        product?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product?.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product?.category?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      let filteredResults = await searchProducts(searchQuery);
 
       // Apply filters
       if (filters.category) {
-        filteredResults = filteredResults.filter((p: any) => p?.category === filters.category);
+        filteredResults = filteredResults.filter(p => p.category === filters.category);
       }
       if (filters.minPrice) {
-        filteredResults = filteredResults.filter((p: any) => (p?.price || 0) >= parseFloat(filters.minPrice));
+        filteredResults = filteredResults.filter(p => p.price >= parseFloat(filters.minPrice));
       }
       if (filters.maxPrice) {
-        filteredResults = filteredResults.filter((p: any) => (p?.price || 0) <= parseFloat(filters.maxPrice));
+        filteredResults = filteredResults.filter(p => p.price <= parseFloat(filters.maxPrice));
       }
       if (filters.rating) {
-        filteredResults = filteredResults.filter((p: any) => (p?.rating || 0) >= parseFloat(filters.rating));
+        filteredResults = filteredResults.filter(p => p.rating >= parseFloat(filters.rating));
       }
 
       setResults(filteredResults);
@@ -98,7 +93,7 @@ export function SearchModal({ children }: SearchModalProps) {
     handleSearch(searchTerm);
   };
 
-  const categoryList = ['All', ...(categories || []).map((c: any) => c?.name || '')];
+  const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -154,7 +149,7 @@ export function SearchModal({ children }: SearchModalProps) {
 
             {/* Quick Filters */}
             <div className="flex gap-2 mt-4 overflow-x-auto">
-              {categoryList.map((category) => (
+              {categories.map((category) => (
                 <Badge
                   key={category}
                   variant={filters.category === category ? "default" : "outline"}
@@ -228,44 +223,14 @@ export function SearchModal({ children }: SearchModalProps) {
                   </div>
                 ) : results.length > 0 ? (
                   <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <p className="text-muted-foreground">
-                        Found {results.length} results for "{query}"
-                      </p>
-                      <Link 
-                        to={`/search?q=${encodeURIComponent(query)}`}
-                        onClick={() => setOpen(false)}
-                        className="text-primary hover:underline text-sm flex items-center gap-1"
-                      >
-                        View all <ArrowRight className="h-3 w-3" />
-                      </Link>
-                    </div>
-                    
+                    <p className="text-muted-foreground mb-4">
+                      Found {results.length} results for "{query}"
+                    </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {results.slice(0, 12).map((product) => (
-                        <Link 
-                          key={product.id} 
-                          to={`/product/${product.id}`}
-                          onClick={() => setOpen(false)}
-                        >
-                          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                            <CardContent className="p-4">
-                              <img
-                                src={product.images?.[0] || '/placeholder.svg'}
-                                alt={product.name}
-                                className="w-full h-32 object-cover rounded mb-3"
-                              />
-                              <h3 className="font-medium text-sm mb-1 line-clamp-2">{product.name}</h3>
-                              <div className="flex items-center justify-between">
-                                <p className="font-bold text-primary">${product.price}</p>
-                                <div className="flex items-center">
-                                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                                  <span className="text-xs ml-1">{product.rating || 0}</span>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </Link>
+                        <div key={product.id} onClick={() => setOpen(false)}>
+                          <ProductCard product={product} />
+                        </div>
                       ))}
                     </div>
                   </div>

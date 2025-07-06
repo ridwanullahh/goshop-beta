@@ -1,4 +1,3 @@
-
 interface CloudinaryConfig {
   uploadPreset?: string;
   cloudName?: string;
@@ -52,7 +51,6 @@ interface User {
   businessName?: string;
   phone?: string;
   address?: any;
-  walletBalance?: number;
   [key: string]: any;
 }
 
@@ -127,10 +125,7 @@ class UniversalSDK {
     this.branch = config.branch || "main";
     this.basePath = config.basePath || "db";
     this.mediaPath = config.mediaPath || "media";
-    this.cloudinary = config.cloudinary || {
-      cloudName: 'demo',
-      uploadPreset: 'demo'
-    };
+    this.cloudinary = config.cloudinary || {};
     this.smtp = config.smtp || {};
     this.templates = config.templates || {};
     this.schemas = config.schemas || {};
@@ -159,24 +154,10 @@ class UniversalSDK {
     return res.json();
   }
 
-  async uploadToCloudinary(file: File): Promise<CloudinaryUploadResult> {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', this.cloudinary.uploadPreset || 'demo');
-    
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${this.cloudinary.cloudName}/image/upload`, {
-      method: 'POST',
-      body: formData
-    });
-    
-    return await response.json();
-  }
-
   async get<T = any>(collection: string): Promise<T[]> {
     try {
       const res = await this.request(`${this.basePath}/${collection}.json`);
-      const content = JSON.parse(atob(res.content));
-      return Array.isArray(content) ? content : [];
+      return JSON.parse(atob(res.content));
     } catch (error: any) {
       if (error.message.includes('404') || error.message.includes('empty')) {
         console.log(`Collection ${collection} doesn't exist, creating it...`);
@@ -210,7 +191,7 @@ class UniversalSDK {
           'blogs', 'pages', 'help_articles', 'returns_refunds',
           'shipping_info', 'contact_submissions', 'marketing_campaigns',
           'affiliate_links', 'commissions', 'product_variants',
-          'product_bundles', 'product_addons', 'messages'
+          'product_bundles', 'product_addons'
         ];
         
         for (const collection of basicCollections) {
@@ -240,6 +221,7 @@ class UniversalSDK {
     }
   }
 
+  // Authentication methods
   async register(userData: any): Promise<User & { id: string; uid: string }> {
     const users = await this.get<User>('users');
     const existingUser = users.find(u => u.email === userData.email);
@@ -247,7 +229,7 @@ class UniversalSDK {
     
     return this.insert<User>('users', {
       email: userData.email,
-      password: userData.password,
+      password: userData.password, // In production, hash this password
       verified: false,
       role: userData.role || 'customer',
       roles: [userData.role || 'customer'],
@@ -275,6 +257,7 @@ class UniversalSDK {
   }
 
   async getCurrentUser(): Promise<User | null> {
+    // For now, return the first user or null
     const users = await this.get<User>('users');
     return users.length > 0 ? users[0] : null;
   }
@@ -283,65 +266,18 @@ class UniversalSDK {
     delete this.sessionStore[token];
   }
 
-  async getProducts(filters?: any): Promise<any[]> {
-    const products = await this.get('products');
-    if (!filters) return products;
-    
-    let filtered = products;
-    if (filters.featured) {
-      filtered = filtered.filter(p => p.featured === true);
-    }
-    if (filters.category) {
-      filtered = filtered.filter(p => p.category === filters.category);
-    }
-    
-    return filtered;
-  }
-
-  async getOrders(userId?: string): Promise<any[]> {
-    const orders = await this.get('orders');
-    if (userId) {
-      return orders.filter(order => order.userId === userId);
-    }
-    return orders;
-  }
-
-  async getStores(): Promise<any[]> {
-    return await this.get('stores');
-  }
-
-  async getCategories(): Promise<any[]> {
-    return await this.get('categories');
-  }
-
-  async getNotifications(userId: string): Promise<any[]> {
-    const notifications = await this.get('notifications');
-    return notifications.filter(n => n.userId === userId);
-  }
-
-  async getWishlist(userId: string): Promise<any[]> {
-    const wishlists = await this.get('wishlists');
-    return wishlists.filter(w => w.userId === userId);
-  }
-
-  async getMessages(userId: string): Promise<any[]> {
-    const messages = await this.get('messages');
-    return messages.filter(m => m.userId === userId || m.recipientId === userId);
-  }
-
-  async searchProducts(query: string): Promise<any[]> {
-    const products = await this.get('products');
-    const searchTerm = query.toLowerCase();
-    
-    return products.filter(product => 
-      product.name?.toLowerCase().includes(searchTerm) ||
-      product.description?.toLowerCase().includes(searchTerm) ||
-      product.category?.toLowerCase().includes(searchTerm)
-    );
+  // Helper method for SHA1 hashing (for Cloudinary)
+  private async _sha1(str: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
   private async initializeSampleData(): Promise<void> {
     try {
+      // Initialize admin user
       const adminUser = {
         email: 'admin@platform.com',
         password: 'admin123',
@@ -349,8 +285,7 @@ class UniversalSDK {
         role: 'admin',
         roles: ['admin'],
         verified: true,
-        onboardingCompleted: true,
-        walletBalance: 0
+        onboardingCompleted: true
       };
       await this.insert('users', adminUser);
 
@@ -366,40 +301,20 @@ class UniversalSDK {
         await this.insert('categories', category);
       }
 
-      const stores = [
-        {
-          name: 'Tech Hub Store',
-          slug: 'tech-hub-store',
-          description: 'Your one-stop shop for the latest technology and gadgets',
-          rating: 4.8,
-          reviewCount: 1234,
-          location: 'New York, NY',
-          verified: true,
-          ownerId: '1',
-          products: [],
-          followers: 5420,
-          following: 12,
-          totalSales: 15680,
-          joinedDate: '2023-01-15',
-          categories: ['Electronics', 'Gadgets'],
-          policies: {
-            shipping: 'Free shipping on orders over $50',
-            returns: '30-day return policy',
-            warranty: '1-year manufacturer warranty'
-          }
-        }
-      ];
-
-      for (const store of stores) {
-        await this.insert('stores', store);
-      }
-
+      // Initialize help articles
       const helpArticles = [
         {
           title: 'Getting Started Guide',
           content: 'Welcome to our platform! This guide will help you get started.',
           category: 'getting-started',
           slug: 'getting-started-guide',
+          isPublished: true
+        },
+        {
+          title: 'How to Create Your First Product',
+          content: 'Learn how to list your first product on our marketplace.',
+          category: 'seller-guide',
+          slug: 'create-first-product',
           isPublished: true
         }
       ];
@@ -433,18 +348,16 @@ class UniversalSDK {
     });
   }
 
-  async insert<T = any>(collection: string, data: Partial<T>): Promise<T & { id: string; uid: string }> {
-    const items = await this.get<T>(collection);
-    const newItem = {
-      uid: crypto.randomUUID(),
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-      ...data
-    } as unknown as T & { id: string; uid: string };
-    
-    const updatedItems = [...items, newItem];
-    await this.save(collection, updatedItems);
-    
+  async insert<T = any>(collection: string, item: Partial<T>): Promise<T & { id: string; uid: string }> {
+    const arr = await this.get<T>(collection);
+    const schema = this.schemas[collection];
+    if (schema?.defaults) item = { ...schema.defaults, ...item };
+    this.validateSchema(collection, item);
+    const id = (Math.max(0, ...arr.map((x: any) => +x.id || 0)) + 1).toString();
+    const newItem = { uid: crypto.randomUUID(), id, ...item } as T & { id: string; uid: string };
+    arr.push(newItem);
+    await this.save(collection, arr);
+    this._audit(collection, newItem, "insert");
     return newItem;
   }
 
@@ -458,12 +371,7 @@ class UniversalSDK {
       let processedItem = item;
       if (schema?.defaults) processedItem = { ...schema.defaults, ...item };
       this.validateSchema(collection, processedItem);
-      const newItem = { 
-        uid: crypto.randomUUID(), 
-        id: nextId.toString(), 
-        createdAt: new Date().toISOString(), 
-        ...processedItem 
-      } as unknown as T & { id: string; uid: string };
+      const newItem = { uid: crypto.randomUUID(), id: nextId.toString(), ...processedItem } as T & { id: string; uid: string };
       arr.push(newItem);
       results.push(newItem);
       nextId++;
@@ -473,27 +381,24 @@ class UniversalSDK {
     return results;
   }
 
-  async update<T = any>(collection: string, id: string, data: Partial<T>): Promise<T & { id: string; uid: string }> {
-    const items = await this.get<T>(collection);
-    const index = items.findIndex((item: any) => item.id === id || item.uid === id);
-    if (index === -1) throw new Error('Item not found');
-    
-    const updatedItem = {
-      ...items[index],
-      ...data,
-      updatedAt: new Date().toISOString()
-    };
-    
-    items[index] = updatedItem;
-    await this.save(collection, items);
-    
-    return updatedItem as unknown as T & { id: string; uid: string };
+  async update<T = any>(collection: string, key: string, updates: Partial<T>): Promise<T | null> {
+    const arr = await this.get<T>(collection);
+    const index = arr.findIndex((x: any) => x.id === key || x.uid === key);
+    if (index === -1) return null;
+    arr[index] = { ...arr[index], ...updates };
+    await this.save(collection, arr);
+    this._audit(collection, arr[index], "update");
+    return arr[index];
   }
 
-  async delete(collection: string, id: string): Promise<void> {
-    const items = await this.get(collection);
-    const filteredItems = items.filter((item: any) => item.id !== id && item.uid !== id);
-    await this.save(collection, filteredItems);
+  async delete(collection: string, key: string): Promise<boolean> {
+    const arr = await this.get(collection);
+    const index = arr.findIndex((x: any) => x.id === key || x.uid === key);
+    if (index === -1) return false;
+    const deleted = arr.splice(index, 1)[0];
+    await this.save(collection, arr);
+    this._audit(collection, deleted, "delete");
+    return true;
   }
 
   queryBuilder<T = any>(collection: string): QueryBuilder<T> {
@@ -520,10 +425,12 @@ class UniversalSDK {
       exec: async (): Promise<T[]> => {
         let results = await query;
         
+        // Apply filters
         for (const filter of filters) {
           results = results.filter(filter);
         }
         
+        // Apply sorting
         if (sortField) {
           results.sort((a: any, b: any) => {
             const aVal = a[sortField];
@@ -536,6 +443,7 @@ class UniversalSDK {
           });
         }
         
+        // Apply projection
         if (projectionFields) {
           results = results.map(item => {
             const projected: any = {};
