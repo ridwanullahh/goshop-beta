@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
@@ -113,11 +112,10 @@ export default function Checkout() {
         paymentStatus: 'pending',
         status: 'pending',
         trackingNumber: null,
-        estimatedDelivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        createdAt: new Date().toISOString()
+        estimatedDelivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       };
 
-      const order = await sdk.insert('orders', orderData);
+      const order = await sdk.createOrder(orderData);
       
       await clearCart();
       
