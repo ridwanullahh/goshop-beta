@@ -19,7 +19,7 @@ export function WishlistModal({ children }: WishlistModalProps) {
   useEffect(() => {
     if (open && currentUser) {
       // Load wishlist items from localStorage for now
-      const saved = localStorage.getItem(`wishlist_${currentUser.id || currentUser.uid}`);
+      const saved = localStorage.getItem(`wishlist_${currentUser.uid}`);
       if (saved) {
         const wishlistProductIds = JSON.parse(saved);
         const items = products.filter(p => wishlistProductIds.includes(p.id));
@@ -31,11 +31,11 @@ export function WishlistModal({ children }: WishlistModalProps) {
   const removeFromWishlist = (productId: string) => {
     if (!currentUser) return;
     
-    const saved = localStorage.getItem(`wishlist_${currentUser.id || currentUser.uid}`);
+    const saved = localStorage.getItem(`wishlist_${currentUser.uid}`);
     const wishlistProductIds = saved ? JSON.parse(saved) : [];
     const updatedIds = wishlistProductIds.filter((id: string) => id !== productId);
     
-    localStorage.setItem(`wishlist_${currentUser.id || currentUser.uid}`, JSON.stringify(updatedIds));
+    localStorage.setItem(`wishlist_${currentUser.uid}`, JSON.stringify(updatedIds));
     setWishlistItems(prev => prev.filter(item => item.id !== productId));
   };
 

@@ -39,7 +39,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
             className="w-full h-40 object-cover transition-transform duration-300 group-hover:scale-105"
           />
           
-          {(product.featured || product.isFeatured) && (
+          {product.isFeatured && (
             <Badge className="absolute top-2 left-2 bg-secondary text-secondary-foreground text-xs">
               Featured
             </Badge>

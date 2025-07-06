@@ -5,11 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { useCommerce } from '@/context/CommerceContext';
-import { useRealTime } from '@/context/RealTimeContext';
 import { toast } from 'sonner';
 import { 
   ShoppingBag, 
@@ -30,87 +26,42 @@ import {
   Eye,
   MessageSquare,
   Users,
-  Repeat,
-  Wallet,
-  Edit,
-  Save,
-  Mail,
-  Phone
+  Repeat
 } from 'lucide-react';
 
 export default function CustomerDashboard() {
-  const { currentUser, sdk, orders, wishlistItems, updateUser } = useCommerce();
-  const { subscribe, forceRefresh } = useRealTime();
+  const { currentUser, sdk, orders, wishlistItems } = useCommerce();
   const [activeSection, setActiveSection] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [customerOrders, setCustomerOrders] = useState([]);
-  const [customerWishlist, setCustomerWishlist] = useState([]);
-  const [customerNotifications, setCustomerNotifications] = useState([]);
-  const [customerMessages, setCustomerMessages] = useState([]);
+  const [recentProducts, setRecentProducts] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [analytics, setAnalytics] = useState<any>(null);
-  const [editingProfile, setEditingProfile] = useState(false);
-  const [profileData, setProfileData] = useState({
-    name: currentUser?.name || '',
-    email: currentUser?.email || '',
-    phone: currentUser?.phone || '',
-    address: currentUser?.address || ''
-  });
 
   useEffect(() => {
     if (currentUser && sdk) {
       fetchCustomerData();
-      
-      // Subscribe to real-time updates
-      const unsubscribeOrders = subscribe('orders', handleOrdersUpdate);
-      const unsubscribeProducts = subscribe('products', handleProductsUpdate);
-      const unsubscribeNotifications = subscribe('notifications', handleNotificationsUpdate);
-      
-      return () => {
-        unsubscribeOrders();
-        unsubscribeProducts();
-        unsubscribeNotifications();
-      };
     }
   }, [currentUser, sdk]);
-
-  const handleOrdersUpdate = (data: any) => {
-    console.log('Orders updated:', data);
-    if (data.refreshed) {
-      fetchCustomerData();
-    }
-  };
-
-  const handleProductsUpdate = (data: any) => {
-    console.log('Products updated:', data);
-    if (data.refreshed) {
-      fetchWishlistData();
-    }
-  };
-
-  const handleNotificationsUpdate = (data: any) => {
-    console.log('Notifications updated:', data);
-    if (data.refreshed) {
-      fetchNotifications();
-    }
-  };
 
   const fetchCustomerData = async () => {
     if (!currentUser || !sdk) return;
     
     setLoading(true);
     try {
-      // Fetch customer's orders
-      const ordersData = await sdk.getOrders(currentUser.id);
+      const [
+        ordersData,
+        productsData,
+        notificationsData
+      ] = await Promise.all([
+        sdk.getOrders(currentUser.id), // Fixed: removed second argument
+        sdk.getProducts({ featured: true }),
+        sdk.getNotifications(currentUser.id)
+      ]);
+
       setCustomerOrders(ordersData);
-
-      // Fetch wishlist
-      await fetchWishlistData();
-
-      // Fetch notifications
-      await fetchNotifications();
-
-      // Fetch messages
-      await fetchMessages();
+      setRecentProducts(productsData.slice(0, 8));
+      setNotifications(notificationsData);
 
       // Calculate analytics
       const totalSpent = ordersData.reduce((sum: number, order: any) => sum + order.total, 0);
@@ -124,7 +75,7 @@ export default function CustomerDashboard() {
         averageOrderValue,
         completedOrders,
         pendingOrders: ordersData.filter((order: any) => ['pending', 'processing', 'shipped'].includes(order.status)).length,
-        wishlistCount: customerWishlist.length
+        wishlistCount: wishlistItems?.length || 0
       });
 
     } catch (error) {
@@ -132,78 +83,6 @@ export default function CustomerDashboard() {
       toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchWishlistData = async () => {
-    if (!currentUser || !sdk) return;
-    
-    try {
-      const wishlistData = await sdk.getWishlist(currentUser.id);
-      setCustomerWishlist(wishlistData);
-    } catch (error) {
-      console.error('Error fetching wishlist:', error);
-    }
-  };
-
-  const fetchNotifications = async () => {
-    if (!currentUser || !sdk) return;
-    
-    try {
-      const notificationsData = await sdk.getNotifications(currentUser.id);
-      setCustomerNotifications(notificationsData);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-    }
-  };
-
-  const fetchMessages = async () => {
-    if (!currentUser || !sdk) return;
-    
-    try {
-      const messagesData = await sdk.getMessages(currentUser.id);
-      setCustomerMessages(messagesData);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    }
-  };
-
-  const handleSaveProfile = async () => {
-    if (!currentUser || !sdk) return;
-    
-    try {
-      await updateUser(currentUser.id!, profileData);
-      setEditingProfile(false);
-      toast.success('Profile updated successfully');
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
-    }
-  };
-
-  const handleMarkNotificationAsRead = async (notificationId: string) => {
-    if (!sdk) return;
-    
-    try {
-      await sdk.markNotificationAsRead(notificationId);
-      await fetchNotifications();
-      toast.success('Notification marked as read');
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-      toast.error('Failed to mark notification as read');
-    }
-  };
-
-  const handleRemoveFromWishlist = async (productId: string) => {
-    if (!currentUser || !sdk) return;
-    
-    try {
-      await sdk.removeFromWishlist(currentUser.id, productId);
-      await fetchWishlistData();
-      toast.success('Removed from wishlist');
-    } catch (error) {
-      console.error('Error removing from wishlist:', error);
-      toast.error('Failed to remove from wishlist');
     }
   };
 
@@ -223,11 +102,9 @@ export default function CustomerDashboard() {
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'orders', label: 'My Orders', icon: Package },
     { id: 'wishlist', label: 'Wishlist', icon: Heart },
+    { id: 'recommendations', label: 'For You', icon: TrendingUp },
     { id: 'profile', label: 'Profile', icon: User },
-    { id: 'wallet', label: 'Wallet', icon: Wallet },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'messages', label: 'Messages', icon: MessageSquare },
-    { id: 'settings', label: 'Settings', icon: Settings }
+    { id: 'notifications', label: 'Notifications', icon: Bell }
   ];
 
   if (loading) {
@@ -300,7 +177,7 @@ export default function CustomerDashboard() {
                   <Heart className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{customerWishlist?.length || 0}</div>
+                  <div className="text-2xl font-bold">{analytics?.wishlistCount || 0}</div>
                   <p className="text-xs text-muted-foreground">Saved products</p>
                 </CardContent>
               </Card>
@@ -316,6 +193,44 @@ export default function CustomerDashboard() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Quick Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Link to="/orders">
+                    <Button variant="outline" className="w-full h-20 flex-col">
+                      <Package className="h-6 w-6 mb-2" />
+                      <span className="text-sm">Track Orders</span>
+                    </Button>
+                  </Link>
+                  
+                  <Link to="/wishlist">
+                    <Button variant="outline" className="w-full h-20 flex-col">
+                      <Heart className="h-6 w-6 mb-2" />
+                      <span className="text-sm">Wishlist</span>
+                    </Button>
+                  </Link>
+                  
+                  <Link to="/products">
+                    <Button variant="outline" className="w-full h-20 flex-col">
+                      <ShoppingBag className="h-6 w-6 mb-2" />
+                      <span className="text-sm">Shop Now</span>
+                    </Button>
+                  </Link>
+                  
+                  <Link to="/contact">
+                    <Button variant="outline" className="w-full h-20 flex-col">
+                      <MessageSquare className="h-6 w-6 mb-2" />
+                      <span className="text-sm">Support</span>
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Recent Orders */}
             <Card>
@@ -334,7 +249,7 @@ export default function CustomerDashboard() {
                         <div>
                           <p className="font-medium">Order #{order.id}</p>
                           <p className="text-sm text-muted-foreground">
-                            {order.products?.length || 0} item(s) • {new Date(order.createdAt).toLocaleDateString()}
+                            {order.products.length} item(s) • {new Date(order.createdAt).toLocaleDateString()}
                           </p>
                           <div className="flex items-center space-x-2 mt-1">
                             <Badge className={getOrderStatusColor(order.status)}>
@@ -344,7 +259,7 @@ export default function CustomerDashboard() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold">${order.total?.toFixed(2) || '0.00'}</p>
+                        <p className="font-semibold">${order.total.toFixed(2)}</p>
                         <Link to={`/orders/${order.id}`}>
                           <Button variant="ghost" size="sm">
                             <Eye className="h-4 w-4 mr-1" />
@@ -402,15 +317,15 @@ export default function CustomerDashboard() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-lg">${order.total?.toFixed(2) || '0.00'}</p>
+                          <p className="font-semibold text-lg">${order.total.toFixed(2)}</p>
                           <p className="text-sm text-muted-foreground">
-                            {order.products?.length || 0} item(s)
+                            {order.products.length} item(s)
                           </p>
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        {(order.products || []).slice(0, 2).map((item: any, index: number) => (
+                        {order.products.slice(0, 2).map((item: any, index: number) => (
                           <div key={index} className="flex items-center space-x-3 text-sm">
                             <div className="w-8 h-8 bg-muted rounded flex items-center justify-center">
                               <Package className="h-4 w-4" />
@@ -419,9 +334,9 @@ export default function CustomerDashboard() {
                             <span className="text-muted-foreground">x{item.quantity}</span>
                           </div>
                         ))}
-                        {(order.products?.length || 0) > 2 && (
+                        {order.products.length > 2 && (
                           <p className="text-sm text-muted-foreground">
-                            +{(order.products?.length || 0) - 2} more items
+                            +{order.products.length - 2} more items
                           </p>
                         )}
                       </div>
@@ -462,324 +377,38 @@ export default function CustomerDashboard() {
           </div>
         )}
 
-        {/* Wishlist Section */}
-        {activeSection === 'wishlist' && (
+        {/* Recommendations Section */}
+        {activeSection === 'recommendations' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold">My Wishlist</h2>
+            <h2 className="text-2xl font-bold">Recommended For You</h2>
             
-            <Card>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {customerWishlist.map((item: any) => (
-                    <div key={item.id} className="border rounded-lg p-4">
-                      <img
-                        src={item.product?.images?.[0] || '/placeholder.svg'}
-                        alt={item.product?.name || 'Product'}
-                        className="w-full h-48 object-cover rounded-lg mb-3"
-                      />
-                      <h3 className="font-semibold mb-2">{item.product?.name || 'Unknown Product'}</h3>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {item.product?.description || 'No description'}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-lg">${item.product?.price?.toFixed(2) || '0.00'}</span>
-                        <div className="flex space-x-2">
-                          <Link to={`/product/${item.productId}`}>
-                            <Button size="sm" variant="outline">
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
-                            </Button>
-                          </Link>
-                          <Button 
-                            size="sm" 
-                            variant="ghost"
-                            onClick={() => handleRemoveFromWishlist(item.productId)}
-                          >
-                            <Heart className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {customerWishlist.length === 0 && (
-                    <div className="col-span-full text-center py-12">
-                      <Heart className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="text-lg font-semibold mb-2">Your wishlist is empty</h3>
-                      <p className="text-muted-foreground mb-4">
-                        Add products you love to your wishlist
-                      </p>
-                      <Link to="/products">
-                        <Button>Browse Products</Button>
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Profile Section */}
-        {activeSection === 'profile' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">My Profile</h2>
-              <Button
-                onClick={() => editingProfile ? handleSaveProfile() : setEditingProfile(true)}
-              >
-                {editingProfile ? <Save className="h-4 w-4 mr-2" /> : <Edit className="h-4 w-4 mr-2" />}
-                {editingProfile ? 'Save' : 'Edit'}
-              </Button>
-            </div>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-6 mb-6">
-                  <Avatar className="h-20 w-20">
-                    <AvatarImage src={currentUser?.avatar} />
-                    <AvatarFallback>
-                      {currentUser?.name?.split(' ').map(n => n[0]).join('') || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="text-xl font-semibold">{currentUser?.name}</h3>
-                    <p className="text-muted-foreground">{currentUser?.email}</p>
-                    <Badge variant="outline" className="mt-1">
-                      {currentUser?.role || 'Customer'}
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      value={profileData.name}
-                      onChange={(e) => setProfileData({...profileData, name: e.target.value})}
-                      disabled={!editingProfile}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={profileData.email}
-                      onChange={(e) => setProfileData({...profileData, email: e.target.value})}
-                      disabled={!editingProfile}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      value={profileData.phone}
-                      onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
-                      disabled={!editingProfile}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="address">Address</Label>
-                    <Textarea
-                      id="address"
-                      value={profileData.address}
-                      onChange={(e) => setProfileData({...profileData, address: e.target.value})}
-                      disabled={!editingProfile}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Wallet Section */}
-        {activeSection === 'wallet' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">My Wallet</h2>
-            
-            <div className="grid gap-4 md:grid-cols-3">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Current Balance</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">$0.00</div>
-                  <p className="text-sm text-muted-foreground">Available for spending</p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Pending Credits</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">$0.00</div>
-                  <p className="text-sm text-muted-foreground">Processing refunds</p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Rewards Points</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">0</div>
-                  <p className="text-sm text-muted-foreground">Earned from purchases</p>
-                </CardContent>
-              </Card>
-            </div>
-
             <Card>
               <CardHeader>
-                <CardTitle>Recent Transactions</CardTitle>
+                <CardTitle>Featured Products</CardTitle>
+                <CardDescription>Products you might like based on your interests</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8">
-                  <Wallet className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">No transactions yet</p>
-                  <p className="text-sm text-muted-foreground">Your wallet transactions will appear here</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Notifications Section */}
-        {activeSection === 'notifications' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Notifications</h2>
-            
-            <Card>
-              <CardContent className="p-0">
-                <div className="space-y-0">
-                  {customerNotifications.map((notification: any) => (
-                    <div key={notification.id} className={`p-4 border-b last:border-b-0 ${!notification.read ? 'bg-blue-50' : ''}`}>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-semibold">{notification.title}</h3>
-                          <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
-                          <p className="text-xs text-muted-foreground mt-2">
-                            {new Date(notification.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                        {!notification.read && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleMarkNotificationAsRead(notification.id)}
-                          >
-                            Mark as Read
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {customerNotifications.length === 0 && (
-                    <div className="p-12 text-center">
-                      <Bell className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="text-lg font-semibold mb-2">No notifications</h3>
-                      <p className="text-muted-foreground">
-                        We'll notify you about important updates here
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Messages Section */}
-        {activeSection === 'messages' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Messages</h2>
-            
-            <Card>
-              <CardContent className="p-0">
-                <div className="space-y-0">
-                  {customerMessages.map((message: any) => (
-                    <div key={message.id} className="p-4 border-b last:border-b-0">
-                      <div className="flex items-start space-x-3">
-                        <Avatar>
-                          <AvatarFallback>
-                            {message.senderId === currentUser?.id ? 'You' : 'S'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-medium">
-                              {message.senderId === currentUser?.id ? 'You' : 'Support'}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(message.createdAt).toLocaleDateString()}
-                            </span>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {recentProducts.map((product: any) => (
+                    <Link key={product.id} to={`/product/${product.id}`}>
+                      <Card className="h-full hover:shadow-lg transition-shadow">
+                        <CardContent className="p-4">
+                          <img 
+                            src={product.images[0] || '/placeholder.svg'} 
+                            alt={product.name}
+                            className="w-full h-32 object-cover rounded mb-3"
+                          />
+                          <h3 className="font-semibold text-sm mb-1 line-clamp-2">{product.name}</h3>
+                          <div className="flex items-center space-x-1 mb-2">
+                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                            <span className="text-xs">{product.rating}</span>
+                            <span className="text-xs text-muted-foreground">({product.reviewCount})</span>
                           </div>
-                          <p className="text-sm mt-1">{message.content}</p>
-                        </div>
-                      </div>
-                    </div>
+                          <p className="font-bold text-primary">${product.price}</p>
+                        </CardContent>
+                      </Card>
+                    </Link>
                   ))}
-                  {customerMessages.length === 0 && (
-                    <div className="p-12 text-center">
-                      <MessageSquare className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="text-lg font-semibold mb-2">No messages</h3>
-                      <p className="text-muted-foreground">
-                        Your conversations will appear here
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Settings Section */}
-        {activeSection === 'settings' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Account Settings</h2>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Preferences</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">Email Notifications</h4>
-                    <p className="text-sm text-muted-foreground">Receive updates about your orders</p>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    <Mail className="h-4 w-4 mr-2" />
-                    Configure
-                  </Button>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">SMS Notifications</h4>
-                    <p className="text-sm text-muted-foreground">Get shipping updates via SMS</p>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    <Phone className="h-4 w-4 mr-2" />
-                    Configure
-                  </Button>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">Privacy Settings</h4>
-                    <p className="text-sm text-muted-foreground">Manage your data and privacy</p>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Manage
-                  </Button>
                 </div>
               </CardContent>
             </Card>

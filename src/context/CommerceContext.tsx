@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import CommerceSDK, {
   User,
@@ -6,8 +5,7 @@ import CommerceSDK, {
   Order,
   Category,
   CartItem,
-  WishlistItem,
-  Notification
+  WishlistItem
 } from '@/lib/commerce-sdk';
 
 // Define the context type
@@ -18,7 +16,6 @@ type CommerceContextType = {
   orders: Order[];
   cart: { items: CartItem[] };
   wishlistItems: WishlistItem[];
-  notifications: Notification[];
   isLoading: boolean;
   sdk: CommerceSDK;
   login: (credentials: { email: string; password: string }) => Promise<User>;
@@ -42,7 +39,6 @@ type CommerceContextType = {
   addToWishlist: (productId: string) => Promise<WishlistItem>;
   searchProducts: (query: string, filters?: any) => Promise<Product[]>;
   loadUserData: () => Promise<void>;
-  updateUser: (id: string, updates: Partial<User>) => Promise<User | null>;
 };
 
 // Create the context with a default value
@@ -53,7 +49,6 @@ export const CommerceContext = createContext<CommerceContextType>({
   orders: [],
   cart: { items: [] },
   wishlistItems: [],
-  notifications: [],
   isLoading: false,
   sdk: new CommerceSDK(),
   login: async () => { throw new Error('Login function not implemented'); },
@@ -65,8 +60,7 @@ export const CommerceContext = createContext<CommerceContextType>({
   clearCart: async () => { throw new Error('clearCart function not implemented'); },
   addToWishlist: async () => { throw new Error('addToWishlist function not implemented'); },
   searchProducts: async () => { return []; },
-  loadUserData: async () => { throw new Error('loadUserData function not implemented'); },
-  updateUser: async () => { throw new Error('updateUser function not implemented'); }
+  loadUserData: async () => { throw new Error('loadUserData function not implemented'); }
 });
 
 // Create a custom hook to use the context
@@ -79,7 +73,6 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [orders, setOrders] = useState<Order[]>([]);
   const [cart, setCart] = useState<{ items: CartItem[] }>({ items: [] });
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sdk] = useState(() => new CommerceSDK());
 
@@ -95,9 +88,8 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       
       if (user) {
         await Promise.all([
-          loadUserCart(user.id!),
-          loadUserWishlist(user.id!),
-          loadUserNotifications(user.id!)
+          loadUserCart(user.id),
+          loadUserWishlist(user.id)
         ]);
       }
       
@@ -130,15 +122,6 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const loadUserNotifications = async (userId: string) => {
-    try {
-      const userNotifications = await sdk.getNotifications(userId);
-      setNotifications(userNotifications);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
-    }
-  };
-
   const loadProducts = async () => {
     try {
       const productsData = await sdk.getProducts();
@@ -162,9 +145,8 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     
     try {
       await Promise.all([
-        loadUserCart(currentUser.id!),
-        loadUserWishlist(currentUser.id!),
-        loadUserNotifications(currentUser.id!)
+        loadUserCart(currentUser.id),
+        loadUserWishlist(currentUser.id)
       ]);
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -186,13 +168,11 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const user = await sdk.register(userData);
       setCurrentUser(user);
-      localStorage.setItem('currentUser', JSON.stringify(user));
       
       // Load user-specific data after registration
       await Promise.all([
-        loadUserCart(user.id!),
-        loadUserWishlist(user.id!),
-        loadUserNotifications(user.id!)
+        loadUserCart(user.id),
+        loadUserWishlist(user.id)
       ]);
       
       return user;
@@ -205,16 +185,12 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const login = async (credentials: { email: string; password: string }) => {
     try {
       const user = await sdk.login(credentials);
-      if (!user) throw new Error('Invalid credentials');
-      
       setCurrentUser(user);
-      localStorage.setItem('currentUser', JSON.stringify(user));
       
       // Load user-specific data after login
       await Promise.all([
-        loadUserCart(user.id!),
-        loadUserWishlist(user.id!),
-        loadUserNotifications(user.id!)
+        loadUserCart(user.id),
+        loadUserWishlist(user.id)
       ]);
       
       return user;
@@ -230,23 +206,8 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setCurrentUser(null);
       setCart({ items: [] });
       setWishlistItems([]);
-      setNotifications([]);
     } catch (error) {
       console.error('Logout error:', error);
-    }
-  };
-
-  const updateUser = async (id: string, updates: Partial<User>) => {
-    try {
-      const updatedUser = await sdk.updateUser(id, updates);
-      if (updatedUser && currentUser?.id === id) {
-        setCurrentUser(updatedUser);
-        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-      }
-      return updatedUser;
-    } catch (error) {
-      console.error('Error updating user:', error);
-      throw error;
     }
   };
 
@@ -256,7 +217,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     try {
-      const cartItem = await sdk.addToCart(currentUser.id!, productId, quantity);
+      const cartItem = await sdk.addToCart(currentUser.id, productId, quantity);
       
       // Update local cart state immediately for better UX
       setCart(prevCart => {
@@ -289,7 +250,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     try {
-      const wishlistItem = await sdk.addToWishlist(currentUser.id!, productId);
+      const wishlistItem = await sdk.addToWishlist(currentUser.id, productId);
       
       // Update local wishlist state
       setWishlistItems(prevItems => {
@@ -313,7 +274,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       // Find the cart item to remove
       const cartItem = cart.items.find(item => item.productId === productId);
-      if (!cartItem || !cartItem.id) return;
+      if (!cartItem) return;
 
       // Remove from backend
       await sdk.delete('cart_items', cartItem.id);
@@ -325,7 +286,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } catch (error) {
       console.error('Error removing from cart:', error);
       // Revert local state on error
-      await loadUserCart(currentUser.id!);
+      await loadUserCart(currentUser.id);
       throw error;
     }
   };
@@ -353,7 +314,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } catch (error) {
       console.error('Error updating cart quantity:', error);
       // Revert local state on error
-      await loadUserCart(currentUser.id!);
+      await loadUserCart(currentUser.id);
       throw error;
     }
   };
@@ -363,9 +324,9 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     try {
       // Clear all cart items for user
-      const cartItems = await sdk.getCart(currentUser.id!);
+      const cartItems = await sdk.getCart(currentUser.id);
       await Promise.all(
-        cartItems.map(item => item.id && sdk.delete('cart_items', item.id))
+        cartItems.map(item => sdk.delete('cart_items', item.id))
       );
       
       setCart({ items: [] });
@@ -391,7 +352,6 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     orders,
     cart,
     wishlistItems,
-    notifications,
     isLoading,
     sdk,
     login,
@@ -403,8 +363,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     clearCart,
     addToWishlist,
     searchProducts,
-    loadUserData,
-    updateUser
+    loadUserData
   };
 
   return (
