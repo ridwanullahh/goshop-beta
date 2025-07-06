@@ -21,27 +21,27 @@ export default function Stores() {
   const [sortBy, setSortBy] = useState('rating');
 
   useEffect(() => {
-    let filtered = stores || [];
+    let filtered = (stores || []).filter((store: any) => store != null);
     
     if (searchQuery) {
-      filtered = filtered.filter(store =>
-        store.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        store.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        store.location?.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter((store: any) =>
+        store?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        store?.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        store?.location?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     // Sort stores
-    filtered.sort((a, b) => {
+    filtered.sort((a: any, b: any) => {
       switch (sortBy) {
         case 'rating':
-          return (b.rating || 0) - (a.rating || 0);
+          return (b?.rating || 0) - (a?.rating || 0);
         case 'followers':
-          return (b.followers || 0) - (a.followers || 0);
+          return (b?.followers || 0) - (a?.followers || 0);
         case 'sales':
-          return (b.totalSales || 0) - (a.totalSales || 0);
+          return (b?.totalSales || 0) - (a?.totalSales || 0);
         case 'name':
-          return (a.name || '').localeCompare(b.name || '');
+          return (a?.name || '').localeCompare(b?.name || '');
         default:
           return 0;
       }
@@ -127,7 +127,7 @@ export default function Stores() {
             <Card>
               <CardContent className="p-4 text-center">
                 <StoreIcon className="h-8 w-8 mx-auto mb-2 text-primary" />
-                <div className="text-2xl font-bold">{stores.length}</div>
+                <div className="text-2xl font-bold">{(stores || []).length}</div>
                 <div className="text-sm text-muted-foreground">Total Stores</div>
               </CardContent>
             </Card>
@@ -136,7 +136,7 @@ export default function Stores() {
               <CardContent className="p-4 text-center">
                 <Users className="h-8 w-8 mx-auto mb-2 text-blue-500" />
                 <div className="text-2xl font-bold">
-                  {stores.reduce((sum, store) => sum + (store.followers || 0), 0).toLocaleString()}
+                  {(stores || []).reduce((sum: number, store: any) => sum + (store?.followers || 0), 0).toLocaleString()}
                 </div>
                 <div className="text-sm text-muted-foreground">Total Followers</div>
               </CardContent>
@@ -146,7 +146,7 @@ export default function Stores() {
               <CardContent className="p-4 text-center">
                 <Package className="h-8 w-8 mx-auto mb-2 text-green-500" />
                 <div className="text-2xl font-bold">
-                  {stores.reduce((sum, store) => sum + (store.products?.length || 0), 0).toLocaleString()}
+                  {(stores || []).reduce((sum: number, store: any) => sum + (store?.products?.length || 0), 0).toLocaleString()}
                 </div>
                 <div className="text-sm text-muted-foreground">Total Products</div>
               </CardContent>
@@ -156,7 +156,7 @@ export default function Stores() {
               <CardContent className="p-4 text-center">
                 <TrendingUp className="h-8 w-8 mx-auto mb-2 text-orange-500" />
                 <div className="text-2xl font-bold">
-                  ${stores.reduce((sum, store) => sum + (store.totalSales || 0), 0).toLocaleString()}
+                  ${(stores || []).reduce((sum: number, store: any) => sum + (store?.totalSales || 0), 0).toLocaleString()}
                 </div>
                 <div className="text-sm text-muted-foreground">Total Sales</div>
               </CardContent>

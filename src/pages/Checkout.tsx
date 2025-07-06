@@ -122,7 +122,7 @@ export default function Checkout() {
       await clearCart();
       
       toast.success('Order placed successfully!');
-      navigate(`/orders/${order.id}`);
+      navigate(`/orders`);
       
     } catch (error) {
       console.error('Error placing order:', error);

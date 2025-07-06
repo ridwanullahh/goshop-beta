@@ -47,14 +47,14 @@ export default function Orders() {
     let filtered = orders;
     
     if (searchQuery) {
-      filtered = filtered.filter(order =>
-        order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.products.some(p => p.productName.toLowerCase().includes(searchQuery.toLowerCase()))
+      filtered = filtered.filter((order: any) =>
+        order?.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order?.products?.some((p: any) => p?.productName?.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
     
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(order => order.status === statusFilter);
+      filtered = filtered.filter((order: any) => order?.status === statusFilter);
     }
     
     setFilteredOrders(filtered);
@@ -66,7 +66,10 @@ export default function Orders() {
     setLoading(true);
     try {
       const userOrders = await sdk.getOrders(currentUser.id);
-      setOrders(userOrders.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime()));
+      setOrders(userOrders.sort((a: any, b: any) => 
+        new Date(b?.orderDate || b?.createdAt || 0).getTime() - 
+        new Date(a?.orderDate || a?.createdAt || 0).getTime()
+      ));
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast.error('Failed to load orders');
