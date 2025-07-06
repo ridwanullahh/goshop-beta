@@ -43,13 +43,16 @@ export default function Store() {
 
   useEffect(() => {
     if (stores && id) {
-      const foundStore = (stores || []).find((s: any) => s?.id === id || s?.slug === id);
+      const foundStore = (stores || []).find((s: any) => 
+        (s as any)?.id === id || (s as any)?.slug === id
+      );
       setStore(foundStore);
       
       if (foundStore) {
         // Filter products for this store
         const filtered = (products || []).filter((p: any) => 
-          p?.storeId === foundStore?.id || p?.sellerId === foundStore?.ownerId
+          (p as any)?.storeId === (foundStore as any)?.id || 
+          (p as any)?.sellerId === (foundStore as any)?.ownerId
         );
         setStoreProducts(filtered);
       }
