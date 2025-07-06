@@ -114,7 +114,7 @@ export default function Checkout() {
         status: 'pending',
         trackingNumber: null,
         estimatedDelivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        orderDate: new Date().toISOString()
+        createdAt: new Date().toISOString()
       };
 
       const order = await sdk.insert('orders', orderData);

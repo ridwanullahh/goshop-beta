@@ -1,3 +1,4 @@
+
 interface CloudinaryConfig {
   uploadPreset?: string;
   cloudName?: string;
@@ -439,12 +440,12 @@ class UniversalSDK {
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
       ...data
-    };
+    } as unknown as T & { id: string; uid: string };
     
     const updatedItems = [...items, newItem];
     await this.save(collection, updatedItems);
     
-    return newItem as unknown as T & { id: string; uid: string };
+    return newItem;
   }
 
   async bulkInsert<T = any>(collection: string, items: Partial<T>[]): Promise<(T & { id: string; uid: string })[]> {
@@ -457,7 +458,12 @@ class UniversalSDK {
       let processedItem = item;
       if (schema?.defaults) processedItem = { ...schema.defaults, ...item };
       this.validateSchema(collection, processedItem);
-      const newItem = { uid: crypto.randomUUID(), id: nextId.toString(), createdAt: new Date().toISOString(), ...processedItem } as T & { id: string; uid: string };
+      const newItem = { 
+        uid: crypto.randomUUID(), 
+        id: nextId.toString(), 
+        createdAt: new Date().toISOString(), 
+        ...processedItem 
+      } as unknown as T & { id: string; uid: string };
       arr.push(newItem);
       results.push(newItem);
       nextId++;
@@ -484,7 +490,11 @@ class UniversalSDK {
     return updatedItem as unknown as T & { id: string; uid: string };
   }
 
-  
+  async delete(collection: string, id: string): Promise<void> {
+    const items = await this.get(collection);
+    const filteredItems = items.filter((item: any) => item.id !== id && item.uid !== id);
+    await this.save(collection, filteredItems);
+  }
 
   queryBuilder<T = any>(collection: string): QueryBuilder<T> {
     let query = this.get<T>(collection);
@@ -563,12 +573,6 @@ class UniversalSDK {
       data,
       timestamp: Date.now()
     });
-  }
-
-  async getItem<T = any>(collection: string, id: string): Promise<T | null> {
-    const items = await this.get<T>(collection);
-    const item = items.find((item: any) => item.id === id || item.uid === id);
-    return item || null;
   }
 }
 
