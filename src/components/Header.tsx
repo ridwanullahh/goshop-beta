@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useCommerce } from '@/context/CommerceContext';
 import { useRealTimeData } from '@/hooks/useRealTimeData';
 import { SidebarModal } from '@/components/SidebarModal';
+import { SearchModal } from '@/components/SearchModal';
 import { 
   Search, 
   ShoppingCart, 
@@ -237,14 +238,15 @@ export function Header() {
           {/* Action Buttons */}
           <div className="flex items-center space-x-2">
             {/* Mobile Search */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={() => navigate('/search')}
-            >
-              <Search className="h-4 w-4" />
-            </Button>
+            <SearchModal>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            </SearchModal>
 
             {/* Notifications */}
             <SidebarModal type="notifications">

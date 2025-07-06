@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -56,16 +55,16 @@ export function SearchModal({ children }: SearchModalProps) {
 
       // Apply filters
       if (filters.category) {
-        filteredResults = filteredResults.filter(p => p.category === filters.category);
+        filteredResults = filteredResults.filter((p: any) => p.category === filters.category);
       }
       if (filters.minPrice) {
-        filteredResults = filteredResults.filter(p => p.price >= parseFloat(filters.minPrice));
+        filteredResults = filteredResults.filter((p: any) => p.price >= parseFloat(filters.minPrice));
       }
       if (filters.maxPrice) {
-        filteredResults = filteredResults.filter(p => p.price <= parseFloat(filters.maxPrice));
+        filteredResults = filteredResults.filter((p: any) => p.price <= parseFloat(filters.maxPrice));
       }
       if (filters.rating) {
-        filteredResults = filteredResults.filter(p => p.rating >= parseFloat(filters.rating));
+        filteredResults = filteredResults.filter((p: any) => p.rating >= parseFloat(filters.rating));
       }
 
       setResults(filteredResults);
@@ -93,7 +92,7 @@ export function SearchModal({ children }: SearchModalProps) {
     handleSearch(searchTerm);
   };
 
-  const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
+  const categories = ['All', ...Array.from(new Set(products.map((p: any) => p.category)))];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
