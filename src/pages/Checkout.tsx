@@ -315,7 +315,7 @@ export default function Checkout() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {cartItems.map((item) => (
-                    <div key={`${item.productId}-${item.size || 'default'}`} className="flex items-center space-x-3">
+                    <div key={item.productId} className="flex items-center space-x-3">
                       <img
                         src={item.product?.images?.[0] || '/placeholder.svg'}
                         alt={item.product?.name}
@@ -323,9 +323,6 @@ export default function Checkout() {
                       />
                       <div className="flex-1">
                         <h4 className="font-medium text-sm">{item.product?.name}</h4>
-                        {item.size && (
-                          <p className="text-xs text-muted-foreground">Size: {item.size}</p>
-                        )}
                         <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
                       </div>
                       <p className="font-semibold text-sm">
