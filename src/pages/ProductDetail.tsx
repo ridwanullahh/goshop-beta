@@ -25,7 +25,7 @@ import { Footer } from '@/components/Footer';
 import { ProductCard } from '@/components/ProductCard';
 
 export default function ProductDetail() {
-  const { productId } = useParams();
+  const { id: productId } = useParams();
   const { sdk, addToCart, products } = useCommerce();
   const [product, setProduct] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
@@ -39,18 +39,27 @@ export default function ProductDetail() {
       if (!sdk || !productId) return;
       
       try {
-        const productData = await sdk.getProduct(productId);
-        setProduct(productData);
+        // Find product by id or uid
+        const productsData = await sdk.getProducts();
+        const productData = productsData.find(p => p.id === productId || p.uid === productId);
         
-        // Load reviews
-        const reviewsData = await sdk.getProductReviews(productId);
-        setReviews(reviewsData);
-        
-        // Load related products
-        const related = products.filter(p => 
-          p.category === productData?.category && p.id !== productId
-        ).slice(0, 6);
-        setRelatedProducts(related);
+        if (productData) {
+          setProduct(productData);
+          
+          // Load reviews if available
+          try {
+            const reviewsData = await sdk.get('reviews');
+            setReviews(reviewsData.filter((r: any) => r.productId === productData.id));
+          } catch {
+            setReviews([]);
+          }
+          
+          // Load related products
+          const related = productsData.filter(p => 
+            p.category === productData.category && p.id !== productId
+          ).slice(0, 6);
+          setRelatedProducts(related);
+        }
       } catch (error) {
         console.error('Failed to load product:', error);
       } finally {
