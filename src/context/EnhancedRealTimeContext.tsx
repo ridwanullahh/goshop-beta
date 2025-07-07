@@ -69,21 +69,29 @@ export function EnhancedRealTimeProvider({ children }: { children: ReactNode }) 
       for (const collection of collectionsToRefresh) {
         let result;
         
-        switch (collection) {
-          case 'products':
-            result = await sdk.getProducts();
-            break;
-          case 'orders':
-            result = await sdk.getOrders();
-            break;
-          case 'stores':
-            result = await sdk.getStores();
-            break;
-          default:
-            continue;
+        try {
+          switch (collection) {
+            case 'products':
+              result = await sdk.getProducts();
+              break;
+            case 'orders':
+              result = await sdk.getOrders();
+              break;
+            case 'stores':
+              result = await sdk.getStores();
+              break;
+            default:
+              result = await sdk.get(collection);
+              break;
+          }
+          
+          if (Array.isArray(result)) {
+            updateCollection(collection, result);
+          }
+        } catch (error) {
+          console.error(`Error refreshing ${collection}:`, error);
+          // Continue with other collections even if one fails
         }
-        
-        updateCollection(collection, result);
       }
       
       await loadUserData();
