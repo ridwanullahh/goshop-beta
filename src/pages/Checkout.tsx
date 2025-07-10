@@ -483,8 +483,8 @@ export default function Checkout() {
                   {cart.items.map((item) => (
                     <div key={item.productId} className="flex items-center space-x-3">
                       <img
-                        src={item.product.images[0] || '/placeholder.svg'}
-                        alt={item.product.name}
+                        src={item.product?.images?.[0] || '/placeholder.svg'}
+                        alt={item.product?.name || 'Product'}
                         className="w-12 h-12 object-cover rounded"
                       />
                       <div className="flex-1">
