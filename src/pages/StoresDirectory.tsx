@@ -28,39 +28,9 @@ export default function StoresDirectory() {
         setFilteredStores(storesData);
       } catch (error) {
         console.error('Failed to load stores:', error);
-        // Fallback stores for demo
-        const fallbackStores = [
-          {
-            id: '1',
-            name: 'TechHub Electronics',
-            slug: 'techhub-electronics',
-            description: 'Your one-stop shop for all electronic gadgets and accessories.',
-            logo: '/placeholder.svg',
-            banner: '/placeholder.svg',
-            sellerId: 'seller1',
-            rating: 4.8,
-            reviewCount: 1247,
-            productCount: 156,
-            isVerified: true,
-            location: 'New York, USA'
-          },
-          {
-            id: '2',
-            name: 'Fashion Forward',
-            slug: 'fashion-forward',
-            description: 'Trendy clothing and accessories for the modern lifestyle.',
-            logo: '/placeholder.svg',
-            banner: '/placeholder.svg',
-            sellerId: 'seller2',
-            rating: 4.6,
-            reviewCount: 892,
-            productCount: 234,
-            isVerified: true,
-            location: 'Los Angeles, USA'
-          }
-        ];
-        setStores(fallbackStores);
-        setFilteredStores(fallbackStores);
+        // If no stores exist, the component will show empty state
+        setStores([]);
+        setFilteredStores([]);
       } finally {
         setIsLoading(false);
       }

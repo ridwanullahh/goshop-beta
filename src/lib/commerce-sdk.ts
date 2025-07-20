@@ -21,6 +21,7 @@ export interface User {
 
 export interface Product {
   id: string;
+  uid?: string;
   name: string;
   description?: string;
   images?: string[];
@@ -142,6 +143,11 @@ export interface Store {
   createdAt?: string;
   updatedAt?: string;
   slug?: string;
+  rating?: number;
+  reviewCount?: number;
+  productCount?: number;
+  isVerified?: boolean;
+  location?: string;
 }
 
 export interface Notification {
@@ -287,7 +293,7 @@ private async uploadToCloudinary(file: File): Promise<string> {
   }
 
   private async fetchData(path: string, method: string = 'GET', body: any = null) {
-    const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/${path}.json`;
+    const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/db/${path}.json`;
     const headers = {
       'Accept': 'application/vnd.github.v3+json',
       'Authorization': `Bearer ${this.githubToken}`,
@@ -326,7 +332,7 @@ private async uploadToCloudinary(file: File): Promise<string> {
 
   private async initializeFile(path: string): Promise<void> {
     try {
-      const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/${path}.json`;
+      const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/db/${path}.json`;
       const headers = {
         'Accept': 'application/vnd.github.v3+json',
         'Authorization': `Bearer ${this.githubToken}`,
@@ -400,7 +406,7 @@ private async uploadToCloudinary(file: File): Promise<string> {
 
   private async getSHA(path: string): Promise<string> {
     try {
-      const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/${path}.json`;
+      const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/db/${path}.json`;
       const headers = {
         'Accept': 'application/vnd.github.v3+json',
         'Authorization': `Bearer ${this.githubToken}`,
