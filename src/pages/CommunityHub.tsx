@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -11,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCommerce } from '@/context/CommerceContext';
 import { toast } from 'sonner';
 import { Post, Comment } from '@/lib/commerce-sdk';
+import CommunityPost from '@/components/CommunityPost';
 import { 
   MessageSquare, 
   Heart, 
@@ -271,67 +271,7 @@ export default function CommunityHub() {
               </Card>
             ) : (
               posts.map((post) => (
-                <Card key={post.id} className="overflow-hidden">
-                  <CardContent className="p-6">
-                    <div className="flex items-start space-x-4">
-                      <Avatar>
-                        <AvatarImage src={post.userAvatar} />
-                        <AvatarFallback>{post.userName?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
-                      </Avatar>
-                      
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <h3 className="font-semibold">{post.userName || 'Anonymous'}</h3>
-                          <span className="text-sm text-muted-foreground flex items-center">
-                            <Clock className="h-3 w-3 mr-1" />
-                            {formatTimeAgo(post.createdAt)}
-                          </span>
-                        </div>
-                        
-                        <p className="text-gray-800 mb-4 whitespace-pre-wrap">{post.content}</p>
-                        
-                        {post.tags && post.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mb-4">
-                            {post.tags.map((tag, index) => (
-                              <Badge key={index} variant="secondary">
-                                #{tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                        
-                        <div className="flex items-center space-x-6">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleLikePost(post.id!, post.likes, post.isLiked)}
-                            className={post.isLiked ? 'text-red-500' : ''}
-                          >
-                            <Heart className={`h-4 w-4 mr-1 ${post.isLiked ? 'fill-current' : ''}`} />
-                            {post.likes}
-                          </Button>
-                          
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedPost(post);
-                              fetchComments(post.id!);
-                            }}
-                          >
-                            <MessageSquare className="h-4 w-4 mr-1" />
-                            {post.comments}
-                          </Button>
-                          
-                          <Button variant="ghost" size="sm">
-                            <Share2 className="h-4 w-4 mr-1" />
-                            Share
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <CommunityPost key={post.id} post={post} />
               ))
             )}
           </div>

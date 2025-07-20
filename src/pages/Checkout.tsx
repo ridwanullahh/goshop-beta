@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,9 +29,10 @@ import {
 } from 'lucide-react';
 
 export default function Checkout() {
-  const { cart, currentUser, sdk, updateCartQuantity, clearCart } = useCommerce();
+  const { cart, currentUser, sdk, updateCartQuantity, clearCart, products } = useCommerce();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [cartItems, setCartItems] = useState<any[]>([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card');
   const [orderNotes, setOrderNotes] = useState('');
   
@@ -65,6 +65,20 @@ export default function Checkout() {
       name: 'Credit/Debit Card',
       icon: CreditCard,
       description: 'Visa, Mastercard, American Express',
+      fee: 0
+    },
+    {
+      id: 'wallet',
+      name: 'Pay with Wallet',
+      icon: Wallet,
+      description: `Balance: $${currentUser?.walletBalance || 0}`,
+      fee: 0
+    },
+    {
+      id: 'paystack',
+      name: 'Paystack',
+      icon: CreditCard,
+      description: 'Pay with your card via Paystack',
       fee: 0
     },
     {
@@ -108,19 +122,99 @@ export default function Checkout() {
       icon: Plus,
       description: 'Split payment with friends',
       fee: 0
+    },
+    {
+      id: 'cod',
+      name: 'Pay on Delivery',
+      icon: Truck,
+      description: 'Pay with cash upon delivery',
+      fee: 2.50
     }
   ];
 
-  const subtotal = cart?.items?.reduce((sum, item) => sum + ((item.product?.price || 0) * item.quantity), 0) || 0;
+  const subtotal = cart?.items?.reduce((sum, item: any) => sum + ((item.product?.price || 0) * item.quantity), 0) || 0;
   const shipping = subtotal > 50 ? 0 : 9.99;
   const tax = subtotal * 0.08; // 8% tax
   const total = subtotal + shipping + tax;
+
+  useEffect(() => {
+    if (cart && products) {
+      const items = cart.items.map((item: any) => {
+        const product = products.find((p: any) => p.id === item.productId);
+        return { ...item, product };
+      });
+      setCartItems(items);
+    }
+  }, [cart, products]);
 
   useEffect(() => {
     if (!cart || cart.items.length === 0) {
       navigate('/cart');
     }
   }, [cart, navigate]);
+
+  const processCardPayment = async (orderData: any) => {
+    // Mock card payment processing
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    return { success: true, transactionId: 'card_' + Date.now() };
+  };
+
+  const processPayPalPayment = async (orderData: any) => {
+    // Mock PayPal payment processing
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    return { success: true, transactionId: 'pp_' + Date.now() };
+  };
+
+  const processWalletPayment = async (orderData: any) => {
+    try {
+      await sdk.payWithWallet(currentUser.id, orderData.total, `Order #${orderData.id}`);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  };
+
+  const processPaystackPayment = async (orderData: any) => {
+    // Mock Paystack payment processing
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    return { success: true, transactionId: 'ps_' + Date.now() };
+  };
+
+  const processApplePayPayment = async (orderData: any) => {
+    // Mock Apple Pay processing
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return { success: true, transactionId: 'ap_' + Date.now() };
+  };
+
+  const processGooglePayPayment = async (orderData: any) => {
+    // Mock Google Pay processing
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return { success: true, transactionId: 'gp_' + Date.now() };
+  };
+
+  const processBankTransferPayment = async (orderData: any) => {
+    // Mock bank transfer processing
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    return { success: true, transactionId: 'bt_' + Date.now() };
+  };
+
+  const processCryptoPayment = async (orderData: any) => {
+    // Mock crypto payment processing
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    return { success: true, transactionId: 'crypto_' + Date.now() };
+  };
+
+  const processCrowdfundingPayment = async (orderData: any) => {
+    // Mock crowdfunding payment processing
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    return { success: true, transactionId: 'cf_' + Date.now() };
+  };
+
+  const processPayOnDelivery = async (orderData: any) => {
+    // Mock pay on delivery processing
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return { success: true, transactionId: 'cod_' + Date.now() };
+  };
 
   const handlePlaceOrder = async () => {
     if (!cart || cart.items.length === 0) {
@@ -156,6 +250,12 @@ export default function Checkout() {
         case 'card':
           paymentResult = await processCardPayment(orderData);
           break;
+        case 'wallet':
+          paymentResult = await processWalletPayment(orderData);
+          break;
+        case 'paystack':
+          paymentResult = await processPaystackPayment(orderData);
+          break;
         case 'paypal':
           paymentResult = await processPayPalPayment(orderData);
           break;
@@ -173,6 +273,9 @@ export default function Checkout() {
           break;
         case 'crowdfunding':
           paymentResult = await processCrowdfundingPayment(orderData);
+          break;
+        case 'cod':
+          paymentResult = await processPayOnDelivery(orderData);
           break;
         default:
           throw new Error('Invalid payment method');
@@ -196,49 +299,6 @@ export default function Checkout() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Payment processing functions (mock implementations)
-  const processCardPayment = async (orderData: any) => {
-    // Mock card payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    return { success: true, transactionId: 'card_' + Date.now() };
-  };
-
-  const processPayPalPayment = async (orderData: any) => {
-    // Mock PayPal payment processing
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    return { success: true, transactionId: 'pp_' + Date.now() };
-  };
-
-  const processApplePayPayment = async (orderData: any) => {
-    // Mock Apple Pay processing
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { success: true, transactionId: 'ap_' + Date.now() };
-  };
-
-  const processGooglePayPayment = async (orderData: any) => {
-    // Mock Google Pay processing
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { success: true, transactionId: 'gp_' + Date.now() };
-  };
-
-  const processBankTransferPayment = async (orderData: any) => {
-    // Mock bank transfer processing
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    return { success: true, transactionId: 'bt_' + Date.now() };
-  };
-
-  const processCryptoPayment = async (orderData: any) => {
-    // Mock crypto payment processing
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    return { success: true, transactionId: 'crypto_' + Date.now() };
-  };
-
-  const processCrowdfundingPayment = async (orderData: any) => {
-    // Mock crowdfunding payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    return { success: true, transactionId: 'cf_' + Date.now() };
   };
 
   if (!cart || cart.items.length === 0) {
@@ -480,17 +540,17 @@ export default function Checkout() {
               <CardContent className="space-y-4">
                 {/* Cart Items */}
                 <div className="space-y-3">
-                  {cart.items.map((item) => (
+                  {cartItems.map((item: any) => (
                     <div key={item.productId} className="flex items-center space-x-3">
                       <img
-                        src={item.product.images[0] || '/placeholder.svg'}
-                        alt={item.product.name}
+                        src={item.product?.images?.[0] || '/placeholder.svg'}
+                        alt={item.product?.name}
                         className="w-12 h-12 object-cover rounded"
                       />
                       <div className="flex-1">
-                        <p className="font-medium text-sm">{item.product.name}</p>
+                        <p className="font-medium text-sm">{item.product?.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          ${item.product.price} × {item.quantity}
+                          ${item.product?.price} × {item.quantity}
                         </p>
                       </div>
                       <div className="flex items-center space-x-2">
