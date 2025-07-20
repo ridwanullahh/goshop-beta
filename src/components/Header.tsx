@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useCommerce } from '@/context/CommerceContext';
 import { useRealTimeData } from '@/hooks/useRealTimeData';
+import Notifications from './Notifications';
 import { SidebarModal } from '@/components/SidebarModal';
 import { SearchModal } from '@/components/SearchModal';
 import { 
@@ -259,6 +260,8 @@ export function Header() {
                 )}
               </Button>
             </SidebarModal>
+            
+            <Notifications />
 
             {/* Wishlist */}
             <SidebarModal type="wishlist">

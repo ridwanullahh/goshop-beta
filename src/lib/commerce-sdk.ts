@@ -47,6 +47,24 @@ export interface Product {
   seoDescription?: string;
   metaKeywords?: string;
   soldCount?: number;
+  cloudinaryId?: string;
+}
+
+export interface Wallet {
+  id: string;
+  userId: string;
+  balance: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Transaction {
+  id: string;
+  walletId: string;
+  amount: number;
+  type: 'credit' | 'debit';
+  description: string;
+  createdAt: string;
 }
 
 export interface Order {
@@ -65,14 +83,11 @@ export interface Order {
 }
 
 export interface OrderItem {
-  productId: string;
+  productId:string;
   quantity: number;
   price: number;
-  product?: Product;
-  productName?: string;
-  name?: string;
+  name: string;
   images?: string[];
-  subtotal?: number;
 }
 
 export interface Address {
@@ -205,6 +220,17 @@ export interface Commission {
   status: string;
   createdAt: string;
 }
+export interface LiveStream {
+  id: string;
+  sellerId: string;
+  title: string;
+  description: string;
+  productIds: string[];
+  status: 'scheduled' | 'live' | 'ended';
+  startTime: string;
+  endTime?: string;
+  agoraToken?: string;
+}
 
 export default class CommerceSDK {
   private baseURL: string;
@@ -242,6 +268,23 @@ export default class CommerceSDK {
       return { results: [], suggestions: [] };
     }
   };
+private async uploadToCloudinary(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'goshop'); // Replace with your Cloudinary upload preset
+
+    const response = await fetch('https://api.cloudinary.com/v1_1/your_cloud_name/image/upload', { // Replace with your Cloudinary cloud name
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload image to Cloudinary');
+    }
+
+    const data = await response.json();
+    return data.secure_url;
+  }
 
   private async fetchData(path: string, method: string = 'GET', body: any = null) {
     const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/${path}.json`;
@@ -681,11 +724,13 @@ export default class CommerceSDK {
     };
   }
 
-  async createProduct(productData: any): Promise<Product> {
+  async createProduct(productData: any, images: File[]): Promise<Product> {
     try {
+      const imageUrls = await Promise.all(images.map(image => this.uploadToCloudinary(image)));
       const newProduct: Product = {
         ...productData,
         id: Date.now().toString(),
+        images: imageUrls,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -701,8 +746,15 @@ export default class CommerceSDK {
     }
   }
 
-  async updateProduct(id: string, productData: any): Promise<Product> {
-    return await this.update('products', id, productData);
+  async updateProduct(id: string, productData: any, images: File[]): Promise<Product> {
+    try {
+      const imageUrls = await Promise.all(images.map(image => this.uploadToCloudinary(image)));
+      const updatedProductData = { ...productData, images: imageUrls };
+      return await this.update('products', id, updatedProductData);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      throw error;
+    }
   }
 
   async deleteProduct(id: string): Promise<void> {
@@ -881,6 +933,70 @@ export default class CommerceSDK {
   }
 
   // Wallet methods
+  async getWallet(userId: string): Promise<Wallet | undefined> {
+    const wallets = await this.getData('wallets') as Wallet[];
+    return wallets.find(wallet => wallet.userId === userId);
+  }
+
+  async fundWallet(userId: string, amount: number, description: string): Promise<Transaction> {
+    let wallet = await this.getWallet(userId);
+    if (!wallet) {
+      wallet = await this.createWallet(userId);
+    }
+
+    const newBalance = wallet.balance + amount;
+    await this.update('wallets', wallet.id, { balance: newBalance });
+
+    const transaction: Transaction = {
+      id: Date.now().toString(),
+      walletId: wallet.id,
+      amount,
+      type: 'credit',
+      description,
+      createdAt: new Date().toISOString(),
+    };
+
+    const transactions = await this.getData('transactions');
+    transactions.push(transaction);
+    await this.saveData('transactions', transactions);
+
+    return transaction;
+  }
+
+  async payWithWallet(userId: string, amount: number, description: string): Promise<Transaction> {
+    const wallet = await this.getWallet(userId);
+    if (!wallet || wallet.balance < amount) {
+      throw new Error('Insufficient wallet balance');
+    }
+
+    const newBalance = wallet.balance - amount;
+    await this.update('wallets', wallet.id, { balance: newBalance });
+
+    const transaction: Transaction = {
+      id: Date.now().toString(),
+      walletId: wallet.id,
+      amount,
+      type: 'debit',
+      description,
+      createdAt: new Date().toISOString(),
+    };
+
+    const transactions = await this.getData('transactions');
+    transactions.push(transaction);
+    await this.saveData('transactions', transactions);
+
+    return transaction;
+  }
+
+  async getWalletTransactions(userId: string): Promise<Transaction[]> {
+    const wallet = await this.getWallet(userId);
+    if (!wallet) {
+      return [];
+    }
+    const transactions = await this.getData('transactions') as Transaction[];
+    return transactions.filter(transaction => transaction.walletId === wallet.id);
+  }
+
   async createWallet(userId: string): Promise<any> {
     try {
       const newWallet = {
@@ -917,6 +1033,35 @@ export default class CommerceSDK {
     await this.saveData('users', users);
     
     return newSeller;
+  }
+
+  async getLiveStreams(): Promise<LiveStream[]> {
+    return await this.getData('livestreams') as LiveStream[];
+  }
+
+  async createLiveStream(streamData: any): Promise<LiveStream> {
+    try {
+      const newStream: LiveStream = {
+        ...streamData,
+        id: Date.now().toString(),
+        status: 'scheduled',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const streams = await this.getData('livestreams');
+      streams.push(newStream);
+      await this.saveData('livestreams', streams);
+      
+      return newStream;
+    } catch (error) {
+      console.error('Error creating live stream:', error);
+      throw error;
+    }
+  }
+
+  async updateLiveStream(id: string, updates: any): Promise<LiveStream> {
+    return await this.update('livestreams', id, updates);
   }
 
   async createAffiliate(affiliateData: any): Promise<User> {
