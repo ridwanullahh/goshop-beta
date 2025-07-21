@@ -7,6 +7,7 @@ import CommerceSDK, {
   CartItem,
   WishlistItem
 } from '@/lib/commerce-sdk';
+import { toast } from 'sonner';
 
 // Define the context type
 type CommerceContextType = {
@@ -16,6 +17,7 @@ type CommerceContextType = {
   orders: Order[];
   cart: { items: CartItem[] };
   wishlistItems: WishlistItem[];
+  compareList: string[];
   isLoading: boolean;
   sdk: CommerceSDK;
   login: (credentials: { email: string; password: string }) => Promise<User>;
@@ -39,6 +41,8 @@ type CommerceContextType = {
   addToWishlist: (productId: string) => Promise<WishlistItem>;
   searchProducts: (query: string, filters?: any) => Promise<Product[]>;
   loadUserData: () => Promise<void>;
+  addToCompare: (productId: string) => void;
+  removeFromCompare: (productId: string) => void;
 };
 
 // Create the context with a default value
@@ -49,6 +53,7 @@ export const CommerceContext = createContext<CommerceContextType>({
   orders: [],
   cart: { items: [] },
   wishlistItems: [],
+  compareList: [],
   isLoading: false,
   sdk: new CommerceSDK(),
   login: async () => { throw new Error('Login function not implemented'); },
@@ -60,7 +65,9 @@ export const CommerceContext = createContext<CommerceContextType>({
   clearCart: async () => { throw new Error('clearCart function not implemented'); },
   addToWishlist: async () => { throw new Error('addToWishlist function not implemented'); },
   searchProducts: async () => { return []; },
-  loadUserData: async () => { throw new Error('loadUserData function not implemented'); }
+  loadUserData: async () => { throw new Error('loadUserData function not implemented'); },
+  addToCompare: () => { throw new Error('addToCompare function not implemented'); },
+  removeFromCompare: () => { throw new Error('removeFromCompare function not implemented'); }
 });
 
 // Create a custom hook to use the context
@@ -73,6 +80,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [orders, setOrders] = useState<Order[]>([]);
   const [cart, setCart] = useState<{ items: CartItem[] }>({ items: [] });
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
+  const [compareList, setCompareList] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sdk] = useState(() => new CommerceSDK());
 
@@ -345,6 +353,24 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const addToCompare = (productId: string) => {
+    if (compareList.includes(productId)) {
+      toast.info('Product already in compare list');
+      return;
+    }
+    if (compareList.length >= 4) {
+      toast.warning('You can only compare up to 4 products');
+      return;
+    }
+    setCompareList([...compareList, productId]);
+    toast.success('Product added to compare list');
+  };
+
+  const removeFromCompare = (productId: string) => {
+    setCompareList(compareList.filter(id => id !== productId));
+    toast.success('Product removed from compare list');
+  };
+
   const value: CommerceContextType = {
     currentUser,
     products,
@@ -352,6 +378,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     orders,
     cart,
     wishlistItems,
+    compareList,
     isLoading,
     sdk,
     login,
@@ -363,7 +390,9 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     clearCart,
     addToWishlist,
     searchProducts,
-    loadUserData
+    loadUserData,
+    addToCompare,
+    removeFromCompare
   };
 
   return (

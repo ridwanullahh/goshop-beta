@@ -19,6 +19,14 @@ export interface User {
   walletBalance?: number;
 }
 
+export interface ProductVariation {
+  id: string;
+  name: string;
+  price: number;
+  inventory: number;
+  attributes: { [key: string]: string };
+}
+
 export interface Product {
   id: string;
   uid?: string;
@@ -49,6 +57,7 @@ export interface Product {
   metaKeywords?: string;
   soldCount?: number;
   cloudinaryId?: string;
+  variations?: ProductVariation[];
 }
 
 export interface Wallet {
@@ -81,6 +90,7 @@ export interface Order {
   createdAt: string;
   updatedAt: string;
   sellerId?: string;
+  transactionRef?: string;
 }
 
 export interface OrderItem {
@@ -95,6 +105,7 @@ export interface Address {
   street: string;
   city: string;
   state: string;
+
   zip: string;
   zipCode?: string;
   country: string;
@@ -310,7 +321,7 @@ private async uploadToCloudinary(file: File): Promise<string> {
       options.body = JSON.stringify({
         message: `Update ${path}.json`,
         content: btoa(JSON.stringify(body, null, 2)),
-        sha: await this.getSHA(path)
+        sha: await this.getSHA(`db/${path}.json`)
       });
     }
 
@@ -329,6 +340,32 @@ private async uploadToCloudinary(file: File): Promise<string> {
 
     return response.json();
   }
+  
+  private async deleteFile(path: string): Promise<void> {
+    const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/${path}`;
+    const headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': `Bearer ${this.githubToken}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json'
+    };
+
+    const sha = await this.getSHA(path);
+    if (!sha) {
+        console.warn(`Attempted to delete non-existent file: ${path}`);
+        return;
+    }
+
+    await fetch(url, {
+        method: 'DELETE',
+        headers,
+        body: JSON.stringify({
+            message: `Delete ${path}`,
+            sha: sha
+        })
+    });
+}
+
 
   private async initializeFile(path: string): Promise<void> {
     try {
@@ -340,14 +377,12 @@ private async uploadToCloudinary(file: File): Promise<string> {
         'Content-Type': 'application/json'
       };
 
-      const initialData = this.getInitialData(path);
-      
       await fetch(url, {
         method: 'PUT',
         headers,
         body: JSON.stringify({
           message: `Initialize ${path}.json`,
-          content: btoa(JSON.stringify(initialData, null, 2))
+          content: btoa(JSON.stringify([], null, 2))
         })
       });
     } catch (error) {
@@ -355,58 +390,10 @@ private async uploadToCloudinary(file: File): Promise<string> {
     }
   }
 
-  private getInitialData(path: string): any[] {
-    switch (path) {
-      case 'products':
-        return [
-          {
-            id: "1",
-            name: "Sample Product",
-            description: "This is a sample product",
-            price: 29.99,
-            images: ["/placeholder.svg"],
-            category: "Electronics",
-            rating: 4.5,
-            reviewCount: 12,
-            isFeatured: true,
-            isActive: true,
-            inventory: 50,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        ];
-      case 'categories':
-        return [
-          {
-            id: "1",
-            name: "Electronics",
-            slug: "electronics",
-            description: "Electronic devices and gadgets",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        ];
-      case 'users':
-        return [
-          {
-            id: "1",
-            email: "admin@platform.com",
-            name: "Admin User",
-            role: "admin",
-            verified: true,
-            onboardingCompleted: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        ];
-      default:
-        return [];
-    }
-  }
 
   private async getSHA(path: string): Promise<string> {
     try {
-      const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/db/${path}.json`;
+      const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/${path}`;
       const headers = {
         'Accept': 'application/vnd.github.v3+json',
         'Authorization': `Bearer ${this.githubToken}`,
@@ -419,13 +406,17 @@ private async uploadToCloudinary(file: File): Promise<string> {
       });
 
       if (!response.ok) {
-        return '';
+        if (response.status === 404) {
+          return ''; // File doesn't exist, which is a valid state for locking
+        }
+        throw new Error(`Failed to get SHA for ${path}. Status: ${response.status}`);
       }
 
       const data = await response.json();
       return data.sha || '';
     } catch (error) {
-      return '';
+      console.error(`Error in getSHA for ${path}:`, error);
+      throw error;
     }
   }
 
@@ -484,9 +475,15 @@ private async uploadToCloudinary(file: File): Promise<string> {
     return userId ? orders.filter(order => order.userId === userId || order.sellerId === userId) : orders;
   }
 
-  async getOrder(id: string): Promise<Order | undefined> {
+  async getOrder(id: string, authenticatedUserId?: string): Promise<Order | undefined> {
     const orders = await this.getOrders();
-    return orders.find(order => order.id === id);
+    const order = orders.find(order => order.id === id);
+
+    if (authenticatedUserId && order && order.userId !== authenticatedUserId) {
+      throw new Error("Unauthorized: You do not have access to this order.");
+    }
+
+    return order;
   }
 
   async getCart(userId: string): Promise<CartItem[]> {
@@ -613,19 +610,24 @@ private async uploadToCloudinary(file: File): Promise<string> {
     }
   }
 
-  async createOrder(orderData: any): Promise<Order> {
+  async createOrder(orderData: Partial<Order>): Promise<Order> {
+    // SECURITY: This function should only be called from a trusted server-side environment.
+    // The `orderData` should be built on the server after verifying product prices
+    // and calculating the total, as done in the `/api/create-order.ts` endpoint.
+    // Never trust pricing data sent from the client.
     try {
       const newOrder: Order = {
         id: Date.now().toString(),
-        userId: orderData.userId,
-        items: orderData.items,
-        total: orderData.total,
+        userId: orderData.userId!,
+        items: orderData.items!,
+        total: orderData.total!,
         status: 'pending',
-        paymentMethod: orderData.paymentMethod,
-        shippingAddress: orderData.shippingAddress,
-        billingAddress: orderData.billingAddress,
+        paymentMethod: orderData.paymentMethod!,
+        shippingAddress: orderData.shippingAddress!,
+        billingAddress: orderData.billingAddress!,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        ...orderData,
       };
 
       const orders = await this.getData('orders');
@@ -767,8 +769,13 @@ private async uploadToCloudinary(file: File): Promise<string> {
     await this.delete('products', id);
   }
 
-  async updateOrderStatus(orderId: string, status: string): Promise<Order> {
-    return await this.update('orders', orderId, { status });
+  async updateOrderStatus(orderId: string, status: string, authenticatedUserId?: string, updates?: object): Promise<Order> {
+    const order = await this.getOrder(orderId);
+    if (authenticatedUserId && order && order.userId !== authenticatedUserId) {
+        throw new Error("Unauthorized: You cannot update the status of this order.");
+    }
+    const payload = { status, ...updates };
+    return await this.update('orders', orderId, payload);
   }
 
   // Notification methods
@@ -939,12 +946,23 @@ private async uploadToCloudinary(file: File): Promise<string> {
   }
 
   // Wallet methods
-  async getWallet(userId: string): Promise<Wallet | undefined> {
+  async getWallet(userId: string, authenticatedUserId?: string): Promise<Wallet | undefined> {
+    if (authenticatedUserId && userId !== authenticatedUserId) {
+        throw new Error("Unauthorized: You cannot access another user's wallet.");
+    }
     const wallets = await this.getData('wallets') as Wallet[];
     return wallets.find(wallet => wallet.userId === userId);
   }
 
-  async fundWallet(userId: string, amount: number, description: string): Promise<Transaction> {
+  async fundWallet(userId: string, amount: number, description: string, paymentGateway: string): Promise<Transaction> {
+    // SECURITY: In a real application, this function should NOT directly credit the wallet.
+    // 1. It should initialize a payment with the specified gateway.
+    // 2. The actual crediting of the wallet should happen in a separate, secure webhook
+    //    handler (like `/api/paystack-callback.ts`) after the payment gateway
+    //    confirms the transaction was successful.
+    // 3. This prevents a user from calling this function to get free money.
+    
+    // This mock implementation credits the wallet directly for demonstration purposes.
     let wallet = await this.getWallet(userId);
     if (!wallet) {
       wallet = await this.createWallet(userId);
@@ -958,7 +976,7 @@ private async uploadToCloudinary(file: File): Promise<string> {
       walletId: wallet.id,
       amount,
       type: 'credit',
-      description,
+      description: `${description} via ${paymentGateway}`,
       createdAt: new Date().toISOString(),
     };
 
@@ -969,8 +987,14 @@ private async uploadToCloudinary(file: File): Promise<string> {
     return transaction;
   }
 
-  async payWithWallet(userId: string, amount: number, description: string): Promise<Transaction> {
+  async payWithWallet(userId: string, amount: number, description:string): Promise<Transaction> {
+    // SECURITY: This operation should be heavily protected on the server-side.
+    // 1. Authenticate the user making the request.
+    // 2. Authorize that the authenticated user owns this wallet (userId).
+    // 3. Perform this check and the balance update in a single atomic transaction
+    //    to prevent race conditions where a user might spend the same money twice.
     const wallet = await this.getWallet(userId);
+
     if (!wallet || wallet.balance < amount) {
       throw new Error('Insufficient wallet balance');
     }
