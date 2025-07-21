@@ -117,7 +117,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route path="/:storeSlug" element={<StoreDetail />} />
+              <Route path="/@:storeSlug" element={<StoreDetail />} />
             </Routes>
           </div>
         </BrowserRouter>

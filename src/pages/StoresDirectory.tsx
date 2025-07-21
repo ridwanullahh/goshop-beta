@@ -82,7 +82,7 @@ export default function StoresDirectory() {
 
   const StoreCardGrid = ({ store }: { store: Store }) => (
     <Card className="group overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col">
-      <Link to={`/${store.slug}`} className="flex flex-col h-full">
+      <Link to={`/@${store.slug}`} className="flex flex-col h-full">
         <div className="relative h-40 bg-muted overflow-hidden">
           {store.banner ? (
             <img src={store.banner} alt={store.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
@@ -129,7 +129,7 @@ export default function StoresDirectory() {
 
   const StoreCardList = ({ store }: { store: Store }) => (
     <Card className="group overflow-hidden transition-all duration-300 hover:shadow-lg w-full">
-      <Link to={`/${store.slug}`} className="flex items-center p-4 gap-6">
+      <Link to={`/@${store.slug}`} className="flex items-center p-4 gap-6">
         <Avatar className="w-24 h-24">
           <AvatarImage src={store.logo} alt={store.name} className="object-cover" />
           <AvatarFallback className="text-2xl">{store.name.charAt(0).toUpperCase()}</AvatarFallback>
