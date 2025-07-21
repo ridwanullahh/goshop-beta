@@ -32,6 +32,7 @@ export interface Product {
   uid?: string;
   name: string;
   description?: string;
+  image: string;
   images?: string[];
   price: number;
   originalPrice?: number;
@@ -159,6 +160,9 @@ export interface Store {
   productCount?: number;
   isVerified?: boolean;
   location?: string;
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
+  onboardingData?: any;
+  socialLinks?: Record<string, string>;
 }
 
 export interface Notification {
@@ -166,8 +170,8 @@ export interface Notification {
   userId: string;
   title: string;
   message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-  read: boolean;
+  type: 'info' | 'success' | 'warning' | 'error' | 'order' | 'wishlist' | 'message';
+  isRead: boolean;
   createdAt: string;
 }
 
@@ -214,7 +218,11 @@ export interface Blog {
   title: string;
   content: string;
   slug: string;
-  author: string;
+  authorId: string;
+  authorName?: string;
+  storeId?: string;
+  authorType?: 'platform' | 'store';
+  featuredImage?: string;
   isPublished: boolean;
   createdAt: string;
   updatedAt: string;
@@ -243,10 +251,22 @@ export interface LiveStream {
   title: string;
   description: string;
   productIds: string[];
+  products: Product[];
   status: 'scheduled' | 'live' | 'ended';
   startTime: string;
   endTime?: string;
   agoraToken?: string;
+  viewerCount?: number;
+  sellerName?: string;
+  sellerAvatar?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  username: string;
+  message: string;
+  timestamp: Date;
+  type: 'message' | 'announcement';
 }
 
 export default class CommerceSDK {
@@ -937,6 +957,37 @@ private async uploadToCloudinary(file: File): Promise<string> {
   async getStoreProducts(storeId: string): Promise<Product[]> {
     const products = await this.getProducts();
     return products.filter(product => product.storeId === storeId);
+  }
+
+  async getStoreBySlug(slug: string): Promise<Store | undefined> {
+    const stores = await this.getStores();
+    return stores.find(store => store.slug === slug);
+  }
+
+  async checkStoreSlugAvailability(slug: string): Promise<boolean> {
+    const stores = await this.getStores();
+    return !stores.some(store => store.slug === slug);
+  }
+
+  async getStoreBlogPosts(storeId: string): Promise<Blog[]> {
+    const blogs = await this.getBlogs();
+    return blogs.filter(blog => blog.storeId === storeId);
+  }
+
+  // Admin store management
+  async getPendingStores(): Promise<Store[]> {
+    const stores = await this.getStores();
+    return stores.filter(store => store.approvalStatus === 'pending');
+  }
+
+  async approveStore(storeId: string): Promise<Store> {
+    return await this.update('stores', storeId, { approvalStatus: 'approved' });
+  }
+
+  async rejectStore(storeId: string, reason: string): Promise<Store> {
+    // In a real app, you might want to store the reason somewhere
+    console.log(`Store ${storeId} rejected. Reason: ${reason}`);
+    return await this.update('stores', storeId, { approvalStatus: 'rejected' });
   }
 
   // Product reviews

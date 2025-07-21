@@ -1,30 +1,34 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Progress } from '@/components/ui/progress';
-import { 
-  Store, 
-  FileText, 
-  CreditCard, 
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
+import { Progress } from '../components/ui/progress';
+import {
+  Store,
+  FileText,
   CheckCircle,
   ArrowRight,
   ArrowLeft,
   Upload,
-  Shield
+  Shield,
+  Loader2,
+  AlertCircle,
+  Check
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '../hooks/use-toast';
+import { useCommerce } from '../context/CommerceContext';
+import { debounce } from 'lodash';
 
 const SellerOnboarding = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [onboardingData, setOnboardingData] = useState({
     businessInfo: {
       businessName: '',
-      businessType: '',
+      storeSlug: '',
       description: '',
       website: '',
       phone: ''
@@ -32,25 +36,40 @@ const SellerOnboarding = () => {
     verification: {
       businessLicense: null as File | null,
       taxId: '',
-      bankAccount: '',
-      routingNumber: ''
     },
     policies: {
       shippingPolicy: '',
       returnPolicy: '',
-      processingTime: '1-3'
     }
   });
+  const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable'>('idle');
 
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { sdk, user } = useCommerce();
   const totalSteps = 4;
+
+  const checkSlugAvailability = useCallback(
+    debounce(async (slug: string) => {
+      if (!sdk || slug.length < 3) {
+        setSlugStatus('idle');
+        return;
+      }
+      setSlugStatus('checking');
+      const isAvailable = await sdk.checkStoreSlugAvailability(slug);
+      setSlugStatus(isAvailable ? 'available' : 'unavailable');
+    }, 500),
+    [sdk]
+  );
 
   const handleBusinessInfoChange = (field: string, value: string) => {
     setOnboardingData(prev => ({
       ...prev,
       businessInfo: { ...prev.businessInfo, [field]: value }
     }));
+    if (field === 'storeSlug') {
+      checkSlugAvailability(value);
+    }
   };
 
   const handleVerificationChange = (field: string, value: string) => {
@@ -88,16 +107,40 @@ const SellerOnboarding = () => {
     }
   };
 
-  const handleComplete = () => {
-    // In production, save onboarding data to your SDK
-    console.log('Seller onboarding completed:', onboardingData);
-    
-    toast({
-      title: "Seller Application Submitted!",
-      description: "We'll review your application and get back to you within 24 hours."
-    });
+  const handleComplete = async () => {
+    if (!sdk || !user) {
+      toast({ title: "Error", description: "Not authenticated.", variant: "destructive" });
+      return;
+    }
 
-    navigate('/seller-dashboard');
+    try {
+      // In a real app, you'd upload the license file and get a URL
+      const storeData = {
+        name: onboardingData.businessInfo.businessName,
+        slug: onboardingData.businessInfo.storeSlug,
+        description: onboardingData.businessInfo.description,
+        ownerId: user.id,
+        sellerId: user.id,
+        approvalStatus: 'pending',
+        onboardingData: onboardingData, // Save all data for review
+        isVerified: false,
+      };
+      
+      await sdk.update('stores', '', storeData); // Using update to create a new store
+      
+      // Update user to mark onboarding as initiated
+      await sdk.update('users', user.id, { onboardingStatus: 'pending_review' });
+
+      toast({
+        title: "Seller Application Submitted!",
+        description: "We'll review your application and get back to you within 24 hours."
+      });
+
+      setCurrentStep(totalSteps); // Move to the final confirmation screen
+    } catch (error) {
+      console.error("Failed to submit application:", error);
+      toast({ title: "Submission Failed", description: "Could not submit application.", variant: "destructive" });
+    }
   };
 
   const renderStep = () => {
@@ -126,15 +169,25 @@ const SellerOnboarding = () => {
               </div>
               
               <div>
-                <Label htmlFor="businessType">Business Type</Label>
-                <Input
-                  id="businessType"
-                  value={onboardingData.businessInfo.businessType}
-                  onChange={(e) => handleBusinessInfoChange('businessType', e.target.value)}
-                  placeholder="e.g., LLC, Corporation, Sole Proprietorship"
-                />
+                <Label htmlFor="storeSlug">Store URL Slug *</Label>
+                <div className="relative">
+                  <Input
+                    id="storeSlug"
+                    value={onboardingData.businessInfo.storeSlug}
+                    onChange={(e) => handleBusinessInfoChange('storeSlug', e.target.value.toLowerCase().replace(/\s+/g, '-'))}
+                    placeholder="your-store-name"
+                    required
+                  />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    {slugStatus === 'checking' && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {slugStatus === 'available' && <Check className="h-4 w-4 text-green-500" />}
+                    {slugStatus === 'unavailable' && <AlertCircle className="h-4 w-4 text-red-500" />}
+                  </div>
+                </div>
+                {slugStatus === 'unavailable' && <p className="text-sm text-red-500 mt-1">This URL is already taken.</p>}
+                <p className="text-sm text-muted-foreground mt-1">your-store.com/{onboardingData.businessInfo.storeSlug}</p>
               </div>
-              
+
               <div>
                 <Label htmlFor="description">Business Description *</Label>
                 <Textarea
