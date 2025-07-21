@@ -58,7 +58,6 @@ function App() {
               <Route path="/product/:id" element={<ProductDetails />} />
               <Route path="/categories" element={<Categories />} />
               <Route path="/category/:slug" element={<Category />} />
-              <Route path="/:storeSlug" element={<StoreDetail />} />
               <Route path="/search" element={<Search />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/checkout" element={<Checkout />} />
@@ -118,8 +117,9 @@ function App() {
                       <AdminDashboard />
                     </MobileDashboardLayout>
                   </ProtectedRoute>
-                } 
+                }
               />
+              <Route path="/:storeSlug" element={<StoreDetail />} />
             </Routes>
           </div>
         </BrowserRouter>

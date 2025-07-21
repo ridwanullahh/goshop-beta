@@ -203,9 +203,11 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         loadUserWishlist(loggedInUser.id)
       ]);
       
+      toast.success('Login successful');
       return loggedInUser;
     } catch (error) {
       console.error('Login error:', error);
+      toast.error(error instanceof Error ? error.message : 'Invalid credentials');
       throw error;
     }
   };
