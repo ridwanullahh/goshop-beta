@@ -38,11 +38,13 @@ import {
   Zap,
   Award,
   MessageSquare,
-  AlertTriangle
+  AlertTriangle,
+  Rss
 } from 'lucide-react';
+import SellerBlogManager from '../pages/seller-dashboard/Blog';
 
 export default function EnhancedSellerDashboard() {
-  const { currentUser, sdk } = useCommerce();
+  const { user: currentUser, sdk } = useCommerce();
   const { subscribe, forceRefresh, updateCollection } = useEnhancedRealTime();
   const [activeView, setActiveView] = useState('home');
   const [loading, setLoading] = useState(true);
@@ -53,6 +55,8 @@ export default function EnhancedSellerDashboard() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [newOrdersCount, setNewOrdersCount] = useState(0);
+  const [newReviewsCount, setNewReviewsCount] = useState(0);
 
   const [productForm, setProductForm] = useState({
     name: '',
@@ -115,31 +119,39 @@ export default function EnhancedSellerDashboard() {
     
     try {
       const [productsData, ordersData, analyticsData] = await Promise.all([
-        sdk.getSellerProducts(currentUser.id),
-        sdk.getOrders(currentUser.id),
-        sdk.getSellerAnalytics(currentUser.id)
+        sdk.get('products'),
+        sdk.get('orders'),
+        sdk.get('analytics')
       ]);
 
-      setProducts(productsData);
-      setOrders(ordersData);
+      const sellerProducts = productsData.filter((p: any) => p.sellerId === currentUser.id);
+      const sellerOrders = ordersData.filter((o: any) => o.sellerId === currentUser.id);
+
+      const reviews = await sdk.get('reviews');
+      const sellerReviews = reviews.filter((r: any) => r.sellerId === currentUser.id && !r.read);
+
+      setProducts(sellerProducts);
+      setOrders(sellerOrders);
+      setNewOrdersCount(sellerOrders.filter((o: any) => o.status === 'pending').length);
+      setNewReviewsCount(sellerReviews.length);
 
       // Enhanced analytics calculation
-      const totalRevenue = ordersData.reduce((sum: number, order: any) => sum + order.total, 0);
-      const totalOrders = ordersData.length;
+      const totalRevenue = sellerOrders.reduce((sum: number, order: any) => sum + order.total, 0);
+      const totalOrders = sellerOrders.length;
       const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-      const activeProducts = productsData.filter(p => (p.isActive !== false) && p.inventory > 0).length;
-      const lowStockProducts = productsData.filter(p => p.inventory < 10).length;
+      const activeProducts = sellerProducts.filter(p => (p.isActive !== false) && p.inventory > 0).length;
+      const lowStockProducts = sellerProducts.filter(p => p.inventory < 10).length;
 
       setSellerData({
         ...analyticsData,
         totalRevenue,
         totalOrders,
         averageOrderValue,
-        totalProducts: productsData.length,
+        totalProducts: sellerProducts.length,
         activeProducts,
         lowStockProducts,
         conversionRate: totalOrders > 0 ? (totalRevenue / totalOrders * 100).toFixed(2) : 0,
-        topSellingProduct: productsData.sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0))[0]
+        topSellingProduct: sellerProducts.sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0))[0]
       });
     } catch (error) {
       console.error('Error fetching seller data:', error);
@@ -163,7 +175,7 @@ export default function EnhancedSellerDashboard() {
         updatedAt: new Date().toISOString()
       };
 
-      const newProduct = await sdk.createProduct(productData);
+      const newProduct = await sdk.createProduct(productData, []);
       
       // Update local state immediately for real-time effect
       setProducts(prev => [newProduct, ...prev]);
@@ -193,7 +205,7 @@ export default function EnhancedSellerDashboard() {
         updatedAt: new Date().toISOString()
       };
 
-      const updatedProduct = await sdk.updateProduct(editingProduct.id!, productData);
+      const updatedProduct = await sdk.updateProduct(editingProduct.id!, productData, []);
       
       // Update local state immediately
       setProducts(prev => prev.map(p => p.id === editingProduct.id ? updatedProduct : p));
@@ -317,8 +329,21 @@ export default function EnhancedSellerDashboard() {
       </div>
 
       <div className="container mx-auto px-4 py-6 space-y-6">
-        {/* Enhanced KPI Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="flex border-b">
+            <Button variant={activeView === 'home' ? 'secondary' : 'ghost'} onClick={() => setActiveView('home')} className="rounded-none">Home</Button>
+            <Button variant={activeView === 'products' ? 'secondary' : 'ghost'} onClick={() => setActiveView('products')} className="rounded-none">Products</Button>
+            <Button variant={activeView === 'orders' ? 'secondary' : 'ghost'} onClick={() => setActiveView('orders')} className="rounded-none relative">
+              Orders
+              {newOrdersCount > 0 && <Badge className="absolute -top-2 -right-2">{newOrdersCount}</Badge>}
+            </Button>
+            <Button variant={activeView === 'blog' ? 'secondary' : 'ghost'} onClick={() => setActiveView('blog')} className="rounded-none">Blog</Button>
+            <Button variant={activeView === 'settings' ? 'secondary' : 'ghost'} onClick={() => setActiveView('settings')} className="rounded-none">Settings</Button>
+        </div>
+
+        {activeView === 'home' && (
+          <>
+            {/* Enhanced KPI Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -514,7 +539,20 @@ export default function EnhancedSellerDashboard() {
               )}
             </div>
           </CardContent>
-        </Card>
+            </Card>
+          </>
+        )}
+
+        {activeView === 'products' && (
+            <div>
+                {/* Product Management Section */}
+            </div>
+        )}
+
+        {activeView === 'blog' && (
+          <SellerBlogManager />
+        )}
+
       </div>
 
       {/* Enhanced Product Form Modal */}

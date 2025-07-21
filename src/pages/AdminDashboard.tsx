@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 
 const AdminDashboard = () => {
-  const { currentUser, sdk } = useCommerce();
+  const { user: currentUser, sdk } = useCommerce();
   const [activeSection, setActiveSection] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,6 +43,7 @@ const AdminDashboard = () => {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [sellers, setSellers] = useState([]);
+  const [pendingStores, setPendingStores] = useState([]);
   const [affiliates, setAffiliates] = useState([]);
   const [helpArticles, setHelpArticles] = useState([]);
   const [blogs, setBlogs] = useState([]);
@@ -89,25 +90,28 @@ const AdminDashboard = () => {
         productsData,
         ordersData,
         sellersData,
+        pendingStoresData,
         affiliatesData,
         helpArticlesData,
         blogsData,
         analyticsData
       ] = await Promise.all([
-        sdk.sdk.get('users'),
-        sdk.sdk.get('products'),
-        sdk.sdk.get('orders'),
-        sdk.sdk.get('sellers'),
-        sdk.sdk.get('affiliates'),
-        sdk.getHelpArticles(),
-        sdk.getBlogs(),
-        sdk.getPlatformAnalytics()
+        sdk.get('users'),
+        sdk.get('products'),
+        sdk.get('orders'),
+        sdk.get('sellers'),
+        sdk.get('stores'),
+        sdk.get('affiliates'),
+        sdk.get('help_articles'),
+        sdk.get('blogs'),
+        sdk.get('platform_analytics')
       ]);
 
       setUsers(usersData);
       setProducts(productsData);
       setOrders(ordersData);
       setSellers(sellersData);
+      setPendingStores(pendingStoresData.filter((store: any) => store.approvalStatus === 'pending'));
       setAffiliates(affiliatesData);
       setHelpArticles(helpArticlesData);
       setBlogs(blogsData);
@@ -169,7 +173,7 @@ const AdminDashboard = () => {
     if (!sdk) return;
 
     try {
-      await sdk.sdk.update(collection, itemId, updates);
+      await sdk.update(collection, itemId, updates);
       toast.success('Status updated successfully');
       fetchAdminData();
     } catch (error) {
@@ -182,12 +186,27 @@ const AdminDashboard = () => {
     if (!sdk || !confirm(`Are you sure you want to delete "${itemName}"?`)) return;
 
     try {
-      await sdk.sdk.delete(collection, itemId);
+      await sdk.delete(collection, itemId);
       toast.success('Item deleted successfully');
       fetchAdminData();
     } catch (error) {
       console.error('Error deleting item:', error);
       toast.error('Failed to delete item');
+    }
+  };
+
+  const handleApproveStore = async (storeId: string) => {
+    if (!sdk) return;
+    await sdk.approveStore(storeId);
+    fetchAdminData();
+  };
+
+  const handleRejectStore = async (storeId: string) => {
+    if (!sdk) return;
+    const reason = prompt("Reason for rejection:");
+    if (reason) {
+      await sdk.rejectStore(storeId, reason);
+      fetchAdminData();
     }
   };
 
@@ -198,7 +217,9 @@ const AdminDashboard = () => {
       suspended: 'bg-red-100 text-red-800',
       verified: 'bg-blue-100 text-blue-800',
       published: 'bg-green-100 text-green-800',
-      draft: 'bg-gray-100 text-gray-800'
+      draft: 'bg-gray-100 text-gray-800',
+      approved: 'bg-green-100 text-green-800',
+      rejected: 'bg-red-100 text-red-800',
     };
 
     return (
@@ -624,6 +645,42 @@ const AdminDashboard = () => {
                   ))}
                   {blogs.length === 0 && (
                     <p className="text-center text-muted-foreground py-8">No blog posts yet</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Store Approvals Section */}
+        {activeSection === 'sellers' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold">Store Approvals</h2>
+            <Card>
+              <CardHeader>
+                <CardTitle>Pending Stores</CardTitle>
+                <CardDescription>Review and approve new store applications.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {pendingStores.map((store: any) => (
+                    <div key={store.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h3 className="font-semibold">{store.name}</h3>
+                        <p className="text-sm text-muted-foreground">{store.onboardingData?.businessInfo?.description}</p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button size="sm" variant="outline" onClick={() => handleApproveStore(store.id)}>
+                          <CheckCircle className="h-4 w-4 mr-2" /> Approve
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleRejectStore(store.id)}>
+                          <Ban className="h-4 w-4 mr-2" /> Reject
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {pendingStores.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">No pending store approvals.</p>
                   )}
                 </div>
               </CardContent>
