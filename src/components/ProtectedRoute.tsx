@@ -18,7 +18,7 @@ export function ProtectedRoute({
   allowedRoles = [], 
   requireOnboarding = false 
 }: ProtectedRouteProps) {
-  const { currentUser, isLoading } = useCommerce();
+  const { user: currentUser, isLoading } = useCommerce();
   const location = useLocation();
 
   if (isLoading) {
