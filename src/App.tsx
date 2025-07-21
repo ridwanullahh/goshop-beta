@@ -40,7 +40,6 @@ import EnhancedSellerDashboard from './components/EnhancedSellerDashboard';
 import { MobileDashboardLayout } from '@/components/MobileDashboardLayout';
 import StoreDetail from './pages/StoreDetail';
 import OrderDetail from './pages/OrderDetail';
-import Notifications from './pages/Notifications';
 
 function App() {
   return (
@@ -63,7 +62,6 @@ function App() {
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/orders" element={<Orders />} />
               <Route path="/order/:id" element={<OrderDetail />} />
-              <Route path="/notifications" element={<Notifications />} />
               <Route path="/wishlist" element={<Wishlist />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/wallet" element={<MyWallet />} />
