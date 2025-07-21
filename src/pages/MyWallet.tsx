@@ -37,13 +37,13 @@ export default function MyWallet() {
     loadWallet();
   }, [currentUser, sdk]);
 
-  const handleFundWallet = async () => {
+  const handleFundWallet = async (paymentGateway: string) => {
     // This would typically open a payment modal
     if (!currentUser || !sdk) return;
     const amount = prompt('Enter amount to fund:');
     if (amount && !isNaN(parseFloat(amount))) {
       try {
-        await sdk.fundWallet(currentUser.id, parseFloat(amount), 'Wallet funding');
+        await sdk.fundWallet(currentUser.id, parseFloat(amount), 'Wallet funding', paymentGateway);
         toast.success('Wallet funded successfully');
         // Refresh wallet data
         const userWallet = await sdk.getWallet(currentUser.id);
@@ -91,10 +91,24 @@ export default function MyWallet() {
               </CardHeader>
               <CardContent>
                 <p className="text-4xl font-bold">${wallet?.balance.toFixed(2)}</p>
-                <Button className="w-full mt-6" onClick={handleFundWallet}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Fund Wallet
-                </Button>
+                <div className="space-y-2 mt-6">
+                  <Button className="w-full" onClick={() => handleFundWallet('Paystack')}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Fund with Paystack
+                  </Button>
+                  <Button className="w-full" onClick={() => handleFundWallet('PayPal')}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Fund with PayPal
+                  </Button>
+                  <Button className="w-full" onClick={() => handleFundWallet('Flutterwave')}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Fund with Flutterwave
+                  </Button>
+                  <Button className="w-full" onClick={() => handleFundWallet('Razorpay')}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Fund with Razorpay
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>

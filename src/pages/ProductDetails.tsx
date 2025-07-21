@@ -10,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useCommerce } from '@/context/CommerceContext';
 import { useRealTimeData } from '@/hooks/useRealTimeData';
-import { Product } from '@/lib/commerce-sdk';
+import useEmblaCarousel from 'embla-carousel-react';
+import { Product, ProductVariation } from '@/lib/commerce-sdk';
 import { toast } from 'sonner';
 import { 
   Star, 
@@ -37,8 +38,10 @@ export default function ProductDetails() {
   
   const [product, setProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariation | null>(null);
 
   useEffect(() => {
     if (products && id) {
@@ -57,6 +60,17 @@ export default function ProductDetails() {
       setLoading(false);
     }
   }, [products, id]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    const onSelect = () => {
+      setSelectedIndex(emblaApi.selectedScrollSnap());
+    };
+    emblaApi.on('select', onSelect);
+    return () => {
+      emblaApi.off('select', onSelect);
+    };
+  }, [emblaApi]);
 
   const handleAddToCart = () => {
     if (product) {
@@ -155,34 +169,14 @@ export default function ProductDetails() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
           {/* Product Images */}
-          <div className="space-y-4">
-            <div className="aspect-square bg-muted rounded-lg overflow-hidden">
-              <img
-                src={product.images?.[selectedImageIndex] || '/placeholder.svg'}
-                alt={product.name}
-                className="w-full h-full object-cover"
-              />
+          <div className="overflow-hidden" ref={emblaRef}>
+            <div className="flex">
+              {product.images?.map((image, index) => (
+                <div className="flex-shrink-0 w-full" key={index}>
+                  <img src={image} alt={product.name} className="w-full h-auto object-cover" />
+                </div>
+              ))}
             </div>
-            
-            {product.images && product.images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto">
-                {product.images.map((image, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImageIndex(index)}
-                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 ${
-                      selectedImageIndex === index ? 'border-primary' : 'border-transparent'
-                    }`}
-                  >
-                    <img
-                      src={image}
-                      alt={`${product.name} ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Product Info */}
@@ -217,6 +211,24 @@ export default function ProductDetails() {
                 )}
               </div>
             </div>
+
+            {/* Variations */}
+            {product.variations && product.variations.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="font-semibold">Variations</h3>
+                <div className="flex flex-wrap gap-2">
+                  {product.variations.map(variation => (
+                    <Button
+                      key={variation.id}
+                      variant={selectedVariant?.id === variation.id ? 'default' : 'outline'}
+                      onClick={() => setSelectedVariant(variation)}
+                    >
+                      {variation.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Quantity Selector */}
             <div className="flex items-center gap-4">

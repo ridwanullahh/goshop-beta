@@ -20,6 +20,7 @@ import Profile from './pages/Profile';
 import MyWallet from './pages/MyWallet';
 import LiveShopping from './pages/LiveShopping';
 import LiveStream from './pages/LiveStream';
+import ComparePage from './pages/ComparePage';
 import CommunityHub from './pages/CommunityHub';
 import HelpCenter from './pages/HelpCenter';
 import ContactUs from './pages/ContactUs';
@@ -73,6 +74,7 @@ function App() {
               <Route path="/wallet" element={<MyWallet />} />
               <Route path="/live" element={<LiveShopping />} />
               <Route path="/live/:id" element={<LiveStream />} />
+              <Route path="/compare" element={<ComparePage />} />
               <Route path="/community" element={<CommunityHub />} />
               <Route path="/support" element={<HelpCenter />} />
               <Route path="/contact" element={<ContactUs />} />
