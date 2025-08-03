@@ -13,7 +13,7 @@ export default function BlogArchive() {
       id: 1,
       title: 'The Future of E-commerce',
       excerpt: 'Discover the latest trends and technologies shaping the future of online shopping.',
-      author: 'Abdullah',
+      author: 'John Doe',
       date: 'Dec 15, 2024',
       category: 'Technology',
       slug: 'future-of-ecommerce'

@@ -30,7 +30,6 @@ const Login = () => {
       const user = await login({ email, password });
       
       if (user) {
-        console.log('User object:', user);
         toast({
           title: "Welcome back!",
           description: "You have been successfully logged in."
@@ -38,17 +37,13 @@ const Login = () => {
         
         // Get user role from the returned user object
         const userRole = user.roles?.[0] || user.role;
-        console.log('User role:', userRole);
         
         // Redirect based on user role
         if (userRole === 'admin') {
-          console.log('Redirecting to admin dashboard');
           navigate('/admin-dashboard');
         } else if (userRole === 'seller') {
-          console.log('Redirecting to seller dashboard');
           navigate('/seller-dashboard');
         } else {
-          console.log('Redirecting to customer dashboard');
           navigate('/customer-dashboard');
         }
       }

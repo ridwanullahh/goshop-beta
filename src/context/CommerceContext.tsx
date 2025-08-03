@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 // Define the context type
 type CommerceContextType = {
-  user: User | null;
+  currentUser: User | null;
   products: Product[];
   categories: Category[];
   orders: Order[];
@@ -39,7 +39,6 @@ type CommerceContextType = {
   updateCartQuantity: (productId: string, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;
   addToWishlist: (productId: string) => Promise<WishlistItem>;
-  removeFromWishlist: (productId: string) => Promise<void>;
   searchProducts: (query: string, filters?: any) => Promise<Product[]>;
   loadUserData: () => Promise<void>;
   addToCompare: (productId: string) => void;
@@ -48,7 +47,7 @@ type CommerceContextType = {
 
 // Create the context with a default value
 export const CommerceContext = createContext<CommerceContextType>({
-  user: null,
+  currentUser: null,
   products: [],
   categories: [],
   orders: [],
@@ -65,7 +64,6 @@ export const CommerceContext = createContext<CommerceContextType>({
   updateCartQuantity: async () => { throw new Error('updateCartQuantity function not implemented'); },
   clearCart: async () => { throw new Error('clearCart function not implemented'); },
   addToWishlist: async () => { throw new Error('addToWishlist function not implemented'); },
-  removeFromWishlist: async () => { throw new Error('removeFromWishlist function not implemented'); },
   searchProducts: async () => { return []; },
   loadUserData: async () => { throw new Error('loadUserData function not implemented'); },
   addToCompare: () => { throw new Error('addToCompare function not implemented'); },
@@ -76,7 +74,7 @@ export const CommerceContext = createContext<CommerceContextType>({
 export const useCommerce = () => useContext(CommerceContext);
 
 export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -93,13 +91,13 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const initializeApp = async () => {
     try {
       setIsLoading(true);
-      const currentUser = await sdk.getCurrentUser();
-      setUser(currentUser);
+      const user = await sdk.getCurrentUser();
+      setCurrentUser(user);
       
-      if (currentUser) {
+      if (user) {
         await Promise.all([
-          loadUserCart(currentUser.id),
-          loadUserWishlist(currentUser.id)
+          loadUserCart(user.id),
+          loadUserWishlist(user.id)
         ]);
       }
       
@@ -151,12 +149,12 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const loadUserData = async () => {
-    if (!user) return;
+    if (!currentUser) return;
     
     try {
       await Promise.all([
-        loadUserCart(user.id),
-        loadUserWishlist(user.id)
+        loadUserCart(currentUser.id),
+        loadUserWishlist(currentUser.id)
       ]);
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -176,16 +174,16 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     onboardingCompleted?: boolean;
   }) => {
     try {
-      const newUser = await sdk.register(userData);
-      setUser(newUser);
+      const user = await sdk.register(userData);
+      setCurrentUser(user);
       
       // Load user-specific data after registration
       await Promise.all([
-        loadUserCart(newUser.id),
-        loadUserWishlist(newUser.id)
+        loadUserCart(user.id),
+        loadUserWishlist(user.id)
       ]);
       
-      return newUser;
+      return user;
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
@@ -194,20 +192,18 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const login = async (credentials: { email: string; password: string }) => {
     try {
-      const loggedInUser = await sdk.login(credentials);
-      setUser(loggedInUser);
+      const user = await sdk.login(credentials);
+      setCurrentUser(user);
       
       // Load user-specific data after login
       await Promise.all([
-        loadUserCart(loggedInUser.id),
-        loadUserWishlist(loggedInUser.id)
+        loadUserCart(user.id),
+        loadUserWishlist(user.id)
       ]);
       
-      toast.success('Login successful');
-      return loggedInUser;
+      return user;
     } catch (error) {
       console.error('Login error:', error);
-      toast.error(error instanceof Error ? error.message : 'Invalid credentials');
       throw error;
     }
   };
@@ -215,7 +211,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const logout = async () => {
     try {
       await sdk.logout();
-      setUser(null);
+      setCurrentUser(null);
       setCart({ items: [] });
       setWishlistItems([]);
     } catch (error) {
@@ -224,12 +220,12 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const addToCart = async (productId: string, quantity: number = 1) => {
-    if (!user) {
+    if (!currentUser) {
       throw new Error('Please login to add items to cart');
     }
 
     try {
-      const cartItem = await sdk.addToCart(user.id, productId, quantity);
+      const cartItem = await sdk.addToCart(currentUser.id, productId, quantity);
       
       // Update local cart state immediately for better UX
       setCart(prevCart => {
@@ -257,12 +253,12 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const addToWishlist = async (productId: string): Promise<WishlistItem> => {
-    if (!user) {
+    if (!currentUser) {
       throw new Error('Please login to add items to wishlist');
     }
 
     try {
-      const wishlistItem = await sdk.addToWishlist(user.id, productId);
+      const wishlistItem = await sdk.addToWishlist(currentUser.id, productId);
       
       // Update local wishlist state
       setWishlistItems(prevItems => {
@@ -280,25 +276,8 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const removeFromWishlist = async (productId: string) => {
-    if (!user) return;
-
-    try {
-      const wishlistItem = wishlistItems.find(item => item.productId === productId);
-      if (!wishlistItem) return;
-
-      await sdk.delete('wishlist', wishlistItem.id);
-      
-      setWishlistItems(prevItems => prevItems.filter(item => item.productId !== productId));
-    } catch (error) {
-      console.error('Error removing from wishlist:', error);
-      await loadUserWishlist(user.id);
-      throw error;
-    }
-  };
-
   const removeFromCart = async (productId: string) => {
-    if (!user) return;
+    if (!currentUser) return;
 
     try {
       // Find the cart item to remove
@@ -315,13 +294,13 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } catch (error) {
       console.error('Error removing from cart:', error);
       // Revert local state on error
-      await loadUserCart(user.id);
+      await loadUserCart(currentUser.id);
       throw error;
     }
   };
 
   const updateCartQuantity = async (productId: string, quantity: number) => {
-    if (!user) return;
+    if (!currentUser) return;
 
     try {
       if (quantity <= 0) {
@@ -343,17 +322,17 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } catch (error) {
       console.error('Error updating cart quantity:', error);
       // Revert local state on error
-      await loadUserCart(user.id);
+      await loadUserCart(currentUser.id);
       throw error;
     }
   };
 
   const clearCart = async () => {
-    if (!user) return;
+    if (!currentUser) return;
 
     try {
       // Clear all cart items for user
-      const cartItems = await sdk.getCart(user.id);
+      const cartItems = await sdk.getCart(currentUser.id);
       await Promise.all(
         cartItems.map(item => sdk.delete('cart_items', item.id))
       );
@@ -393,7 +372,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const value: CommerceContextType = {
-    user,
+    currentUser,
     products,
     categories,
     orders,
@@ -410,7 +389,6 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     updateCartQuantity,
     clearCart,
     addToWishlist,
-    removeFromWishlist,
     searchProducts,
     loadUserData,
     addToCompare,
