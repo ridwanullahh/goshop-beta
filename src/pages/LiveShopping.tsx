@@ -1,62 +1,59 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
 import { useCommerce } from '@/context/CommerceContext';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
-import { LiveVideoShopping } from '@/components/LiveVideoShopping';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { LiveStream } from '@/lib/commerce-sdk';
+import { Link } from 'react-router-dom';
 
-export default function LiveShoppingPage() {
-  const { id } = useParams();
+export default function LiveShopping() {
   const { sdk } = useCommerce();
-  const [stream, setStream] = useState<LiveStream | null>(null);
+  const [liveStreams, setLiveStreams] = useState<LiveStream[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadStream() {
-      if (!sdk || !id) return;
+    async function loadLiveStreams() {
+      if (!sdk) return;
       try {
         const streams = await sdk.getLiveStreams();
-        const streamData = streams.find(s => s.id === id);
-        setStream(streamData || null);
-      } catch (error) {
-        console.error("Failed to load stream", error);
+        setLiveStreams(streams);
       } finally {
         setLoading(false);
       }
     }
-    loadStream();
-  }, [sdk, id]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="container mx-auto px-4 py-8">
-          <div className="text-center">Loading live stream...</div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (!stream) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="container mx-auto px-4 py-8">
-          <div className="text-center">Live stream not found.</div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
+    loadLiveStreams();
+  }, [sdk]);
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container mx-auto px-4 py-8">
-        <LiveVideoShopping />
+        <h1 className="text-3xl font-bold mb-8">Live Shopping</h1>
+        {loading ? (
+          <div className="text-center">Loading live streams...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {liveStreams.map(stream => (
+              <Link to={`/live/${stream.id}`} key={stream.id}>
+                <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+                  <div className="relative">
+                    <img src={`https://picsum.photos/seed/${stream.id}/600/400`} alt={stream.title} className="w-full h-48 object-cover" />
+                    <Badge className="absolute top-2 right-2" variant={stream.status === 'live' ? 'destructive' : 'default'}>
+                      {stream.status}
+                    </Badge>
+                  </div>
+                  <CardHeader>
+                    <CardTitle>{stream.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground line-clamp-2">{stream.description}</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
       </main>
       <Footer />
     </div>

@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -8,19 +9,38 @@ import { useCommerce } from '@/context/CommerceContext';
 import { Heart, ShoppingCart, ArrowLeft } from 'lucide-react';
 
 const Wishlist = () => {
-  const { user, wishlistItems, products, addToCart, removeFromWishlist } = useCommerce();
+  const { currentUser, products, addToCart } = useCommerce();
+  const [wishlistItems, setWishlistItems] = useState<any[]>([]);
 
-  const getWishlistedProducts = () => {
-    return products.filter(p => wishlistItems.some(item => item.productId === p.id));
+  useEffect(() => {
+    if (currentUser) {
+      const saved = localStorage.getItem(`wishlist_${currentUser.uid}`);
+      if (saved) {
+        const wishlistProductIds = JSON.parse(saved);
+        const items = products.filter(p => wishlistProductIds.includes(p.id));
+        setWishlistItems(items);
+      }
+    }
+  }, [currentUser, products]);
+
+  const removeFromWishlist = (productId: string) => {
+    if (!currentUser) return;
+    
+    const saved = localStorage.getItem(`wishlist_${currentUser.uid}`);
+    const wishlistProductIds = saved ? JSON.parse(saved) : [];
+    const updatedIds = wishlistProductIds.filter((id: string) => id !== productId);
+    
+    localStorage.setItem(`wishlist_${currentUser.uid}`, JSON.stringify(updatedIds));
+    setWishlistItems(prev => prev.filter(item => item.id !== productId));
   };
 
   const addAllToCart = () => {
-    getWishlistedProducts().forEach(item => {
+    wishlistItems.forEach(item => {
       addToCart(item.id);
     });
   };
 
-  if (!user) {
+  if (!currentUser) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -48,8 +68,6 @@ const Wishlist = () => {
     );
   }
 
-  const wishlistedProducts = getWishlistedProducts();
-
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -67,12 +85,12 @@ const Wishlist = () => {
                 <div>
                   <h1 className="text-3xl font-bold">My Wishlist</h1>
                   <p className="text-muted-foreground">
-                    {wishlistedProducts.length} {wishlistedProducts.length === 1 ? 'item' : 'items'}
+                    {wishlistItems.length} {wishlistItems.length === 1 ? 'item' : 'items'}
                   </p>
                 </div>
               </div>
               
-              {wishlistedProducts.length > 0 && (
+              {wishlistItems.length > 0 && (
                 <Button onClick={addAllToCart} size="lg">
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   Add All to Cart
@@ -81,7 +99,7 @@ const Wishlist = () => {
             </div>
           </div>
 
-          {wishlistedProducts.length === 0 ? (
+          {wishlistItems.length === 0 ? (
             <div className="text-center py-16">
               <Heart className="w-24 h-24 mx-auto mb-6 text-muted-foreground opacity-30" />
               <h2 className="text-2xl font-bold mb-4">Your wishlist is empty</h2>
@@ -95,7 +113,7 @@ const Wishlist = () => {
               </Link>
             </div>
           ) : (
-            <ProductGrid products={wishlistedProducts} />
+            <ProductGrid products={wishlistItems} />
           )}
         </div>
       </main>

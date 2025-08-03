@@ -1,19 +1,51 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useCommerce } from '@/context/CommerceContext';
-import { LiveStream, ChatMessage } from '@/lib/commerce-sdk';
-import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
-import {
-  Play,
-  Pause,
-  ShoppingCart,
-  Send,
-  Users,
-  Heart
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useCommerce } from '@/context/CommerceContext';
+import { 
+  Play, 
+  Pause, 
+  ShoppingCart, 
+  Heart, 
+  Share2, 
+  MessageCircle, 
+  Users, 
+  Volume2,
+  Maximize,
+  Gift,
+  Star
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+interface LiveStream {
+  id: string;
+  title: string;
+  sellerId: string;
+  sellerName: string;
+  sellerAvatar: string;
+  thumbnail: string;
+  isLive: boolean;
+  viewerCount: number;
+  products: Array<{
+    id: string;
+    name: string;
+    price: number;
+    image: string;
+  }>;
+  startTime: string;
+}
+
+interface ChatMessage {
+  id: string;
+  username: string;
+  message: string;
+  timestamp: Date;
+  type: 'message' | 'purchase' | 'join';
+}
 
 export function LiveVideoShopping() {
   const [streams, setStreams] = useState<LiveStream[]>([]);
@@ -24,20 +56,74 @@ export function LiveVideoShopping() {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const { addToCart, user: currentUser, sdk } = useCommerce();
+  const { addToCart, currentUser } = useCommerce();
   const { toast } = useToast();
 
+  // Mock live streams data
   useEffect(() => {
-    const fetchLiveStreams = async () => {
-      if (!sdk) return;
-      const liveStreams = await sdk.getLiveStreams();
-      setStreams(liveStreams);
-      if (liveStreams.length > 0) {
-        setActiveStream(liveStreams[0]);
+    const mockStreams: LiveStream[] = [
+      {
+        id: 'stream1',
+        title: 'Tech Gadgets Flash Sale - Up to 70% Off!',
+        sellerId: 'seller1',
+        sellerName: 'TechZone Store',
+        sellerAvatar: '/placeholder.svg',
+        thumbnail: '/placeholder.svg',
+        isLive: true,
+        viewerCount: 1247,
+        products: [
+          { id: '1', name: 'Wireless Earbuds Pro', price: 79.99, image: '/placeholder.svg' },
+          { id: '2', name: 'Smart Watch Series X', price: 199.99, image: '/placeholder.svg' }
+        ],
+        startTime: new Date().toISOString()
+      },
+      {
+        id: 'stream2',
+        title: 'Fashion Haul - Summer Collection 2024',
+        sellerId: 'seller2',
+        sellerName: 'StyleHub',
+        sellerAvatar: '/placeholder.svg',
+        thumbnail: '/placeholder.svg',
+        isLive: true,
+        viewerCount: 892,
+        products: [
+          { id: '3', name: 'Summer Dress Collection', price: 45.99, image: '/placeholder.svg' },
+          { id: '4', name: 'Casual Sneakers', price: 89.99, image: '/placeholder.svg' }
+        ],
+        startTime: new Date(Date.now() - 30 * 60 * 1000).toISOString()
       }
-    };
-    fetchLiveStreams();
-  }, [sdk]);
+    ];
+
+    setStreams(mockStreams);
+    setActiveStream(mockStreams[0]);
+
+    // Mock chat messages
+    const mockMessages: ChatMessage[] = [
+      {
+        id: '1',
+        username: 'shopper123',
+        message: 'Love these earbuds! Just ordered a pair 🎧',
+        timestamp: new Date(Date.now() - 2 * 60 * 1000),
+        type: 'message'
+      },
+      {
+        id: '2',
+        username: 'techfan',
+        message: 'How long is the battery life?',
+        timestamp: new Date(Date.now() - 1 * 60 * 1000),
+        type: 'message'
+      },
+      {
+        id: '3',
+        username: 'buyer456',
+        message: 'Just purchased the smart watch! 🛒',
+        timestamp: new Date(),
+        type: 'purchase'
+      }
+    ];
+
+    setChatMessages(mockMessages);
+  }, []);
 
   // Auto-scroll chat to bottom
   useEffect(() => {
@@ -59,118 +145,256 @@ export function LiveVideoShopping() {
     setSelectedProduct(product);
   };
 
-  const handleAddToCart = async (product: any) => {
-    if (!currentUser) {
-      toast({ title: 'Please log in to add items to your cart.', variant: 'destructive' });
-      return;
-    }
+  const handleAddToCart = async (productId: string) => {
     try {
-      await addToCart(product.id, 1);
-      toast({ title: 'Product added to cart!', variant: 'default' });
+      await addToCart(productId);
+      
+      // Add purchase message to chat
+      if (currentUser) {
+        const purchaseMessage: ChatMessage = {
+          id: Date.now().toString(),
+          username: currentUser.email?.split('@')[0] || 'Anonymous',
+          message: `Just added ${selectedProduct?.name || 'item'} to cart! 🛒`,
+          timestamp: new Date(),
+          type: 'purchase'
+        };
+        setChatMessages(prev => [...prev, purchaseMessage]);
+      }
+
+      toast({
+        title: "Added to Cart!",
+        description: "Item added successfully during live stream",
+      });
     } catch (error) {
-      toast({ title: 'Failed to add product to cart.', variant: 'destructive' });
+      toast({
+        title: "Failed to Add",
+        description: "Please try again",
+        variant: "destructive"
+      });
     }
   };
 
   const handleSendMessage = () => {
-    if (chatInput.trim() && currentUser) {
-      const newMessage: ChatMessage = {
-        id: Date.now().toString(),
-        username: currentUser.name || 'Anonymous',
-        message: chatInput.trim(),
-        timestamp: new Date(),
-        type: 'message'
-      };
-      setChatMessages([...chatMessages, newMessage]);
-      setChatInput('');
-    }
+    if (!chatInput.trim() || !currentUser) return;
+
+    const newMessage: ChatMessage = {
+      id: Date.now().toString(),
+      username: currentUser.email?.split('@')[0] || 'Anonymous',
+      message: chatInput,
+      timestamp: new Date(),
+      type: 'message'
+    };
+
+    setChatMessages(prev => [...prev, newMessage]);
+    setChatInput('');
   };
 
-  if (streams.length === 0) {
+  if (!activeStream) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold mb-2">No Live Streams Available</h2>
-        <p className="text-muted-foreground">Check back later for live shopping events.</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+        {streams.map(stream => (
+          <Card key={stream.id} className="cursor-pointer hover:shadow-lg transition-shadow">
+            <div className="relative">
+              <img
+                src={stream.thumbnail}
+                alt={stream.title}
+                className="w-full h-48 object-cover rounded-t-lg"
+              />
+              {stream.isLive && (
+                <Badge className="absolute top-2 left-2 bg-red-500 text-white animate-pulse">
+                  LIVE
+                </Badge>
+              )}
+              <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-sm flex items-center gap-1">
+                <Users className="w-3 h-3" />
+                {stream.viewerCount.toLocaleString()}
+              </div>
+            </div>
+            <CardContent className="p-4">
+              <h3 className="font-semibold mb-2 line-clamp-2">{stream.title}</h3>
+              <div className="flex items-center gap-2 mb-3">
+                <img
+                  src={stream.sellerAvatar}
+                  alt={stream.sellerName}
+                  className="w-6 h-6 rounded-full"
+                />
+                <span className="text-sm text-muted-foreground">{stream.sellerName}</span>
+              </div>
+              <Button 
+                className="w-full"
+                onClick={() => setActiveStream(stream)}
+              >
+                <Play className="w-4 h-4 mr-2" />
+                Watch Live
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-      {/* Video Player Section */}
-      <div className="lg:col-span-3">
-        <Card className="overflow-hidden">
-          <div className="relative aspect-video bg-black">
-            <video ref={videoRef} className="w-full h-full" onClick={handlePlayPause} />
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20" onClick={handlePlayPause}>
-              {!isPlaying && <Play className="h-16 w-16 text-white" />}
-            </div>
-            <div className="absolute top-4 left-4">
-              <Badge variant="destructive">LIVE</Badge>
-            </div>
-            <div className="absolute top-4 right-4 flex items-center space-x-2 bg-black/50 p-2 rounded-lg">
-              <Users className="h-5 w-5 text-white" />
-              <span className="text-white font-semibold">{activeStream?.viewerCount || 0}</span>
-            </div>
-          </div>
-        </Card>
-        <div className="mt-4">
-          <h2 className="text-2xl font-bold">{activeStream?.title}</h2>
-          <div className="flex items-center space-x-4 mt-2">
-            <img src={activeStream?.sellerAvatar} alt={activeStream?.sellerName} className="w-12 h-12 rounded-full" />
-            <div>
-              <p className="font-semibold">{activeStream?.sellerName}</p>
-              <Button size="sm" variant="outline">Follow</Button>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="flex flex-col lg:flex-row gap-6 p-6 h-[calc(100vh-120px)]">
+      {/* Video Player */}
+      <div className="flex-1 flex flex-col">
+        <Card className="flex-1">
+          <CardContent className="p-0 relative h-full">
+            <div className="relative w-full h-full bg-black rounded-lg overflow-hidden">
+              {/* Placeholder for video */}
+              <div className="w-full h-full bg-gradient-to-br from-purple-900 to-blue-900 flex items-center justify-center">
+                <div className="text-center text-white">
+                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Play className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">{activeStream.title}</h3>
+                  <div className="flex items-center justify-center gap-4 text-sm">
+                    <Badge className="bg-red-500 animate-pulse">LIVE</Badge>
+                    <span className="flex items-center gap-1">
+                      <Users className="w-4 h-4" />
+                      {activeStream.viewerCount.toLocaleString()} watching
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-      {/* Chat & Products Section */}
-      <div>
-        <Card>
-          <CardContent className="p-0">
-            <div className="h-[400px] overflow-y-auto p-4 space-y-4">
-              {chatMessages.map(msg => (
-                <div key={msg.id} className="flex space-x-2">
-                  <p className="text-sm">
-                    <span className="font-semibold">{msg.username}:</span> {msg.message}
-                  </p>
+              {/* Video Controls */}
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    onClick={handlePlayPause}
+                  >
+                    {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                  </Button>
+                  <Button size="icon" variant="secondary">
+                    <Volume2 className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="icon" variant="secondary">
+                    <Heart className="w-4 h-4" />
+                  </Button>
+                  <Button size="icon" variant="secondary">
+                    <Share2 className="w-4 h-4" />
+                  </Button>
+                  <Button size="icon" variant="secondary">
+                    <Maximize className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Featured Products */}
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle className="text-lg">Featured Products</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {activeStream.products.map(product => (
+                <div
+                  key={product.id}
+                  className="cursor-pointer group"
+                  onClick={() => handleProductClick(product)}
+                >
+                  <div className="aspect-square mb-2 overflow-hidden rounded-lg">
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                  </div>
+                  <h4 className="font-medium text-sm mb-1 line-clamp-2">{product.name}</h4>
+                  <p className="text-primary font-bold">${product.price}</p>
+                  <Button
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddToCart(product.id);
+                    }}
+                  >
+                    <ShoppingCart className="w-3 h-3 mr-1" />
+                    Add to Cart
+                  </Button>
                 </div>
               ))}
-              <div ref={chatEndRef} />
             </div>
-            <div className="p-4 border-t">
-              <div className="relative">
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Chat Sidebar */}
+      <div className="w-full lg:w-80">
+        <Card className="h-full flex flex-col">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <MessageCircle className="w-5 h-5" />
+              Live Chat
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 flex flex-col p-4">
+            {/* Chat Messages */}
+            <ScrollArea className="flex-1 mb-4">
+              <div className="space-y-3">
+                {chatMessages.map(message => (
+                  <div key={message.id} className="text-sm">
+                    {message.type === 'purchase' && (
+                      <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded-lg border border-green-200 dark:border-green-800">
+                        <div className="flex items-center gap-2">
+                          <Gift className="w-4 h-4 text-green-600" />
+                          <span className="font-medium text-green-800 dark:text-green-200">
+                            {message.username}
+                          </span>
+                        </div>
+                        <p className="text-green-700 dark:text-green-300 mt-1">
+                          {message.message}
+                        </p>
+                      </div>
+                    )}
+                    {message.type === 'message' && (
+                      <div>
+                        <span className="font-medium text-primary">
+                          {message.username}:
+                        </span>
+                        <span className="ml-2">{message.message}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div ref={chatEndRef} />
+              </div>
+            </ScrollArea>
+
+            {/* Chat Input */}
+            {currentUser ? (
+              <div className="flex gap-2">
                 <Input
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                   placeholder="Join the conversation..."
-                  className="pr-12"
+                  className="text-sm"
                 />
-                <Button size="icon" variant="ghost" className="absolute top-1/2 right-1 transform -translate-y-1/2" onClick={handleSendMessage}>
-                  <Send className="h-5 w-5" />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!chatInput.trim()}
+                  size="icon"
+                >
+                  <MessageCircle className="w-4 h-4" />
                 </Button>
               </div>
-            </div>
+            ) : (
+              <div className="text-center text-sm text-muted-foreground">
+                Sign in to join the chat
+              </div>
+            )}
           </CardContent>
         </Card>
-        <div className="mt-4 space-y-4">
-          <h3 className="font-bold text-lg">Featured Products</h3>
-          {activeStream?.products.map(product => (
-            <Card key={product.id} className="flex items-center p-2 space-x-3 cursor-pointer" onClick={() => handleProductClick(product)}>
-              <img src={product.image} alt={product.name} className="w-16 h-16 rounded-lg object-cover" />
-              <div className="flex-1">
-                <p className="font-semibold text-sm">{product.name}</p>
-                <p className="text-primary font-bold">${product.price.toFixed(2)}</p>
-              </div>
-              <Button size="sm" onClick={(e) => { e.stopPropagation(); handleAddToCart(product); }}>
-                <ShoppingCart className="h-4 w-4" />
-              </Button>
-            </Card>
-          ))}
-        </div>
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useCommerce } from '@/context/CommerceContext';
 import { useRealTimeData } from '@/hooks/useRealTimeData';
+import Notifications from './Notifications';
 import { SidebarModal } from '@/components/SidebarModal';
 import { SearchModal } from '@/components/SearchModal';
 import { 
@@ -32,7 +33,7 @@ import { Product, Notification } from '@/lib/commerce-sdk';
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user: currentUser, cart, logout } = useCommerce();
+  const { currentUser, cart, logout } = useCommerce();
   const { data: products } = useRealTimeData<Product>('products');
   const { data: notifications } = useRealTimeData<Notification>('notifications', [], [currentUser?.id]);
   
@@ -42,7 +43,7 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const cartItemCount = cart?.items?.length || 0;
-  const unreadNotifications = notifications.filter(n => !n.isRead).length;
+  const unreadNotifications = notifications.filter(n => !n.read).length;
 
   // Real-time search
   React.useEffect(() => {
@@ -260,6 +261,7 @@ export function Header() {
               </Button>
             </SidebarModal>
             
+            <Notifications />
 
             {/* Wishlist */}
             <SidebarModal type="wishlist">

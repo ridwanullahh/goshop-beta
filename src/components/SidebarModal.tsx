@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -29,22 +30,22 @@ interface SidebarModalProps {
 
 export function SidebarModal({ children, type }: SidebarModalProps) {
   const [open, setOpen] = useState(false);
-  const { user, cart, addToCart, removeFromCart, updateCartQuantity, sdk } = useCommerce();
+  const { currentUser, cart, addToCart, removeFromCart, updateCartQuantity } = useCommerce();
   const { data: products } = useRealTimeData<Product>('products');
-  const { data: notifications } = useRealTimeData<Notification>('notifications', [], [user?.id]);
+  const { data: notifications } = useRealTimeData<Notification>('notifications', [], [currentUser?.id]);
   const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
 
   // Load wishlist items from localStorage
   useEffect(() => {
-    if (open && user && type === 'wishlist') {
-      const saved = localStorage.getItem(`wishlist_${user.uid}`);
+    if (open && currentUser && type === 'wishlist') {
+      const saved = localStorage.getItem(`wishlist_${currentUser.uid}`);
       if (saved) {
         const wishlistProductIds = JSON.parse(saved);
         const items = products.filter(p => wishlistProductIds.includes(p.id));
         setWishlistItems(items);
       }
     }
-  }, [open, user, products, type]);
+  }, [open, currentUser, products, type]);
 
   // Calculate cart items with product details
   const cartItems = cart?.items?.map(item => {
@@ -55,13 +56,13 @@ export function SidebarModal({ children, type }: SidebarModalProps) {
   const cartTotal = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
 
   const removeFromWishlist = (productId: string) => {
-    if (!user) return;
+    if (!currentUser) return;
     
-    const saved = localStorage.getItem(`wishlist_${user.uid}`);
+    const saved = localStorage.getItem(`wishlist_${currentUser.uid}`);
     const wishlistProductIds = saved ? JSON.parse(saved) : [];
     const updatedIds = wishlistProductIds.filter((id: string) => id !== productId);
     
-    localStorage.setItem(`wishlist_${user.uid}`, JSON.stringify(updatedIds));
+    localStorage.setItem(`wishlist_${currentUser.uid}`, JSON.stringify(updatedIds));
     setWishlistItems(prev => prev.filter(item => item.id !== productId));
   };
 
@@ -78,7 +79,7 @@ export function SidebarModal({ children, type }: SidebarModalProps) {
     switch (type) {
       case 'cart': return `Shopping Cart (${cartItems.length})`;
       case 'wishlist': return `Wishlist (${wishlistItems.length})`;
-      case 'notifications': return `Notifications (${notifications.filter(n => !n.isRead).length})`;
+      case 'notifications': return `Notifications (${notifications.filter(n => !n.read).length})`;
       default: return '';
     }
   };
@@ -231,7 +232,7 @@ export function SidebarModal({ children, type }: SidebarModalProps) {
           {notifications.map((notification) => (
             <div
               key={notification.id}
-              className={`p-3 border rounded-lg ${!notification.isRead ? 'bg-blue-50 border-blue-200' : ''}`}
+              className={`p-3 border rounded-lg ${!notification.read ? 'bg-blue-50 border-blue-200' : ''}`}
             >
               <div className="flex items-start gap-3">
                 {getNotificationIcon(notification.type)}
@@ -242,26 +243,9 @@ export function SidebarModal({ children, type }: SidebarModalProps) {
                     {new Date(notification.createdAt).toLocaleDateString()}
                   </p>
                 </div>
-                {!notification.isRead && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={async () => {
-                      await sdk.update('notifications', notification.id, { isRead: true });
-                    }}
-                  >
-                    <Check className="h-4 w-4" />
-                  </Button>
+                {!notification.read && (
+                  <Badge variant="secondary" className="text-xs">New</Badge>
                 )}
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={async () => {
-                    await sdk.delete('notifications', notification.id);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
               </div>
             </div>
           ))}
