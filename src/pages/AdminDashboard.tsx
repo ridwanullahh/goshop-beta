@@ -29,7 +29,10 @@ import {
   FileText,
   MessageSquare,
   Star,
-  Package
+  Package,
+  Percent,
+  Download,
+  RefreshCw
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -44,6 +47,7 @@ const AdminDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [sellers, setSellers] = useState([]);
   const [affiliates, setAffiliates] = useState([]);
+  const [stores, setStores] = useState([]);
   const [helpArticles, setHelpArticles] = useState([]);
   const [blogs, setBlogs] = useState([]);
   const [analytics, setAnalytics] = useState(null);
@@ -90,6 +94,7 @@ const AdminDashboard = () => {
         ordersData,
         sellersData,
         affiliatesData,
+        storesData,
         helpArticlesData,
         blogsData,
         analyticsData
@@ -99,6 +104,7 @@ const AdminDashboard = () => {
         sdk.sdk.get('orders'),
         sdk.sdk.get('sellers'),
         sdk.sdk.get('affiliates'),
+        sdk.getStores(),
         sdk.getHelpArticles(),
         sdk.getBlogs(),
         sdk.getPlatformAnalytics()
@@ -109,6 +115,7 @@ const AdminDashboard = () => {
       setOrders(ordersData);
       setSellers(sellersData);
       setAffiliates(affiliatesData);
+      setStores(storesData);
       setHelpArticles(helpArticlesData);
       setBlogs(blogsData);
       setAnalytics(analyticsData);
@@ -217,9 +224,14 @@ const AdminDashboard = () => {
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'sellers', label: 'Sellers', icon: Store },
+    { id: 'stores', label: 'Store Approvals', icon: Shield },
     { id: 'affiliates', label: 'Affiliates', icon: TrendingUp },
     { id: 'products', label: 'Products', icon: Package },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
+    { id: 'commissions', label: 'Commission Settings', icon: Percent },
+    { id: 'agreements', label: 'Seller Agreement', icon: FileText },
+    { id: 'withdrawals', label: 'Withdrawals', icon: Download },
+    { id: 'refunds', label: 'Refunds & Disputes', icon: RefreshCw },
     { id: 'help', label: 'Help Center', icon: FileText },
     { id: 'blog', label: 'Blog', icon: MessageSquare },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -413,6 +425,210 @@ const AdminDashboard = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+        )}
+
+        {/* Store Approvals Management */}
+        {activeSection === 'stores' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Store Approvals</h2>
+              <div className="flex items-center space-x-2">
+                <Badge variant="outline">
+                  {stores.filter((store: any) => !store.isApproved).length} Pending
+                </Badge>
+                <Badge variant="secondary">
+                  {stores.filter((store: any) => store.isApproved).length} Approved
+                </Badge>
+              </div>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Pending Store Approvals</CardTitle>
+                <CardDescription>Review and approve new store applications</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {stores.filter((store: any) => !store.isApproved).length === 0 ? (
+                    <div className="text-center py-8">
+                      <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                      <h3 className="text-lg font-semibold mb-2">No pending approvals</h3>
+                      <p className="text-muted-foreground">All store applications have been reviewed.</p>
+                    </div>
+                  ) : (
+                    stores.filter((store: any) => !store.isApproved).map((store: any) => (
+                      <div key={store.id} className="border rounded-lg p-4 space-y-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-lg">{store.name}</h3>
+                            <p className="text-sm text-muted-foreground mb-2">
+                              Store Slug: {window.location.origin}/{store.slug}
+                            </p>
+                            <p className="text-muted-foreground mb-3">{store.description}</p>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div>
+                                <span className="font-medium">Business Type:</span>
+                                <p className="text-muted-foreground">{store.businessType || 'Not specified'}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium">Location:</span>
+                                <p className="text-muted-foreground">{store.location || 'Not specified'}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium">Website:</span>
+                                <p className="text-muted-foreground">{store.website || 'Not specified'}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium">Phone:</span>
+                                <p className="text-muted-foreground">{store.phone || 'Not specified'}</p>
+                              </div>
+                            </div>
+
+                            <div className="mt-3 text-xs text-muted-foreground">
+                              Applied: {new Date(store.createdAt).toLocaleDateString()}
+                            </div>
+                          </div>
+
+                          <div className="flex space-x-2 ml-4">
+                            <Button
+                              size="sm"
+                              onClick={() => handleUpdateItemStatus('stores', store.id, {
+                                isApproved: true,
+                                isActive: true
+                              })}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDeleteItem('stores', store.id, store.name)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Reject
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Approved Stores</CardTitle>
+                <CardDescription>Manage approved and active stores</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {stores.filter((store: any) => store.isApproved).map((store: any) => (
+                    <div key={store.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex-1">
+                        <h3 className="font-semibold">{store.name}</h3>
+                        <p className="text-sm text-muted-foreground">{store.slug}</p>
+                        <div className="flex items-center space-x-4 mt-2">
+                          {getStatusBadge(store.isActive ? 'active' : 'suspended')}
+                          {store.isVerified && getStatusBadge('verified')}
+                          <span className="text-xs text-muted-foreground">
+                            Approved: {new Date(store.updatedAt || store.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleUpdateItemStatus('stores', store.id, {
+                            isActive: !store.isActive
+                          })}
+                        >
+                          {store.isActive ? <Ban className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleUpdateItemStatus('stores', store.id, {
+                            isVerified: !store.isVerified
+                          })}
+                        >
+                          <Shield className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Commission Settings */}
+        {activeSection === 'commissions' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Commission Settings</h2>
+            </div>
+            <div className="text-center py-12">
+              <Percent className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <h3 className="text-xl font-semibold mb-2">Commission Management</h3>
+              <p className="text-muted-foreground">
+                Commission settings functionality is being implemented. Check back soon!
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Seller Agreement Management */}
+        {activeSection === 'agreements' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Seller Agreement</h2>
+            </div>
+            <div className="text-center py-12">
+              <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <h3 className="text-xl font-semibold mb-2">Agreement Management</h3>
+              <p className="text-muted-foreground">
+                Seller agreement management functionality is being implemented. Check back soon!
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Withdrawal Management */}
+        {activeSection === 'withdrawals' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Withdrawal Requests</h2>
+            </div>
+            <div className="text-center py-12">
+              <Download className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <h3 className="text-xl font-semibold mb-2">Withdrawal Management</h3>
+              <p className="text-muted-foreground">
+                Withdrawal management functionality is being implemented. Check back soon!
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Refunds & Disputes Management */}
+        {activeSection === 'refunds' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Refunds & Disputes</h2>
+            </div>
+            <div className="text-center py-12">
+              <RefreshCw className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <h3 className="text-xl font-semibold mb-2">Refund & Dispute Management</h3>
+              <p className="text-muted-foreground">
+                Refund and dispute management functionality is being implemented. Check back soon!
+              </p>
+            </div>
           </div>
         )}
 
