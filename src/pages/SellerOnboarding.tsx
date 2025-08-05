@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,17 +7,25 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Store, 
-  FileText, 
-  CreditCard, 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { useCommerce } from '@/context/CommerceContext';
+import {
+  Store,
+  FileText,
+  CreditCard,
   CheckCircle,
   ArrowRight,
   ArrowLeft,
   Upload,
-  Shield
+  Shield,
+  AlertCircle,
+  Check,
+  X,
+  Globe,
+  Phone,
+  Building
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 
 const SellerOnboarding = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -27,7 +35,9 @@ const SellerOnboarding = () => {
       businessType: '',
       description: '',
       website: '',
-      phone: ''
+      phone: '',
+      storeSlug: '',
+      location: ''
     },
     verification: {
       businessLicense: null as File | null,
@@ -42,9 +52,77 @@ const SellerOnboarding = () => {
     }
   });
 
+  const [slugAvailability, setSlugAvailability] = useState<{
+    isChecking: boolean;
+    isAvailable: boolean | null;
+    message: string;
+  }>({
+    isChecking: false,
+    isAvailable: null,
+    message: ''
+  });
+
+  const [sellerAgreement, setSellerAgreement] = useState<any>(null);
+  const [agreementAccepted, setAgreementAccepted] = useState(false);
+
   const navigate = useNavigate();
   const { toast } = useToast();
-  const totalSteps = 4;
+  const { sdk, currentUser } = useCommerce();
+  const totalSteps = 5; // Added agreement step
+
+  // Debounced slug validation
+  const checkSlugAvailability = useCallback(async (slug: string) => {
+    if (!sdk || !slug || slug.length < 3) {
+      setSlugAvailability({
+        isChecking: false,
+        isAvailable: null,
+        message: slug.length > 0 && slug.length < 3 ? 'Slug must be at least 3 characters' : ''
+      });
+      return;
+    }
+
+    setSlugAvailability(prev => ({ ...prev, isChecking: true }));
+
+    try {
+      const isAvailable = await sdk.checkStoreSlugAvailability(slug);
+      setSlugAvailability({
+        isChecking: false,
+        isAvailable,
+        message: isAvailable ? 'Slug is available!' : 'This slug is already taken'
+      });
+    } catch (error) {
+      setSlugAvailability({
+        isChecking: false,
+        isAvailable: null,
+        message: 'Error checking availability'
+      });
+    }
+  }, [sdk]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (onboardingData.businessInfo.storeSlug) {
+        checkSlugAvailability(onboardingData.businessInfo.storeSlug);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [onboardingData.businessInfo.storeSlug, checkSlugAvailability]);
+
+  useEffect(() => {
+    loadSellerAgreement();
+  }, []);
+
+  const loadSellerAgreement = async () => {
+    if (!sdk) return;
+
+    try {
+      const agreement = await sdk.getActiveSellerAgreement();
+      setSellerAgreement(agreement);
+    } catch (error) {
+      console.error('Error loading seller agreement:', error);
+    }
+  };
 
   const handleBusinessInfoChange = (field: string, value: string) => {
     setOnboardingData(prev => ({
@@ -88,16 +166,77 @@ const SellerOnboarding = () => {
     }
   };
 
-  const handleComplete = () => {
-    // In production, save onboarding data to your SDK
-    console.log('Seller onboarding completed:', onboardingData);
-    
-    toast({
-      title: "Seller Application Submitted!",
-      description: "We'll review your application and get back to you within 24 hours."
-    });
+  const handleComplete = async () => {
+    if (!sdk || !currentUser) {
+      toast({
+        title: "Error",
+        description: "Please log in to complete onboarding.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    navigate('/seller-dashboard');
+    if (!slugAvailability.isAvailable) {
+      toast({
+        title: "Invalid Store Slug",
+        description: "Please choose an available store slug.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!agreementAccepted) {
+      toast({
+        title: "Agreement Required",
+        description: "Please accept the seller agreement to continue.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Create store record
+      const storeData = {
+        name: onboardingData.businessInfo.businessName,
+        slug: onboardingData.businessInfo.storeSlug,
+        description: onboardingData.businessInfo.description,
+        sellerId: currentUser.id,
+        businessType: onboardingData.businessInfo.businessType,
+        website: onboardingData.businessInfo.website,
+        phone: onboardingData.businessInfo.phone,
+        location: onboardingData.businessInfo.location,
+        policies: {
+          shipping: onboardingData.policies.shippingPolicy,
+          returns: onboardingData.policies.returnPolicy,
+          processingTime: onboardingData.policies.processingTime
+        },
+        isApproved: false,
+        isActive: false,
+        isVerified: false
+      };
+
+      await sdk.createStore(storeData);
+
+      // Update user to mark onboarding as completed
+      await sdk.sdk.update('users', currentUser.id, {
+        onboardingCompleted: true,
+        storeSlug: onboardingData.businessInfo.storeSlug
+      });
+
+      toast({
+        title: "Seller Application Submitted!",
+        description: "We'll review your application and get back to you within 24 hours."
+      });
+
+      navigate('/seller-dashboard');
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit application. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const renderStep = () => {
@@ -147,27 +286,87 @@ const SellerOnboarding = () => {
                 />
               </div>
               
+              <div>
+                <Label htmlFor="storeSlug">Store URL Slug *</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-muted-foreground">{window.location.origin}/</span>
+                    <Input
+                      id="storeSlug"
+                      value={onboardingData.businessInfo.storeSlug}
+                      onChange={(e) => {
+                        const slug = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                        handleBusinessInfoChange('storeSlug', slug);
+                      }}
+                      placeholder="your-store-name"
+                      className="flex-1"
+                      required
+                    />
+                    {slugAvailability.isChecking && (
+                      <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                    )}
+                    {slugAvailability.isAvailable === true && (
+                      <Check className="h-4 w-4 text-green-500" />
+                    )}
+                    {slugAvailability.isAvailable === false && (
+                      <X className="h-4 w-4 text-red-500" />
+                    )}
+                  </div>
+                  {slugAvailability.message && (
+                    <p className={`text-xs ${
+                      slugAvailability.isAvailable === true ? 'text-green-600' :
+                      slugAvailability.isAvailable === false ? 'text-red-600' :
+                      'text-muted-foreground'
+                    }`}>
+                      {slugAvailability.message}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    This will be your store's direct URL. Choose something memorable and professional.
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="location">Business Location *</Label>
+                <Input
+                  id="location"
+                  value={onboardingData.businessInfo.location}
+                  onChange={(e) => handleBusinessInfoChange('location', e.target.value)}
+                  placeholder="City, State/Province, Country"
+                  required
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="website">Website</Label>
-                  <Input
-                    id="website"
-                    type="url"
-                    value={onboardingData.businessInfo.website}
-                    onChange={(e) => handleBusinessInfoChange('website', e.target.value)}
-                    placeholder="https://your-website.com"
-                  />
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="website"
+                      type="url"
+                      value={onboardingData.businessInfo.website}
+                      onChange={(e) => handleBusinessInfoChange('website', e.target.value)}
+                      placeholder="https://your-website.com"
+                      className="pl-10"
+                    />
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="phone">Phone Number *</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={onboardingData.businessInfo.phone}
-                    onChange={(e) => handleBusinessInfoChange('phone', e.target.value)}
-                    placeholder="+1 (555) 123-4567"
-                    required
-                  />
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={onboardingData.businessInfo.phone}
+                      onChange={(e) => handleBusinessInfoChange('phone', e.target.value)}
+                      placeholder="+1 (555) 123-4567"
+                      className="pl-10"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -308,6 +507,56 @@ const SellerOnboarding = () => {
         return (
           <div className="space-y-6">
             <div className="text-center">
+              <FileText className="h-16 w-16 mx-auto mb-4 text-blue-500" />
+              <h2 className="text-2xl font-bold">Seller Agreement</h2>
+              <p className="text-muted-foreground mt-2">
+                Please review and accept our seller agreement
+              </p>
+            </div>
+
+            {sellerAgreement ? (
+              <div className="space-y-4">
+                <div className="max-h-96 overflow-y-auto border rounded-lg p-4 bg-muted/20">
+                  <div className="prose prose-sm max-w-none">
+                    <div className="whitespace-pre-wrap">
+                      {(() => {
+                        let content = sellerAgreement.content;
+                        Object.entries(sellerAgreement.variables || {}).forEach(([key, value]) => {
+                          content = content.replace(new RegExp(`{{${key}}}`, 'g'), value as string);
+                        });
+                        return content;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3 p-4 border rounded-lg">
+                  <input
+                    type="checkbox"
+                    id="agreement-accept"
+                    checked={agreementAccepted}
+                    onChange={(e) => setAgreementAccepted(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <label htmlFor="agreement-accept" className="text-sm">
+                    I have read and agree to the seller agreement terms and conditions.
+                    I understand the commission structure and my responsibilities as a seller.
+                  </label>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading seller agreement...</p>
+              </div>
+            )}
+          </div>
+        );
+
+      case 5:
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
               <CheckCircle className="h-16 w-16 mx-auto mb-4 text-green-500" />
               <h2 className="text-2xl font-bold">Application Submitted!</h2>
               <p className="text-muted-foreground mt-2">
@@ -385,7 +634,8 @@ const SellerOnboarding = () => {
               onClick={handleNext}
               disabled={
                 (currentStep === 1 && (!onboardingData.businessInfo.businessName || !onboardingData.businessInfo.description)) ||
-                (currentStep === 2 && !onboardingData.verification.businessLicense)
+                (currentStep === 2 && !onboardingData.verification.businessLicense) ||
+                (currentStep === 4 && !agreementAccepted)
               }
             >
               {currentStep === totalSteps ? 'Submit Application' : 'Next'}

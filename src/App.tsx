@@ -9,8 +9,8 @@ import Products from './pages/Products';
 import ProductDetails from './pages/ProductDetails';
 import Categories from './pages/Categories';
 import Category from './pages/Category';
-import Stores from './pages/Stores';
-import Store from './pages/Store';
+
+import StoresDirectory from './pages/StoresDirectory';
 import Search from './pages/Search';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
@@ -43,6 +43,13 @@ import { MobileDashboardLayout } from '@/components/MobileDashboardLayout';
 import StoreDetail from './pages/StoreDetail';
 import OrderDetail from './pages/OrderDetail';
 import Notifications from './pages/Notifications';
+import BlogArchive from './pages/BlogArchive';
+import BlogSingle from './pages/BlogSingle';
+import SellerDashboardBlog from './pages/seller-dashboard/Blog';
+import EnhancedCheckout from './pages/EnhancedCheckout';
+import RefundDispute from './pages/RefundDispute';
+import Wallet from './pages/Wallet';
+import EnhancedProducts from './pages/seller-dashboard/EnhancedProducts';
 
 function App() {
   return (
@@ -60,9 +67,8 @@ function App() {
               <Route path="/product/:id" element={<ProductDetails />} />
               <Route path="/categories" element={<Categories />} />
               <Route path="/category/:slug" element={<Category />} />
-              <Route path="/stores" element={<Stores />} />
+              <Route path="/stores" element={<StoresDirectory />} />
               <Route path="/stores/:slug" element={<StoreDetail />} />
-              <Route path="/store/:id" element={<Store />} />
               <Route path="/search" element={<Search />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/checkout" element={<Checkout />} />
@@ -103,6 +109,13 @@ function App() {
               <Route path="/seller-dashboard/reviews" element={<SellerDashboardReviews />} />
               <Route path="/seller-dashboard/payments" element={<SellerDashboardPayments />} />
               <Route path="/seller-dashboard/settings" element={<SellerDashboardSettings />} />
+              <Route path="/seller-dashboard/blog" element={<SellerDashboardBlog />} />
+              <Route path="/seller-dashboard/products-enhanced" element={<EnhancedProducts />} />
+              <Route path="/blog" element={<BlogArchive />} />
+              <Route path="/blog/:slug" element={<BlogSingle />} />
+              <Route path="/checkout-enhanced" element={<EnhancedCheckout />} />
+              <Route path="/refunds-disputes" element={<RefundDispute />} />
+              <Route path="/wallet" element={<Wallet />} />
               <Route
                 path="/affiliate-dashboard"
                 element={
@@ -123,6 +136,8 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              {/* Direct store slug route - must be last to avoid conflicts */}
+              <Route path="/:storeSlug" element={<StoreDetail />} />
             </Routes>
           </div>
         </BrowserRouter>
