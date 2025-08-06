@@ -22,9 +22,24 @@ export interface User {
 export interface ProductVariation {
   id: string;
   name: string;
+  values: string[];
+}
+
+export interface ProductVariant {
+  id: string;
+  sku: string;
   price: number;
   inventory: number;
   attributes: { [key: string]: string };
+  images?: string[];
+  isActive: boolean;
+}
+
+export interface ProductBundle {
+  id: string;
+  productId: string;
+  quantity: number;
+  discount?: number;
 }
 
 export interface Product {
@@ -58,6 +73,19 @@ export interface Product {
   soldCount?: number;
   cloudinaryId?: string;
   variations?: ProductVariation[];
+
+  // Enhanced product features
+  type: 'simple' | 'variable' | 'bundle';
+  variants?: ProductVariant[];
+  bundles?: ProductBundle[];
+
+  // Shipping settings
+  shippingEnabled: boolean;
+  shippingCost?: number;
+
+  // Affiliate settings
+  affiliateEnabled: boolean;
+  affiliateCommission?: number; // percentage
 }
 
 export interface Wallet {
@@ -75,6 +103,111 @@ export interface Transaction {
   type: 'credit' | 'debit';
   description: string;
   createdAt: string;
+  orderId?: string;
+  productId?: string;
+  status: 'pending' | 'completed' | 'failed' | 'reversed';
+}
+
+export interface PlatformCommission {
+  id: string;
+  percentage: number;
+  category?: string;
+  isGlobal: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AffiliateLink {
+  id: string;
+  affiliateId: string;
+  productId?: string;
+  collectionId?: string;
+  code: string;
+  clicks: number;
+  conversions: number;
+  earnings: number;
+  createdAt: string;
+  isActive: boolean;
+}
+
+export interface AffiliateCollection {
+  id: string;
+  affiliateId: string;
+  name: string;
+  description?: string;
+  productIds: string[];
+  linkCode: string;
+  createdAt: string;
+  updatedAt: string;
+  isActive: boolean;
+}
+
+export interface RefundRequest {
+  id: string;
+  orderId: string;
+  productId: string;
+  customerId: string;
+  sellerId: string;
+  amount: number;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  adminNotes?: string;
+  evidence?: string[];
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+}
+
+export interface Dispute {
+  id: string;
+  refundRequestId: string;
+  customerId: string;
+  sellerId: string;
+  adminId?: string;
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  messages: DisputeMessage[];
+  resolution?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DisputeMessage {
+  id: string;
+  senderId: string;
+  senderType: 'customer' | 'seller' | 'admin';
+  message: string;
+  attachments?: string[];
+  createdAt: string;
+}
+
+export interface WithdrawalRequest {
+  id: string;
+  userId: string;
+  userType: 'customer' | 'affiliate';
+  amount: number;
+  bankDetails: {
+    accountName: string;
+    accountNumber: string;
+    bankName: string;
+    routingNumber?: string;
+  };
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  adminNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+  processedAt?: string;
+  processedBy?: string;
+}
+
+export interface SellerAgreement {
+  id: string;
+  version: string;
+  content: string;
+  variables: { [key: string]: any };
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Order {
@@ -83,7 +216,14 @@ export interface Order {
   items: OrderItem[];
   products?: OrderItem[];
   total: number;
-  status: string;
+  subtotal: number;
+  platformCommission: number;
+  affiliateCommission: number;
+  shippingTotal: number;
+  paidAmount: number; // Amount paid at checkout (commissions + shipping)
+  remainingAmount: number; // Amount to be paid on delivery
+  status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+  paymentStatus: 'partial' | 'completed' | 'refunded';
   paymentMethod: string;
   shippingAddress: Address;
   billingAddress: Address;
@@ -91,14 +231,28 @@ export interface Order {
   updatedAt: string;
   sellerId?: string;
   transactionRef?: string;
+  deliveryMethod: 'pickup' | 'shipping';
+  trackingNumber?: string;
+  deliveredAt?: string;
+  affiliateId?: string; // If order came through affiliate link
 }
 
 export interface OrderItem {
-  productId:string;
+  productId: string;
   quantity: number;
   price: number;
   name: string;
   images?: string[];
+  sellerId: string;
+  storeId?: string;
+  variantId?: string;
+  bundleItems?: string[];
+  shippingCost: number;
+  deliveryMethod: 'pickup' | 'shipping';
+  platformCommission: number;
+  affiliateCommission: number;
+  affiliateId?: string;
+  status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
 }
 
 export interface Address {
@@ -153,12 +307,32 @@ export interface Store {
   sellerId?: string;
   createdAt?: string;
   updatedAt?: string;
-  slug?: string;
+  slug: string;
   rating?: number;
   reviewCount?: number;
   productCount?: number;
   isVerified?: boolean;
+  isApproved?: boolean;
+  isActive?: boolean;
   location?: string;
+  established?: string;
+  totalSales?: number;
+  businessType?: string;
+  website?: string;
+  phone?: string;
+  email?: string;
+  socialMedia?: {
+    facebook?: string;
+    twitter?: string;
+    instagram?: string;
+  };
+  policies?: {
+    shipping?: string;
+    returns?: string;
+    privacy?: string;
+  };
+  categories?: string[];
+  tags?: string[];
 }
 
 export interface Notification {
@@ -213,8 +387,15 @@ export interface Blog {
   id: string;
   title: string;
   content: string;
+  excerpt?: string;
   slug: string;
   author: string;
+  authorId?: string;
+  storeId?: string;
+  storeName?: string;
+  category?: string;
+  tags?: string[];
+  featuredImage?: string;
   isPublished: boolean;
   createdAt: string;
   updatedAt: string;
@@ -262,6 +443,71 @@ export default class CommerceSDK {
     this.owner = import.meta.env.VITE_GITHUB_OWNER || 'ridwanullahh';
     this.repo = import.meta.env.VITE_GITHUB_REPO || 'goshopdb';
     this.sdk = this;
+    this.initializeCollections();
+  }
+
+  private async initializeCollections(): Promise<void> {
+    const collections = [
+      'platformCommissions',
+      'affiliateLinks',
+      'affiliateCollections',
+      'refundRequests',
+      'disputes',
+      'withdrawalRequests',
+      'sellerAgreements',
+      'wallets',
+      'transactions'
+    ];
+
+    for (const collection of collections) {
+      try {
+        await this.getData(collection);
+      } catch (error) {
+        console.log(`Initializing collection: ${collection}`);
+        await this.saveData(collection, []);
+      }
+    }
+
+    // Initialize default platform commission if not exists
+    const commissions = await this.getData('platformCommissions');
+    if (commissions.length === 0) {
+      await this.createPlatformCommission({
+        percentage: 5,
+        isGlobal: true
+      });
+    }
+
+    // Initialize default seller agreement if not exists
+    const agreements = await this.getData('sellerAgreements');
+    if (agreements.length === 0) {
+      await this.createSellerAgreement({
+        content: `# Seller Agreement
+
+By registering as a seller on {{platform_name}}, you agree to the following terms:
+
+## Commission Structure
+- Platform commission: {{commission_percentage}}% per sale
+- Commission is collected at checkout from customers
+- You receive the remaining payment upon successful delivery
+
+## Responsibilities
+- Deliver products as described
+- Maintain accurate inventory
+- Respond to customer inquiries promptly
+- Honor refund requests when valid
+
+## Affiliate Program
+- You may enable affiliate marketing for your products
+- Set your own affiliate commission rates
+- Affiliate commissions are deducted from your earnings
+
+This agreement is effective immediately and may be updated from time to time.`,
+        variables: {
+          platform_name: 'GoShop',
+          commission_percentage: '5'
+        }
+      });
+    }
   }
 
   // AI Helper methods
@@ -285,12 +531,19 @@ export default class CommerceSDK {
       return { results: [], suggestions: [] };
     }
   };
-private async uploadToCloudinary(file: File): Promise<string> {
+async uploadToCloudinary(file: File): Promise<string> {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      throw new Error('Cloudinary configuration missing. Please set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET');
+    }
+
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_preset', 'goshop'); // Replace with your Cloudinary upload preset
+    formData.append('upload_preset', uploadPreset);
 
-    const response = await fetch('https://api.cloudinary.com/v1_1/your_cloud_name/image/upload', { // Replace with your Cloudinary cloud name
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
       method: 'POST',
       body: formData,
     });
@@ -904,39 +1157,382 @@ private async uploadToCloudinary(file: File): Promise<string> {
     return users.find(user => user.id === id && user.role === 'affiliate');
   }
 
-  async getAffiliateLinks(affiliateId: string): Promise<AffiliateLink[]> {
-    const links = await this.getData('affiliate_links') as AffiliateLink[];
-    return links.filter(link => link.affiliateId === affiliateId);
+
+
+
+
+
+
+  // Store methods
+  async getStoreProducts(sellerId: string): Promise<Product[]> {
+    const products = await this.getProducts();
+    return products.filter(product => product.sellerId === sellerId);
   }
 
-  async getCommissions(affiliateId: string): Promise<Commission[]> {
-    const commissions = await this.getData('commissions') as Commission[];
-    return commissions.filter(commission => commission.affiliateId === affiliateId);
+  async getStoreBySlug(slug: string): Promise<Store | undefined> {
+    const stores = await this.getStores();
+    return stores.find(store => store.slug === slug);
   }
 
-  async createAffiliateLink(linkData: any): Promise<AffiliateLink> {
+  async createStore(storeData: any): Promise<Store> {
     try {
-      const newLink: AffiliateLink = {
-        ...linkData,
+      const newStore: Store = {
+        ...storeData,
         id: Date.now().toString(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isApproved: false,
+        isActive: false
       };
 
-      const links = await this.getData('affiliate_links');
-      links.push(newLink);
-      await this.saveData('affiliate_links', links);
-      
-      return newLink;
+      const stores = await this.getData('stores');
+      stores.push(newStore);
+      await this.saveData('stores', stores);
+
+      return newStore;
     } catch (error) {
-      console.error('Error creating affiliate link:', error);
+      console.error('Error creating store:', error);
       throw error;
     }
   }
 
-  // Store methods
-  async getStoreProducts(storeId: string): Promise<Product[]> {
+  async updateStore(id: string, updates: any): Promise<Store> {
+    return await this.update('stores', id, {
+      ...updates,
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  async checkStoreSlugAvailability(slug: string, excludeId?: string): Promise<boolean> {
+    const stores = await this.getStores();
+    return !stores.some(store => store.slug === slug && store.id !== excludeId);
+  }
+
+  async getSellerStore(sellerId: string): Promise<Store | undefined> {
+    const stores = await this.getStores();
+    return stores.find(store => store.sellerId === sellerId);
+  }
+
+  async getStoreBlogPosts(storeId: string): Promise<Blog[]> {
+    const blogs = await this.getBlogs();
+    return blogs.filter(blog => blog.storeId === storeId && blog.isPublished);
+  }
+
+  async createStoreBlogPost(blogData: any): Promise<Blog> {
+    try {
+      const newBlog: Blog = {
+        ...blogData,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const blogs = await this.getData('blogs');
+      blogs.push(newBlog);
+      await this.saveData('blogs', blogs);
+
+      return newBlog;
+    } catch (error) {
+      console.error('Error creating store blog post:', error);
+      throw error;
+    }
+  }
+
+  async getStoreAnalytics(storeId: string): Promise<any> {
+    const products = await this.getStoreProducts(storeId);
+    const orders = await this.getOrders();
+    const storeOrders = orders.filter(order =>
+      order.items?.some(item => products.find(p => p.id === item.productId))
+    );
+
+    return {
+      totalProducts: products.length,
+      totalOrders: storeOrders.length,
+      totalRevenue: storeOrders.reduce((sum, order) => sum + (order.total || 0), 0),
+      averageOrderValue: storeOrders.length > 0 ?
+        storeOrders.reduce((sum, order) => sum + (order.total || 0), 0) / storeOrders.length : 0
+    };
+  }
+
+  // Platform Commission Methods
+  async getPlatformCommissions(): Promise<PlatformCommission[]> {
+    return await this.getData('platformCommissions');
+  }
+
+  async createPlatformCommission(commissionData: any): Promise<PlatformCommission> {
+    const newCommission: PlatformCommission = {
+      ...commissionData,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const commissions = await this.getData('platformCommissions');
+    commissions.push(newCommission);
+    await this.saveData('platformCommissions', commissions);
+
+    return newCommission;
+  }
+
+  async updatePlatformCommission(id: string, updates: any): Promise<PlatformCommission> {
+    return await this.update('platformCommissions', id, {
+      ...updates,
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  async getGlobalCommission(): Promise<number> {
+    const commissions = await this.getPlatformCommissions();
+    const globalCommission = commissions.find(c => c.isGlobal);
+    return globalCommission?.percentage || 5; // Default 5%
+  }
+
+  async getCategoryCommission(category: string): Promise<number> {
+    const commissions = await this.getPlatformCommissions();
+    const categoryCommission = commissions.find(c => c.category === category);
+    return categoryCommission?.percentage || await this.getGlobalCommission();
+  }
+
+  // Affiliate Methods
+  async getAffiliateLinks(affiliateId: string): Promise<AffiliateLink[]> {
+    const links = await this.getData('affiliateLinks');
+    return links.filter(link => link.affiliateId === affiliateId);
+  }
+
+  async createAffiliateLink(linkData: any): Promise<AffiliateLink> {
+    const newLink: AffiliateLink = {
+      ...linkData,
+      id: Date.now().toString(),
+      code: this.generateAffiliateCode(),
+      clicks: 0,
+      conversions: 0,
+      earnings: 0,
+      createdAt: new Date().toISOString(),
+      isActive: true
+    };
+
+    const links = await this.getData('affiliateLinks');
+    links.push(newLink);
+    await this.saveData('affiliateLinks', links);
+
+    return newLink;
+  }
+
+  async getAffiliateCollections(affiliateId: string): Promise<AffiliateCollection[]> {
+    const collections = await this.getData('affiliateCollections');
+    return collections.filter(collection => collection.affiliateId === affiliateId);
+  }
+
+  async createAffiliateCollection(collectionData: any): Promise<AffiliateCollection> {
+    const newCollection: AffiliateCollection = {
+      ...collectionData,
+      id: Date.now().toString(),
+      linkCode: this.generateAffiliateCode(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isActive: true
+    };
+
+    const collections = await this.getData('affiliateCollections');
+    collections.push(newCollection);
+    await this.saveData('affiliateCollections', collections);
+
+    return newCollection;
+  }
+
+  async getAffiliateProducts(): Promise<Product[]> {
     const products = await this.getProducts();
-    return products.filter(product => product.storeId === storeId);
+    return products.filter(product => product.affiliateEnabled && product.isActive);
+  }
+
+  async trackAffiliateClick(code: string): Promise<void> {
+    const links = await this.getData('affiliateLinks');
+    const collections = await this.getData('affiliateCollections');
+
+    const link = links.find(l => l.code === code);
+    if (link) {
+      link.clicks += 1;
+      await this.saveData('affiliateLinks', links);
+    }
+
+    const collection = collections.find(c => c.linkCode === code);
+    if (collection) {
+      // Track collection click - could be implemented similarly
+    }
+  }
+
+  private generateAffiliateCode(): string {
+    return Math.random().toString(36).substring(2, 10).toUpperCase();
+  }
+
+  // Refund and Dispute Methods
+  async createRefundRequest(refundData: any): Promise<RefundRequest> {
+    const newRefund: RefundRequest = {
+      ...refundData,
+      id: Date.now().toString(),
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const refunds = await this.getData('refundRequests');
+    refunds.push(newRefund);
+    await this.saveData('refundRequests', refunds);
+
+    return newRefund;
+  }
+
+  async getRefundRequests(userId?: string, userType?: 'customer' | 'seller'): Promise<RefundRequest[]> {
+    const refunds = await this.getData('refundRequests');
+    if (!userId) return refunds;
+
+    if (userType === 'customer') {
+      return refunds.filter(refund => refund.customerId === userId);
+    } else if (userType === 'seller') {
+      return refunds.filter(refund => refund.sellerId === userId);
+    }
+
+    return refunds;
+  }
+
+  async updateRefundRequest(id: string, updates: any): Promise<RefundRequest> {
+    return await this.update('refundRequests', id, {
+      ...updates,
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  async createDispute(disputeData: any): Promise<Dispute> {
+    const newDispute: Dispute = {
+      ...disputeData,
+      id: Date.now().toString(),
+      status: 'open',
+      messages: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const disputes = await this.getData('disputes');
+    disputes.push(newDispute);
+    await this.saveData('disputes', disputes);
+
+    return newDispute;
+  }
+
+  async addDisputeMessage(disputeId: string, messageData: any): Promise<void> {
+    const disputes = await this.getData('disputes');
+    const dispute = disputes.find(d => d.id === disputeId);
+
+    if (dispute) {
+      const newMessage: DisputeMessage = {
+        ...messageData,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString()
+      };
+
+      dispute.messages.push(newMessage);
+      dispute.updatedAt = new Date().toISOString();
+      await this.saveData('disputes', disputes);
+    }
+  }
+
+  // Wallet and Withdrawal Methods
+  async getUserWallet(userId: string): Promise<Wallet> {
+    const wallets = await this.getData('wallets');
+    let wallet = wallets.find(w => w.userId === userId);
+
+    if (!wallet) {
+      wallet = {
+        id: Date.now().toString(),
+        userId,
+        balance: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      wallets.push(wallet);
+      await this.saveData('wallets', wallets);
+    }
+
+    return wallet;
+  }
+
+  async updateWalletBalance(userId: string, amount: number, type: 'credit' | 'debit', description: string): Promise<void> {
+    const wallet = await this.getUserWallet(userId);
+    const newBalance = type === 'credit' ? wallet.balance + amount : wallet.balance - amount;
+
+    if (newBalance < 0 && type === 'debit') {
+      throw new Error('Insufficient wallet balance');
+    }
+
+    wallet.balance = newBalance;
+    wallet.updatedAt = new Date().toISOString();
+
+    const wallets = await this.getData('wallets');
+    const index = wallets.findIndex(w => w.id === wallet.id);
+    wallets[index] = wallet;
+    await this.saveData('wallets', wallets);
+
+    // Create transaction record
+    const transaction: Transaction = {
+      id: Date.now().toString(),
+      walletId: wallet.id,
+      amount,
+      type,
+      description,
+      createdAt: new Date().toISOString(),
+      status: 'completed'
+    };
+
+    const transactions = await this.getData('transactions');
+    transactions.push(transaction);
+    await this.saveData('transactions', transactions);
+  }
+
+  async createWithdrawalRequest(requestData: any): Promise<WithdrawalRequest> {
+    const newRequest: WithdrawalRequest = {
+      ...requestData,
+      id: Date.now().toString(),
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const requests = await this.getData('withdrawalRequests');
+    requests.push(newRequest);
+    await this.saveData('withdrawalRequests', requests);
+
+    return newRequest;
+  }
+
+  async getWithdrawalRequests(userId?: string): Promise<WithdrawalRequest[]> {
+    const requests = await this.getData('withdrawalRequests');
+    return userId ? requests.filter(r => r.userId === userId) : requests;
+  }
+
+  // Seller Agreement Methods
+  async getActiveSellerAgreement(): Promise<SellerAgreement | null> {
+    const agreements = await this.getData('sellerAgreements');
+    return agreements.find(a => a.isActive) || null;
+  }
+
+  async createSellerAgreement(agreementData: any): Promise<SellerAgreement> {
+    // Deactivate current active agreement
+    const agreements = await this.getData('sellerAgreements');
+    agreements.forEach(a => a.isActive = false);
+
+    const newAgreement: SellerAgreement = {
+      ...agreementData,
+      id: Date.now().toString(),
+      version: `v${agreements.length + 1}`,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    agreements.push(newAgreement);
+    await this.saveData('sellerAgreements', agreements);
+
+    return newAgreement;
   }
 
   // Product reviews
