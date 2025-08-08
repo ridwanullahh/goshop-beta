@@ -252,9 +252,32 @@ export default function EnhancedCustomerDashboard() {
                 </Button>
               </Link>
               
-              <Link to="/support" className="block">
+              <Link to="/wallet" className="block">
                 <Button variant="outline" className="w-full h-20 flex-col space-y-2 hover:bg-green-50">
-                  <MessageSquare className="h-6 w-6 text-green-500" />
+                  <CreditCard className="h-6 w-6 text-green-500" />
+                  <span className="text-sm font-medium">My Wallet</span>
+                </Button>
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+              <Link to="/refunds-disputes" className="block">
+                <Button variant="outline" className="w-full h-20 flex-col space-y-2 hover:bg-orange-50">
+                  <Package className="h-6 w-6 text-orange-500" />
+                  <span className="text-sm font-medium">Refunds & Disputes</span>
+                </Button>
+              </Link>
+
+              <Link to="/blog" className="block">
+                <Button variant="outline" className="w-full h-20 flex-col space-y-2 hover:bg-purple-50">
+                  <MessageSquare className="h-6 w-6 text-purple-500" />
+                  <span className="text-sm font-medium">Blog</span>
+                </Button>
+              </Link>
+
+              <Link to="/support" className="block">
+                <Button variant="outline" className="w-full h-20 flex-col space-y-2 hover:bg-blue-50">
+                  <MessageSquare className="h-6 w-6 text-blue-500" />
                   <span className="text-sm font-medium">Support</span>
                 </Button>
               </Link>

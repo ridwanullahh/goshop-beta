@@ -1,22 +1,26 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
-import { 
-  Star, 
-  MapPin, 
-  Users, 
-  ShoppingBag, 
+import {
+  Star,
+  MapPin,
+  Users,
+  ShoppingBag,
   Search,
   ArrowLeft,
   Heart,
   Share2,
-  Filter
+  Filter,
+  BookOpen,
+  Clock,
+  User,
+  Calendar
 } from 'lucide-react';
 import { useCommerce } from '@/context/CommerceContext';
 import { Header } from '@/components/Header';
@@ -25,58 +29,62 @@ import { ProductCard } from '@/components/ProductCard';
 
 export default function StoreDetail() {
   const { storeSlug } = useParams();
-  const { sdk, products } = useCommerce();
+  const { sdk } = useCommerce();
   const [store, setStore] = useState<any>(null);
   const [storeProducts, setStoreProducts] = useState<any[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
+  const [storeBlogPosts, setStoreBlogPosts] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('products');
 
   useEffect(() => {
     async function loadStore() {
       if (!sdk || !storeSlug) return;
-      
+
       try {
-        const storeData = await sdk.getStore(storeSlug);
-        setStore(storeData);
-        
-        if (storeData) {
-          const productsData = await sdk.getStoreProducts(storeData.sellerId);
+        // Check if storeSlug is actually a direct store slug (baseurl/storeslug)
+        let storeData;
+
+        // First try to get store by slug
+        storeData = await sdk.getStoreBySlug(storeSlug);
+
+        if (!storeData) {
+          // If not found by slug, try by ID for backward compatibility
+          storeData = await sdk.getStore(storeSlug);
+        }
+
+        if (storeData && storeData.isApproved && storeData.isActive) {
+          setStore(storeData);
+
+          // Load store-specific products and blog posts
+          const [productsData, blogPostsData] = await Promise.all([
+            sdk.getStoreProducts(storeData.sellerId),
+            sdk.getStoreBlogPosts(storeData.id)
+          ]);
+
           setStoreProducts(productsData);
           setFilteredProducts(productsData);
+          setStoreBlogPosts(blogPostsData);
+        } else {
+          setStore(null);
+          setStoreProducts([]);
+          setFilteredProducts([]);
+          setStoreBlogPosts([]);
         }
       } catch (error) {
         console.error('Failed to load store:', error);
-        // Fallback store data
-        const fallbackStore = {
-          id: '1',
-          name: 'TechHub Electronics',
-          slug: 'techhub-electronics',
-          description: 'Your one-stop shop for all electronic gadgets and accessories. We pride ourselves on offering the latest technology at competitive prices with exceptional customer service.',
-          logo: '/placeholder.svg',
-          banner: '/placeholder.svg',
-          sellerId: 'seller1',
-          rating: 4.8,
-          reviewCount: 1247,
-          productCount: 156,
-          isVerified: true,
-          location: 'New York, USA',
-          established: '2020',
-          totalSales: 25000
-        };
-        setStore(fallbackStore);
-        
-        // Filter products for this store
-        const storeProds = products.filter(p => p.sellerId === fallbackStore.sellerId);
-        setStoreProducts(storeProds);
-        setFilteredProducts(storeProds);
+        setStore(null);
+        setStoreProducts([]);
+        setFilteredProducts([]);
+        setStoreBlogPosts([]);
       } finally {
         setIsLoading(false);
       }
     }
 
     loadStore();
-  }, [sdk, storeSlug, products]);
+  }, [sdk, storeSlug]);
 
   useEffect(() => {
     const filtered = storeProducts.filter(product =>
@@ -241,9 +249,16 @@ export default function StoreDetail() {
         </div>
 
         {/* Store Products */}
-        <Tabs defaultValue="products" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="products">Products ({storeProducts.length})</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="products">
+              <ShoppingBag className="h-4 w-4 mr-2" />
+              Products ({storeProducts.length})
+            </TabsTrigger>
+            <TabsTrigger value="blog">
+              <BookOpen className="h-4 w-4 mr-2" />
+              Blog ({storeBlogPosts.length})
+            </TabsTrigger>
             <TabsTrigger value="reviews">Reviews</TabsTrigger>
             <TabsTrigger value="about">About</TabsTrigger>
           </TabsList>
@@ -284,7 +299,75 @@ export default function StoreDetail() {
               </div>
             )}
           </TabsContent>
-          
+
+          <TabsContent value="blog" className="mt-6">
+            {storeBlogPosts.length > 0 ? (
+              <div className="space-y-6">
+                {storeBlogPosts.map((post) => (
+                  <Card key={post.id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex gap-4">
+                        {post.featuredImage && (
+                          <div className="w-32 h-24 rounded-lg overflow-hidden flex-shrink-0">
+                            <img
+                              src={post.featuredImage}
+                              alt={post.title}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between mb-2">
+                            <h3 className="font-semibold text-lg line-clamp-2">
+                              <Link
+                                to={`/blog/${post.slug}`}
+                                className="hover:text-primary transition-colors"
+                              >
+                                {post.title}
+                              </Link>
+                            </h3>
+                            {post.category && (
+                              <Badge variant="secondary" className="ml-2 flex-shrink-0">
+                                {post.category}
+                              </Badge>
+                            )}
+                          </div>
+
+                          <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
+                            {post.excerpt || post.content.substring(0, 150) + '...'}
+                          </p>
+
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              {post.author}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(post.createdAt).toLocaleDateString()}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {Math.ceil(post.content.split(' ').length / 200)} min read
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <h3 className="text-xl font-semibold mb-2">No blog posts yet</h3>
+                <p className="text-muted-foreground">
+                  This store hasn't published any blog posts yet. Check back later!
+                </p>
+              </div>
+            )}
+          </TabsContent>
+
           <TabsContent value="reviews" className="mt-6">
             <Card>
               <CardContent className="p-6 text-center">
