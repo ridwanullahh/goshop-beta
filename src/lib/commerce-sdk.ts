@@ -350,12 +350,15 @@ export interface Post {
   userId: string;
   userName?: string;
   userAvatar?: string;
-  title: string;
+  role: 'seller' | 'affiliate' | 'admin';
   content: string;
   images?: string[];
+  productIds?: string[]; // attached products
+  storeId?: string;
   likes: number;
   comments: number;
   tags?: string[];
+  status: 'pending' | 'approved' | 'rejected';
   isLiked?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -593,7 +596,7 @@ async uploadToCloudinary(file: File): Promise<string> {
 
     return response.json();
   }
-  
+
   private async deleteFile(path: string): Promise<void> {
     const url = `${this.baseURL}/repos/${this.owner}/${this.repo}/contents/${path}`;
     const headers = {
@@ -847,14 +850,14 @@ async uploadToCloudinary(file: File): Promise<string> {
     try {
       const data = await this.getData(collection);
       const itemIndex = data.findIndex((item: any) => item.id === id);
-      
+
       if (itemIndex === -1) {
         throw new Error(`Item with id ${id} not found in ${collection}`);
       }
 
       const updatedItem = { ...data[itemIndex], ...updates, updatedAt: new Date().toISOString() };
       data[itemIndex] = updatedItem;
-      
+
       await this.saveData(collection, data);
       return updatedItem;
     } catch (error) {
@@ -886,7 +889,7 @@ async uploadToCloudinary(file: File): Promise<string> {
       const orders = await this.getData('orders');
       orders.push(newOrder);
       await this.saveData('orders', orders);
-      
+
       return newOrder;
     } catch (error) {
       console.error('Error creating order:', error);
@@ -894,11 +897,11 @@ async uploadToCloudinary(file: File): Promise<string> {
     }
   }
 
-  async register(userData: { 
-    email: string; 
-    password: string; 
-    name: string; 
-    firstName?: string; 
+  async register(userData: {
+    email: string;
+    password: string;
+    name: string;
+    firstName?: string;
     lastName?: string;
     role?: string;
     roles?: string[];
@@ -908,7 +911,7 @@ async uploadToCloudinary(file: File): Promise<string> {
   }): Promise<User> {
     try {
       const users = await this.getData('users');
-      
+
       const existingUser = users.find((user: User) => user.email === userData.email);
       if (existingUser) {
         throw new Error('User already exists with this email');
@@ -931,9 +934,9 @@ async uploadToCloudinary(file: File): Promise<string> {
 
       users.push(newUser);
       await this.saveData('users', users);
-      
+
       localStorage.setItem('currentUser', JSON.stringify(newUser));
-      
+
       return newUser;
     } catch (error) {
       console.error('Error registering user:', error);
@@ -951,18 +954,18 @@ async uploadToCloudinary(file: File): Promise<string> {
       };
 
       const wishlist = await this.getData('wishlist');
-      
-      const existingItem = wishlist.find((item: WishlistItem) => 
+
+      const existingItem = wishlist.find((item: WishlistItem) =>
         item.userId === userId && item.productId === productId
       );
-      
+
       if (existingItem) {
         return existingItem;
       }
 
       wishlist.push(wishlistItem);
       await this.saveData('wishlist', wishlist);
-      
+
       return wishlistItem;
     } catch (error) {
       console.error('Error adding to wishlist:', error);
@@ -999,7 +1002,7 @@ async uploadToCloudinary(file: File): Promise<string> {
       const products = await this.getData('products');
       products.push(newProduct);
       await this.saveData('products', products);
-      
+
       return newProduct;
     } catch (error) {
       console.error('Error creating product:', error);
@@ -1049,14 +1052,15 @@ async uploadToCloudinary(file: File): Promise<string> {
         id: Date.now().toString(),
         likes: 0,
         comments: 0,
+        status: 'pending',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
       const posts = await this.getData('posts');
-      posts.push(newPost);
+      posts.unshift(newPost);
       await this.saveData('posts', posts);
-      
+
       return newPost;
     } catch (error) {
       console.error('Error creating post:', error);
@@ -1085,12 +1089,31 @@ async uploadToCloudinary(file: File): Promise<string> {
       const comments = await this.getData('comments');
       comments.push(newComment);
       await this.saveData('comments', comments);
-      
+
       return newComment;
     } catch (error) {
       console.error('Error creating comment:', error);
       throw error;
     }
+  }
+
+  async moderatePost(postId: string, action: 'approve' | 'reject', adminId: string, reason?: string): Promise<Post> {
+    const updates: any = {
+      status: action === 'approve' ? 'approved' : 'rejected',
+      updatedAt: new Date().toISOString(),
+      moderation: { adminId, action, reason, at: new Date().toISOString() }
+    };
+    return await this.update('posts', postId, updates);
+  }
+
+  async getApprovedPosts(): Promise<Post[]> {
+    const posts = await this.getPosts();
+    return posts.filter(p => p.status === 'approved');
+  }
+
+  async getRolePosts(role: 'seller' | 'affiliate' | 'admin'): Promise<Post[]> {
+    const posts = await this.getPosts();
+    return posts.filter(p => p.role === role);
   }
 
   // Admin methods
@@ -1110,7 +1133,7 @@ async uploadToCloudinary(file: File): Promise<string> {
       const articles = await this.getData('help_articles');
       articles.push(newArticle);
       await this.saveData('help_articles', articles);
-      
+
       return newArticle;
     } catch (error) {
       console.error('Error creating help article:', error);
@@ -1134,7 +1157,7 @@ async uploadToCloudinary(file: File): Promise<string> {
       const blogs = await this.getData('blogs');
       blogs.push(newBlog);
       await this.saveData('blogs', blogs);
-      
+
       return newBlog;
     } catch (error) {
       console.error('Error creating blog:', error);
@@ -1557,7 +1580,7 @@ async uploadToCloudinary(file: File): Promise<string> {
     //    handler (like `/api/paystack-callback.ts`) after the payment gateway
     //    confirms the transaction was successful.
     // 3. This prevents a user from calling this function to get free money.
-    
+
     // This mock implementation credits the wallet directly for demonstration purposes.
     let wallet = await this.getWallet(userId);
     if (!wallet) {
@@ -1636,7 +1659,7 @@ async uploadToCloudinary(file: File): Promise<string> {
       const wallets = await this.getData('wallets');
       wallets.push(newWallet);
       await this.saveData('wallets', wallets);
-      
+
       return newWallet;
     } catch (error) {
       console.error('Error creating wallet:', error);
@@ -1657,7 +1680,7 @@ async uploadToCloudinary(file: File): Promise<string> {
     const users = await this.getData('users');
     users.push(newSeller);
     await this.saveData('users', users);
-    
+
     return newSeller;
   }
 
@@ -1678,7 +1701,7 @@ async uploadToCloudinary(file: File): Promise<string> {
       const streams = await this.getData('livestreams');
       streams.push(newStream);
       await this.saveData('livestreams', streams);
-      
+
       return newStream;
     } catch (error) {
       console.error('Error creating live stream:', error);
@@ -1702,7 +1725,7 @@ async uploadToCloudinary(file: File): Promise<string> {
     const users = await this.getData('users');
     users.push(newAffiliate);
     await this.saveData('users', users);
-    
+
     return newAffiliate;
   }
 }
