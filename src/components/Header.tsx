@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useCommerce } from '@/context/CommerceContext';
 import { useRealTimeData } from '@/hooks/useRealTimeData';
+import Notifications from './Notifications';
 import { SidebarModal } from '@/components/SidebarModal';
 import { SearchModal } from '@/components/SearchModal';
 import { 
@@ -25,7 +26,11 @@ import {
   TrendingUp,
   Package,
   Users,
-  Zap
+  Zap,
+  ChevronDown,
+  Wallet,
+  RefreshCw,
+  FileText
 } from 'lucide-react';
 import { Product, Notification } from '@/lib/commerce-sdk';
 
@@ -175,8 +180,56 @@ export function Header() {
             
             <Link to="/stores" className="hover:text-primary">Stores</Link>
             <Link to="/products" className="hover:text-primary">Products</Link>
+            <Link to="/blog" className="hover:text-primary">Blog</Link>
+            {currentUser && (
+              <div className="relative group">
+                <span className="hover:text-primary cursor-pointer flex items-center">
+                  My Account
+                  <ChevronDown className="h-3 w-3 ml-1" />
+                </span>
+                <div className="absolute top-full left-0 mt-1 w-48 bg-background border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div className="py-1">
+                    <Link to="/wallet" className="block px-4 py-2 text-sm hover:bg-muted">
+                      💳 Wallet
+                    </Link>
+                    <Link to="/refunds-disputes" className="block px-4 py-2 text-sm hover:bg-muted">
+                      🔄 Refunds & Disputes
+                    </Link>
+                    <Link to="/orders" className="block px-4 py-2 text-sm hover:bg-muted">
+                      📦 My Orders
+                    </Link>
+                    {currentUser.role === 'affiliate' && (
+                      <Link to="/affiliate-dashboard" className="block px-4 py-2 text-sm hover:bg-muted">
+                        🤝 Affiliate Dashboard
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             {currentUser?.role === 'seller' && (
-              <Link to="/seller-dashboard" className="hover:text-primary">Dashboard</Link>
+              <div className="relative group">
+                <Link to="/seller-dashboard" className="hover:text-primary flex items-center">
+                  Dashboard
+                  <ChevronDown className="h-3 w-3 ml-1" />
+                </Link>
+                <div className="absolute top-full left-0 mt-1 w-48 bg-background border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div className="py-1">
+                    <Link to="/seller-dashboard" className="block px-4 py-2 text-sm hover:bg-muted">
+                      Overview
+                    </Link>
+                    <Link to="/seller-dashboard/products-enhanced" className="block px-4 py-2 text-sm hover:bg-muted">
+                      Enhanced Products
+                    </Link>
+                    <Link to="/seller-dashboard/blog" className="block px-4 py-2 text-sm hover:bg-muted">
+                      Blog Manager
+                    </Link>
+                    <Link to="/seller-dashboard/settings" className="block px-4 py-2 text-sm hover:bg-muted">
+                      Settings
+                    </Link>
+                  </div>
+                </div>
+              </div>
             )}
           </nav>
 
@@ -259,6 +312,8 @@ export function Header() {
                 )}
               </Button>
             </SidebarModal>
+            
+            <Notifications />
 
             {/* Wishlist */}
             <SidebarModal type="wishlist">
@@ -402,14 +457,69 @@ export function Header() {
                       <span>Products</span>
                     </Link>
                     
-                    <Link 
-                      to="/stores" 
+                    <Link
+                      to="/stores"
                       className="flex items-center space-x-3 py-2 hover:text-primary"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       <Store className="h-4 w-4" />
                       <span>Stores</span>
                     </Link>
+
+                    <Link
+                      to="/blog"
+                      className="flex items-center space-x-3 py-2 hover:text-primary"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span>Blog</span>
+                    </Link>
+
+                    {currentUser && (
+                      <>
+                        <div className="border-t pt-2 mt-2">
+                          <p className="text-sm font-medium text-muted-foreground mb-2">My Account</p>
+                        </div>
+
+                        <Link
+                          to="/wallet"
+                          className="flex items-center space-x-3 py-2 hover:text-primary"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          <Wallet className="h-4 w-4" />
+                          <span>Wallet</span>
+                        </Link>
+
+                        <Link
+                          to="/refunds-disputes"
+                          className="flex items-center space-x-3 py-2 hover:text-primary"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                          <span>Refunds & Disputes</span>
+                        </Link>
+
+                        <Link
+                          to="/orders"
+                          className="flex items-center space-x-3 py-2 hover:text-primary"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          <Package className="h-4 w-4" />
+                          <span>My Orders</span>
+                        </Link>
+
+                        {currentUser.role === 'affiliate' && (
+                          <Link
+                            to="/affiliate-dashboard"
+                            className="flex items-center space-x-3 py-2 hover:text-primary"
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            <TrendingUp className="h-4 w-4" />
+                            <span>Affiliate Dashboard</span>
+                          </Link>
+                        )}
+                      </>
+                    )}
 
                     {currentUser && (
                       <>

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCommerce } from '@/context/CommerceContext';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import { 
   TrendingUp, 
   DollarSign, 
@@ -31,6 +31,7 @@ import {
 
 export default function AffiliateDashboard() {
   const { currentUser, sdk } = useCommerce();
+  const { toast } = useToast();
   const [activeSection, setActiveSection] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [affiliate, setAffiliate] = useState<any>(null);
@@ -55,30 +56,29 @@ export default function AffiliateDashboard() {
 
   const fetchAffiliateData = async () => {
     if (!currentUser || !sdk) return;
-    
+
     setLoading(true);
     try {
       const [
-        affiliateData,
         linksData,
-        commissionsData,
-        productsData
+        collectionsData,
+        productsData,
+        walletData
       ] = await Promise.all([
-        sdk.getAffiliate(currentUser.id),
         sdk.getAffiliateLinks(currentUser.id),
-        sdk.getCommissions(currentUser.id),
-        sdk.getProducts()
+        sdk.getAffiliateCollections(currentUser.id),
+        sdk.getAffiliateProducts(),
+        sdk.getUserWallet(currentUser.id)
       ]);
 
-      setAffiliate(affiliateData);
       setAffiliateLinks(linksData);
-      setCommissions(commissionsData);
+      setCommissions(collectionsData); // Using collections as commissions for now
       setProducts(productsData);
 
       // Calculate analytics
-      const totalClicks = linksData.reduce((sum: number, link: any) => sum + link.clicks, 0);
-      const totalConversions = linksData.reduce((sum: number, link: any) => sum + link.conversions, 0);
-      const totalEarnings = commissionsData.reduce((sum: number, comm: any) => sum + comm.amount, 0);
+      const totalClicks = linksData.reduce((sum: number, link: any) => sum + (link.clicks || 0), 0);
+      const totalConversions = linksData.reduce((sum: number, link: any) => sum + (link.conversions || 0), 0);
+      const totalEarnings = linksData.reduce((sum: number, link: any) => sum + (link.earnings || 0), 0);
       const conversionRate = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0;
 
       setAnalytics({
@@ -86,13 +86,27 @@ export default function AffiliateDashboard() {
         totalClicks,
         totalConversions,
         conversionRate,
-        pendingCommissions: commissionsData.filter((c: any) => c.status === 'pending').length,
+        pendingCommissions: linksData.filter((link: any) => link.isActive).length,
         activeLinks: linksData.length
+      });
+
+      // Set affiliate data
+      setAffiliate({
+        id: currentUser.id,
+        name: currentUser.name,
+        email: currentUser.email,
+        balance: walletData?.balance || 0,
+        totalEarnings,
+        joinedAt: currentUser.createdAt
       });
 
     } catch (error) {
       console.error('Error fetching affiliate data:', error);
-      toast.error('Failed to load affiliate data');
+      toast({
+        title: "Error",
+        description: "Failed to load affiliate data",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -104,26 +118,34 @@ export default function AffiliateDashboard() {
     try {
       const product = products.find((p: any) => p.id === newLinkForm.productId);
       if (!product) {
-        toast.error('Product not found');
+        toast({
+          title: "Error",
+          description: "Product not found",
+          variant: "destructive"
+        });
         return;
       }
 
       const linkData = {
         affiliateId: currentUser.id,
-        productId: newLinkForm.productId,
-        url: `${window.location.origin}/product/${newLinkForm.productId}?ref=${currentUser.id}`,
-        campaignName: newLinkForm.campaignName || product.name,
-        customMessage: newLinkForm.customMessage
+        productId: newLinkForm.productId
       };
 
       await sdk.createAffiliateLink(linkData);
-      toast.success('Affiliate link created successfully');
+      toast({
+        title: "Success",
+        description: "Affiliate link created successfully!"
+      });
       setNewLinkForm({ productId: '', campaignName: '', customMessage: '' });
       setShowCreateLink(false);
       fetchAffiliateData();
     } catch (error) {
       console.error('Error creating affiliate link:', error);
-      toast.error('Failed to create affiliate link');
+      toast({
+        title: "Error",
+        description: "Failed to create affiliate link",
+        variant: "destructive"
+      });
     }
   };
 
