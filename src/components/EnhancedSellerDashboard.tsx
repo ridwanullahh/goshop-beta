@@ -402,6 +402,37 @@ export default function EnhancedSellerDashboard() {
           </Card>
         )}
 
+        {/* Enhanced Features Navigation */}
+        <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-purple-900">🚀 Enhanced Features Available!</h3>
+                <p className="text-purple-700 mt-1">
+                  Access advanced product management, affiliate settings, blog management, and more.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => window.location.href = '/seller-dashboard/products-enhanced'}
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  <Package className="h-4 w-4 mr-2" />
+                  Enhanced Products
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => window.location.href = '/seller-dashboard/blog'}
+                  className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Blog Manager
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Product Management Section */}
         <Card>
           <CardHeader>
