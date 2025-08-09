@@ -8,14 +8,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCommerce } from '@/context/CommerceContext';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import { Post, Comment } from '@/lib/commerce-sdk';
 import CommunityPost from '@/components/CommunityPost';
-import { 
-  MessageSquare, 
-  Heart, 
-  Share2, 
-  Plus, 
+import {
+  MessageSquare,
+  Heart,
+  Share2,
+  Plus,
   Search,
   Filter,
   TrendingUp,
@@ -24,29 +24,48 @@ import {
   Send
 } from 'lucide-react';
 
+  const { toast } = useToast();
 export default function CommunityHub() {
   const { currentUser, sdk } = useCommerce();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreatePost, setShowCreatePost] = useState(false);
-  const [newPost, setNewPost] = useState({ content: '', tags: '' });
+  const [newPost, setNewPost] = useState<{content: string; tags: string; productIds: string[]}>({ content: '', tags: '', productIds: [] });
+  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
+  const [pendingPosts, setPendingPosts] = useState<Post[]>([]);
+  const [activeTab, setActiveTab] = useState<'feed' | 'moderation'>('feed');
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
 
   useEffect(() => {
     fetchPosts();
-  }, [sdk]);
+    fetchAvailableProducts();
+  }, [sdk, currentUser]);
 
   const fetchPosts = async () => {
     if (!sdk) return;
-    
+
     setLoading(true);
     try {
       const fetchedPosts = await sdk.getPosts();
       setPosts(fetchedPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } catch (error) {
       console.error('Error fetching posts:', error);
+  const fetchAvailableProducts = async () => {
+    if (!sdk || !currentUser) return;
+    try {
+      let prods = [] as any[];
+      if (currentUser.role === 'seller') {
+        prods = await sdk.getSellerProducts(currentUser.id);
+      } else {
+        prods = await sdk.getAffiliateProducts();
+      }
+      setAvailableProducts(prods);
+    } catch (err) {
+      console.error('Error loading products for post attachment:', err);
+    }
+  };
       toast.error('Failed to load community posts');
     } finally {
       setLoading(false);
@@ -56,26 +75,32 @@ export default function CommunityHub() {
   const handleCreatePost = async () => {
     if (!sdk || !currentUser || !newPost.content.trim()) return;
 
+    if (!['seller', 'affiliate', 'admin'].includes(currentUser.role)) {
+      toast({ title: 'Not allowed', description: 'Only sellers, affiliates, and admins can post.', variant: 'destructive' });
+      return;
+    }
+
     try {
       const postData = {
         userId: currentUser.id!,
         userName: currentUser.name || currentUser.email,
         userAvatar: currentUser.avatar || '',
+        role: currentUser.role,
         content: newPost.content,
+        productIds: newPost.productIds,
         likes: 0,
         comments: 0,
         tags: newPost.tags.split(',').map(tag => tag.trim()).filter(Boolean),
-        createdAt: new Date().toISOString()
       };
 
       await sdk.createPost(postData);
-      toast.success('Post created successfully');
-      setNewPost({ content: '', tags: '' });
+      toast({ title: 'Submitted', description: 'Post submitted for moderation.' });
+      setNewPost({ content: '', tags: '', productIds: [] });
       setShowCreatePost(false);
       fetchPosts();
     } catch (error) {
       console.error('Error creating post:', error);
-      toast.error('Failed to create post');
+      toast({ title: 'Error', description: 'Failed to create post', variant: 'destructive' });
     }
   };
 
@@ -87,14 +112,14 @@ export default function CommunityHub() {
 
     try {
       const newLikes = isLiked ? currentLikes - 1 : currentLikes + 1;
-      await sdk.updatePost(postId, { 
+      await sdk.updatePost(postId, {
         likes: newLikes,
-        isLiked: !isLiked 
+        isLiked: !isLiked
       });
-      
+
       // Update local state
-      setPosts(posts.map(post => 
-        post.id === postId 
+      setPosts(posts.map(post =>
+        post.id === postId
           ? { ...post, likes: newLikes, isLiked: !isLiked }
           : post
       ));
@@ -129,10 +154,10 @@ export default function CommunityHub() {
       };
 
       await sdk.createComment(commentData);
-      
+
       // Update post comment count
-      await sdk.updatePost(selectedPost.id!, { 
-        comments: selectedPost.comments + 1 
+      await sdk.updatePost(selectedPost.id!, {
+        comments: selectedPost.comments + 1
       });
 
       toast.success('Comment added successfully');
@@ -141,6 +166,19 @@ export default function CommunityHub() {
       fetchPosts(); // Refresh to update comment count
     } catch (error) {
       console.error('Error adding comment:', error);
+
+	          {/* Admin Moderation Tab Toggle */}
+	          {currentUser?.role === 'admin' && (
+	            <div className="mb-6 flex gap-2">
+	              <Button variant={activeTab === 'feed' ? 'default' : 'outline'} onClick={() => setActiveTab('feed')}>Feed</Button>
+	              <Button variant={activeTab === 'moderation' ? 'default' : 'outline'} onClick={async () => {
+	                setActiveTab('moderation');
+	                const all = await sdk.getPosts();
+	                setPendingPosts(all.filter(p => p.status !== 'approved'));
+	              }}>Moderation</Button>
+	            </div>
+	          )}
+
       toast.error('Failed to add comment');
     }
   };
@@ -149,7 +187,7 @@ export default function CommunityHub() {
     const date = new Date(dateString);
     const now = new Date();
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
+
     if (diffInHours < 1) return 'Just now';
     if (diffInHours < 24) return `${diffInHours}h ago`;
     return `${Math.floor(diffInHours / 24)}d ago`;
@@ -158,7 +196,7 @@ export default function CommunityHub() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
-      
+
       <main className="flex-1 py-8">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="mb-8">
@@ -201,7 +239,7 @@ export default function CommunityHub() {
           </div>
 
           {/* Create Post Button */}
-          {currentUser && (
+          {currentUser && (<>
             <Card className="mb-6">
               <CardContent className="p-4">
                 <Button
@@ -214,7 +252,56 @@ export default function CommunityHub() {
                 </Button>
               </CardContent>
             </Card>
-          )}
+
+            {/* Moderation Panel */}
+            {activeTab === 'moderation' && currentUser?.role === 'admin' && (
+              <div className="space-y-4 mb-8">
+                {pendingPosts.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-8 text-center">No posts pending moderation.</CardContent>
+                  </Card>
+                ) : pendingPosts.map((p) => (
+                  <Card key={p.id}>
+                    <CardContent className="p-4 flex items-start justify-between">
+                      <div>
+                        <p className="font-medium">{p.userName} <span className="text-xs text-muted-foreground">({p.role})</span></p>
+                        <p className="text-sm">{p.content}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={async () => { await sdk.moderatePost(p.id, 'approve', currentUser.id); toast({ title: 'Approved' }); fetchPosts(); setPendingPosts(prev => prev.filter(x => x.id !== p.id)); }}>Approve</Button>
+                        <Button size="sm" variant="destructive" onClick={async () => { await sdk.moderatePost(p.id, 'reject', currentUser.id); toast({ title: 'Rejected' }); setPendingPosts(prev => prev.filter(x => x.id !== p.id)); }}>Reject</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* Product attachments */}
+            {availableProducts.length > 0 && (
+              <div className="mb-6">
+                <p className="text-sm font-medium mb-2">Attach Products (optional)</p>
+                <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-2">
+                  {availableProducts.map((p) => (
+                    <label key={p.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={newPost.productIds.includes(p.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setNewPost(prev => ({ ...prev, productIds: [...prev.productIds, p.id] }));
+                          } else {
+                            setNewPost(prev => ({ ...prev, productIds: prev.productIds.filter(id => id !== p.id) }));
+                          }
+                        }}
+                      />
+                      <span>{p.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>)}
 
           {/* Create Post Modal */}
           {showCreatePost && (
@@ -303,7 +390,7 @@ export default function CommunityHub() {
                       </Button>
                     </div>
                   )}
-                  
+
                   {/* Comments List */}
                   <div className="space-y-4">
                     {comments.map((comment) => (
@@ -335,7 +422,7 @@ export default function CommunityHub() {
           )}
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );

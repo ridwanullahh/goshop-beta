@@ -33,6 +33,7 @@ import SellerDashboardMarketing from './pages/seller-dashboard/Marketing';
 import SellerDashboardReviews from './pages/seller-dashboard/Reviews';
 import SellerDashboardPayments from './pages/seller-dashboard/Payments';
 import SellerDashboardSettings from './pages/seller-dashboard/Settings';
+import SellerDashboardOrders from './pages/seller-dashboard/Orders';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { CommerceProvider } from './context/CommerceContext';
 import { RealTimeProvider } from './context/RealTimeContext';
@@ -49,6 +50,7 @@ import SellerDashboardBlog from './pages/seller-dashboard/Blog';
 import EnhancedCheckout from './pages/EnhancedCheckout';
 import RefundDispute from './pages/RefundDispute';
 import Wallet from './pages/Wallet';
+import { BottomNavigation } from './components/BottomNavigation';
 import EnhancedProducts from './pages/seller-dashboard/EnhancedProducts';
 
 function App() {
@@ -84,18 +86,18 @@ function App() {
               <Route path="/community" element={<CommunityHub />} />
               <Route path="/support" element={<HelpCenter />} />
               <Route path="/contact" element={<ContactUs />} />
-              <Route 
-                path="/customer-dashboard" 
+              <Route
+                path="/customer-dashboard"
                 element={
                   <ProtectedRoute>
                     <MobileDashboardLayout userType="customer">
                       <EnhancedCustomerDashboard />
                     </MobileDashboardLayout>
                   </ProtectedRoute>
-                } 
+                }
               />
-              <Route 
-                path="/seller-dashboard" 
+              <Route
+                path="/seller-dashboard"
                 element={
                   <ProtectedRoute>
                     <MobileDashboardLayout userType="seller">
@@ -108,6 +110,7 @@ function App() {
               <Route path="/seller-dashboard/marketing" element={<SellerDashboardMarketing />} />
               <Route path="/seller-dashboard/reviews" element={<SellerDashboardReviews />} />
               <Route path="/seller-dashboard/payments" element={<SellerDashboardPayments />} />
+              <Route path="/seller-dashboard/orders" element={<SellerDashboardOrders />} />
               <Route path="/seller-dashboard/settings" element={<SellerDashboardSettings />} />
               <Route path="/seller-dashboard/blog" element={<SellerDashboardBlog />} />
               <Route path="/seller-dashboard/products-enhanced" element={<EnhancedProducts />} />
@@ -124,21 +127,22 @@ function App() {
                       <AffiliateDashboard />
                     </MobileDashboardLayout>
                   </ProtectedRoute>
-                } 
+                }
               />
-              <Route 
-                path="/admin-dashboard" 
+              <Route
+                path="/admin-dashboard"
                 element={
                   <ProtectedRoute>
                     <MobileDashboardLayout userType="admin">
                       <AdminDashboard />
                     </MobileDashboardLayout>
                   </ProtectedRoute>
-                } 
+                }
               />
               {/* Direct store slug route - must be last to avoid conflicts */}
               <Route path="/:storeSlug" element={<StoreDetail />} />
             </Routes>
+            <BottomNavigation />
           </div>
         </BrowserRouter>
         </EnhancedRealTimeProvider>

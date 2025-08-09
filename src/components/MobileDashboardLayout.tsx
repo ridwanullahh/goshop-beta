@@ -64,33 +64,34 @@ export function MobileDashboardLayout({ children, userType }: MobileDashboardLay
       case 'seller':
         return [
           ...baseItems,
-          { id: 'products', label: 'Products', icon: Package, path: '/seller/products', badge: null },
-          { id: 'orders', label: 'Orders', icon: ShoppingCart, path: '/seller/orders', badge: '5' },
-          { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/seller/analytics', badge: null },
-          { id: 'marketing', label: 'Marketing', icon: TrendingUp, path: '/seller/marketing', badge: null },
-          { id: 'reviews', label: 'Reviews', icon: Star, path: '/seller/reviews', badge: '2' },
-          { id: 'payments', label: 'Payments', icon: CreditCard, path: '/seller/payments', badge: null },
-          { id: 'settings', label: 'Settings', icon: Settings, path: '/seller/settings', badge: null }
+          { id: 'products', label: 'Products', icon: Package, path: '/seller-dashboard/products-enhanced', badge: null },
+          { id: 'orders', label: 'Orders', icon: ShoppingCart, path: '/seller-dashboard/orders', badge: null },
+          { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/seller-dashboard/analytics', badge: null },
+          { id: 'marketing', label: 'Marketing', icon: TrendingUp, path: '/seller-dashboard/marketing', badge: null },
+          { id: 'reviews', label: 'Reviews', icon: Star, path: '/seller-dashboard/reviews', badge: null },
+          { id: 'payments', label: 'Payments', icon: CreditCard, path: '/seller-dashboard/payments', badge: null },
+          { id: 'settings', label: 'Settings', icon: Settings, path: '/seller-dashboard/settings', badge: null }
         ];
       
       case 'affiliate':
         return [
           ...baseItems,
-          { id: 'campaigns', label: 'Campaigns', icon: TrendingUp, path: '/affiliate/campaigns', badge: null },
-          { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/affiliate/analytics', badge: null },
-          { id: 'payments', label: 'Payments', icon: CreditCard, path: '/affiliate/payments', badge: null },
-          { id: 'assets', label: 'Assets', icon: Package, path: '/affiliate/assets', badge: null }
+          { id: 'dashboard', label: 'Dashboard', icon: TrendingUp, path: '/affiliate-dashboard', badge: null },
+          { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/affiliate-dashboard#analytics', badge: null },
+          { id: 'payments', label: 'Payments', icon: CreditCard, path: '/wallet', badge: null },
+          { id: 'assets', label: 'Assets', icon: Package, path: '/affiliate-dashboard#assets', badge: null }
         ];
       
       case 'admin':
         return [
           ...baseItems,
-          { id: 'users', label: 'Users', icon: Users, path: '/admin/users', badge: null },
-          { id: 'orders', label: 'Orders', icon: ShoppingCart, path: '/admin/orders', badge: null },
-          { id: 'products', label: 'Products', icon: Package, path: '/admin/products', badge: null },
-          { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/admin/analytics', badge: null },
-          { id: 'trust-safety', label: 'Trust & Safety', icon: Shield, path: '/admin/trust-safety', badge: null },
-          { id: 'support', label: 'Support', icon: MessageSquare, path: '/admin/support', badge: '12' }
+          { id: 'dashboard', label: 'Admin Home', icon: Home, path: '/admin-dashboard', badge: null },
+          { id: 'users', label: 'Users', icon: Users, path: '/admin-dashboard#users', badge: null },
+          { id: 'orders', label: 'Orders', icon: ShoppingCart, path: '/admin-dashboard#orders', badge: null },
+          { id: 'products', label: 'Products', icon: Package, path: '/admin-dashboard#products', badge: null },
+          { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/admin-dashboard#analytics', badge: null },
+          { id: 'trust-safety', label: 'Trust & Safety', icon: Shield, path: '/admin-dashboard#trust-safety', badge: null },
+          { id: 'support', label: 'Support', icon: MessageSquare, path: '/admin-dashboard#support', badge: null }
         ];
       
       default:
