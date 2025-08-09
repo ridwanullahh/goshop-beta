@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Toaster } from 'sonner';
+import { Toaster } from '@/components/ui/sonner';
+import { ThemeProvider } from './context/ThemeProvider';
 import Index from './pages/Index';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -55,7 +56,8 @@ import EnhancedProducts from './pages/seller-dashboard/EnhancedProducts';
 
 function App() {
   return (
-    <CommerceProvider>
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <CommerceProvider>
       <RealTimeProvider>
         <EnhancedRealTimeProvider>
         <BrowserRouter>
@@ -148,6 +150,7 @@ function App() {
         </EnhancedRealTimeProvider>
       </RealTimeProvider>
     </CommerceProvider>
+    </ThemeProvider>
   );
 }
 
