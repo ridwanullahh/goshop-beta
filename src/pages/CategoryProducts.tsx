@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useRealTimeData } from '@/hooks/useRealTimeData';
 import { useCommerce } from '@/context/CommerceContext';
 import { ArrowLeft, Star, Heart, ShoppingCart, Grid, List } from 'lucide-react';
-import { Category, Product } from '@/lib/commerce-sdk';
+import { Category, Product } from '@/lib';
 
 export default function CategoryProducts() {
   const { slug } = useParams();

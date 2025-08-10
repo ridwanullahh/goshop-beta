@@ -1,12 +1,13 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import CommerceSDK, {
+import {
+  CommerceSDK,
   User,
   Product,
   Order,
   Category,
   CartItem,
   WishlistItem
-} from '@/lib/commerce-sdk';
+} from '@/lib';
 import { toast } from 'sonner';
 
 // Define the context type

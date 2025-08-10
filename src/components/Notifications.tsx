@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Notification } from '@/lib/commerce-sdk';
+import { Notification } from '@/lib';
 
 export default function Notifications() {
   const { sdk, currentUser } = useCommerce();

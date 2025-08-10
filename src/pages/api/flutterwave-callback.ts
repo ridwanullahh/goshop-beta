@@ -1,4 +1,4 @@
-import CommerceSDK from '@/lib/commerce-sdk';
+import { CommerceSDK } from '@/lib';
 
 const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY!;
 

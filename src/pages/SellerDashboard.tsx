@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCommerce } from '@/context/CommerceContext';
-import { Product, Order } from '@/lib/commerce-sdk';
+import { Product, Order } from '@/lib';
 import { toast } from 'sonner';
 import { 
   Store, 
@@ -95,7 +95,7 @@ const SellerDashboard = () => {
         images: ['/placeholder.svg'] // Default image for now
       };
 
-      await sdk.createProduct(productData);
+      await sdk.createProduct(productData, []);
       toast.success('Product added successfully');
       setNewProduct({ name: '', description: '', price: '', category: '', inventory: '', tags: '', images: [] });
       setShowAddProduct(false);
@@ -446,13 +446,13 @@ const SellerDashboard = () => {
                       </div>
                       
                       <div className="space-y-2 mb-4">
-                        {order.products.map((item, index) => (
+                        {order.items.map((item, index) => (
                           <div key={index} className="flex items-center justify-between py-2 border-t">
                             <div>
-                              <p className="font-medium">{item.productName}</p>
+                              <p className="font-medium">{item.name}</p>
                               <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                             </div>
-                            <p className="font-medium">${item.subtotal}</p>
+                            <p className="font-medium">${(item.price * item.quantity).toFixed(2)}</p>
                           </div>
                         ))}
                       </div>
@@ -476,7 +476,7 @@ const SellerDashboard = () => {
                           </>
                         )}
                         {order.status === 'confirmed' && (
-                          <Button 
+                          <Button
                             size="sm"
                             onClick={() => handleUpdateOrderStatus(order.id!, 'processing')}
                           >
@@ -484,7 +484,7 @@ const SellerDashboard = () => {
                           </Button>
                         )}
                         {order.status === 'processing' && (
-                          <Button 
+                          <Button
                             size="sm"
                             onClick={() => handleUpdateOrderStatus(order.id!, 'shipped')}
                           >

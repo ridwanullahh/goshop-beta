@@ -1,5 +1,5 @@
 import React from 'react';
-import { Product } from '@/lib/commerce-sdk';
+import { Product } from '@/lib';
 import { Button } from './ui/button';
 import { X } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

@@ -53,13 +53,13 @@ export interface Product {
   discount?: number;
   rating?: number;
   reviewCount?: number;
-  category?: string;
+  category: string;
   storeId?: string;
   sellerId?: string;
   sellerName?: string;
   createdAt?: string;
   updatedAt?: string;
-  inventory?: number;
+  inventory: number;
   tags?: string[];
   isFeatured?: boolean;
   isActive?: boolean;
@@ -120,7 +120,7 @@ export interface PlatformCommission {
 export interface AffiliateLink {
   id: string;
   affiliateId: string;
-  productId?: string;
+  productId: string;
   collectionId?: string;
   code: string;
   clicks: number;
@@ -214,15 +214,14 @@ export interface Order {
   id: string;
   userId: string;
   items: OrderItem[];
-  products?: OrderItem[];
   total: number;
-  subtotal: number;
-  platformCommission: number;
+  subtotal?: number;
+  platformCommission?: number;
   affiliateCommission: number;
   shippingTotal: number;
   paidAmount: number; // Amount paid at checkout (commissions + shipping)
   remainingAmount: number; // Amount to be paid on delivery
-  status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded' | 'pending_payment';
   paymentStatus: 'partial' | 'completed' | 'refunded';
   paymentMethod: string;
   shippingAddress: Address;
@@ -231,7 +230,7 @@ export interface Order {
   updatedAt: string;
   sellerId?: string;
   transactionRef?: string;
-  deliveryMethod: 'pickup' | 'shipping';
+  deliveryMethod?: 'pickup' | 'shipping';
   trackingNumber?: string;
   deliveredAt?: string;
   affiliateId?: string; // If order came through affiliate link
@@ -243,6 +242,7 @@ export interface OrderItem {
   price: number;
   name: string;
   images?: string[];
+  product?: Product;
   sellerId: string;
   storeId?: string;
   variantId?: string;
@@ -286,7 +286,6 @@ export interface CartItem {
   quantity: number;
   createdAt?: string;
   updatedAt?: string;
-  product?: Product;
 }
 
 export interface WishlistItem {
@@ -404,14 +403,6 @@ export interface Blog {
   updatedAt: string;
 }
 
-export interface AffiliateLink {
-  id: string;
-  affiliateId: string;
-  productId: string;
-  link: string;
-  commissionRate: number;
-  createdAt: string;
-}
 
 export interface Commission {
   id: string;
@@ -433,7 +424,7 @@ export interface LiveStream {
   agoraToken?: string;
 }
 
-export default class CommerceSDK {
+export class CommerceSDK {
   private baseURL: string;
   private githubToken: string;
   private owner: string;
@@ -992,6 +983,8 @@ async uploadToCloudinary(file: File): Promise<string> {
     try {
       const imageUrls = await Promise.all(images.map(image => this.uploadToCloudinary(image)));
       const newProduct: Product = {
+        inventory: 0,
+        category: 'General',
         ...productData,
         id: Date.now().toString(),
         images: imageUrls,
@@ -1597,6 +1590,7 @@ async uploadToCloudinary(file: File): Promise<string> {
       type: 'credit',
       description: `${description} via ${paymentGateway}`,
       createdAt: new Date().toISOString(),
+      status: 'completed',
     };
 
     const transactions = await this.getData('transactions');
@@ -1628,6 +1622,7 @@ async uploadToCloudinary(file: File): Promise<string> {
       type: 'debit',
       description,
       createdAt: new Date().toISOString(),
+      status: 'completed',
     };
 
     const transactions = await this.getData('transactions');

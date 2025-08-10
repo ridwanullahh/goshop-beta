@@ -16,7 +16,7 @@ import {
   CheckCircle,
   ArrowLeft
 } from 'lucide-react';
-import { Order, Product } from '@/lib/commerce-sdk';
+import { Order, Product } from '@/lib';
 
 interface CartItemWithProduct {
   id: string;

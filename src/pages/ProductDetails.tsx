@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { useCommerce } from '@/context/CommerceContext';
 import { useRealTimeData } from '@/hooks/useRealTimeData';
 import useEmblaCarousel from 'embla-carousel-react';
-import { Product, ProductVariation } from '@/lib/commerce-sdk';
+import { Product, ProductVariation } from '@/lib';
 import { toast } from 'sonner';
 import { 
   Star, 

@@ -1,4 +1,4 @@
-import CommerceSDK from '@/lib/commerce-sdk';
+import { CommerceSDK } from '@/lib';
 import crypto from 'crypto';
 
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET!;

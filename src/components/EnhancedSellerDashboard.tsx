@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { useCommerce } from '@/context/CommerceContext';
 import { useEnhancedRealTime } from '@/context/EnhancedRealTimeContext';
-import { Product, Order } from '@/lib/commerce-sdk';
+import { Product, Order } from '@/lib';
 import { toast } from 'sonner';
 import { 
   Store, 
@@ -38,7 +38,8 @@ import {
   Zap,
   Award,
   MessageSquare,
-  AlertTriangle
+  AlertTriangle,
+  FileText
 } from 'lucide-react';
 
 export default function EnhancedSellerDashboard() {
@@ -163,7 +164,7 @@ export default function EnhancedSellerDashboard() {
         updatedAt: new Date().toISOString()
       };
 
-      const newProduct = await sdk.createProduct(productData);
+      const newProduct = await sdk.createProduct(productData, []);
       
       // Update local state immediately for real-time effect
       setProducts(prev => [newProduct, ...prev]);
@@ -193,7 +194,7 @@ export default function EnhancedSellerDashboard() {
         updatedAt: new Date().toISOString()
       };
 
-      const updatedProduct = await sdk.updateProduct(editingProduct.id!, productData);
+      const updatedProduct = await sdk.updateProduct(editingProduct.id!, productData, []);
       
       // Update local state immediately
       setProducts(prev => prev.map(p => p.id === editingProduct.id ? updatedProduct : p));

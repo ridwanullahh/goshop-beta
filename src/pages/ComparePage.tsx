@@ -3,7 +3,7 @@ import { useCommerce } from '@/context/CommerceContext';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import Compare from '@/components/Compare';
-import { Product } from '@/lib/commerce-sdk';
+import { Product } from '@/lib';
 
 export default function ComparePage() {
   const { compareList, products, removeFromCompare } = useCommerce();

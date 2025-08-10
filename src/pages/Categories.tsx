@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useRealTimeData } from '@/hooks/useRealTimeData';
 import { Grid3X3, ArrowRight, Package } from 'lucide-react';
-import { Category, Product } from '@/lib/commerce-sdk';
+import { Category, Product } from '@/lib';
 
 export default function Categories() {
   const { data: categories, loading } = useRealTimeData<Category>('categories');

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCommerce } from '@/context/CommerceContext';
 import { useEnhancedRealTime } from '@/context/EnhancedRealTimeContext';
-import { Notification } from '@/lib/commerce-sdk';
+import { Notification } from '@/lib';
 import { toast } from 'sonner';
 import { 
   Bell, 

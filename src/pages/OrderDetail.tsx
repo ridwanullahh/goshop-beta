@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useCommerce } from '@/context/CommerceContext';
 import { useEnhancedRealTime } from '@/context/EnhancedRealTimeContext';
-import { Order } from '@/lib/commerce-sdk';
+import { Order } from '@/lib';
 import { toast } from 'sonner';
 import { 
   Package, 
@@ -254,11 +254,11 @@ export default function OrderDetail() {
                     <div key={index} className="flex items-center space-x-4 p-4 border rounded-lg">
                       <img 
                         src={item.product?.images?.[0] || '/placeholder.svg'} 
-                        alt={item.product?.name || item.productName}
+                        alt={item.product?.name || item.name}
                         className="w-16 h-16 object-cover rounded-lg"
                       />
                       <div className="flex-1">
-                        <h3 className="font-semibold">{item.product?.name || item.productName || 'Product'}</h3>
+                        <h3 className="font-semibold">{item.product?.name || item.name || 'Product'}</h3>
                         <p className="text-sm text-muted-foreground">
                           Quantity: {item.quantity} × ${item.price.toFixed(2)}
                         </p>
