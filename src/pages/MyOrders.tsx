@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCommerce } from '@/context/CommerceContext';
 import { useEnhancedRealTime } from '@/context/EnhancedRealTimeContext';
-import { Order } from '@/lib/commerce-sdk';
+import { Order } from '@/lib';
 import { toast } from 'sonner';
 import { 
   Package, 
@@ -74,7 +74,7 @@ export default function MyOrders() {
       filtered = filtered.filter(order => 
         order.id.includes(searchQuery) ||
         order.items.some(item => 
-          item.product?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+          item.name?.toLowerCase().includes(searchQuery.toLowerCase())
         )
       );
     }
@@ -291,13 +291,13 @@ export default function MyOrders() {
                       {order.items.slice(0, 3).map((item, index) => (
                         <div key={index} className="flex items-center space-x-2 bg-muted rounded-lg p-2">
                           <img 
-                            src={item.product?.images?.[0] || '/placeholder.svg'} 
-                            alt={item.product?.name}
+                            src={item.images?.[0] || '/placeholder.svg'}
+                            alt={item.name}
                             className="w-10 h-10 object-cover rounded"
                           />
                           <div>
                             <p className="text-sm font-medium">
-                              {item.product?.name || 'Product'}
+                              {item.name || 'Product'}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               Qty: {item.quantity}

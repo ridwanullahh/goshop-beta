@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCommerce } from '@/context/CommerceContext';
 import { useToast } from '@/hooks/use-toast';
-import { Post, Comment } from '@/lib/commerce-sdk';
+import { Post, Comment } from '@/lib';
 import CommunityPost from '@/components/CommunityPost';
 import {
   MessageSquare,
@@ -24,8 +24,8 @@ import {
   Send
 } from 'lucide-react';
 
-  const { toast } = useToast();
 export default function CommunityHub() {
+  const { toast } = useToast();
   const { currentUser, sdk } = useCommerce();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +52,12 @@ export default function CommunityHub() {
       setPosts(fetchedPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } catch (error) {
       console.error('Error fetching posts:', error);
+      toast({ title: 'Failed to load community posts', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchAvailableProducts = async () => {
     if (!sdk || !currentUser) return;
     try {
@@ -66,17 +72,12 @@ export default function CommunityHub() {
       console.error('Error loading products for post attachment:', err);
     }
   };
-      toast.error('Failed to load community posts');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCreatePost = async () => {
     if (!sdk || !currentUser || !newPost.content.trim()) return;
 
     if (!['seller', 'affiliate', 'admin'].includes(currentUser.role)) {
-      toast({ title: 'Not allowed', description: 'Only sellers, affiliates, and admins can post.', variant: 'destructive' });
+      toast({ title: 'Only sellers, affiliates, and admins can post.', variant: 'destructive' });
       return;
     }
 
@@ -94,19 +95,19 @@ export default function CommunityHub() {
       };
 
       await sdk.createPost(postData);
-      toast({ title: 'Submitted', description: 'Post submitted for moderation.' });
+      toast({ title: 'Post submitted for moderation.', variant: 'default' });
       setNewPost({ content: '', tags: '', productIds: [] });
       setShowCreatePost(false);
       fetchPosts();
     } catch (error) {
       console.error('Error creating post:', error);
-      toast({ title: 'Error', description: 'Failed to create post', variant: 'destructive' });
+      toast({ title: 'Failed to create post', variant: 'destructive' });
     }
   };
 
   const handleLikePost = async (postId: string, currentLikes: number, isLiked?: boolean) => {
     if (!sdk || !currentUser) {
-      toast.error('Please login to like posts');
+      toast({ title: 'Please login to like posts', variant: 'destructive' });
       return;
     }
 
@@ -125,7 +126,7 @@ export default function CommunityHub() {
       ));
     } catch (error) {
       console.error('Error liking post:', error);
-      toast.error('Failed to like post');
+      toast({ title: 'Failed to like post', variant: 'destructive' });
     }
   };
 
@@ -160,7 +161,7 @@ export default function CommunityHub() {
         comments: selectedPost.comments + 1
       });
 
-      toast.success('Comment added successfully');
+      toast({ title: 'Comment added successfully', variant: 'default' });
       setNewComment('');
       fetchComments(selectedPost.id!);
       fetchPosts(); // Refresh to update comment count
@@ -179,7 +180,7 @@ export default function CommunityHub() {
 	            </div>
 	          )}
 
-      toast.error('Failed to add comment');
+      toast({ title: 'Failed to add comment', variant: 'destructive' });
     }
   };
 
@@ -269,7 +270,7 @@ export default function CommunityHub() {
                       </div>
                       <div className="flex gap-2">
                         <Button size="sm" onClick={async () => { await sdk.moderatePost(p.id, 'approve', currentUser.id); toast({ title: 'Approved' }); fetchPosts(); setPendingPosts(prev => prev.filter(x => x.id !== p.id)); }}>Approve</Button>
-                        <Button size="sm" variant="destructive" onClick={async () => { await sdk.moderatePost(p.id, 'reject', currentUser.id); toast({ title: 'Rejected' }); setPendingPosts(prev => prev.filter(x => x.id !== p.id)); }}>Reject</Button>
+                        <Button size="sm" variant="destructive" onClick={async () => { await sdk.moderatePost(p.id, 'reject', currentUser.id); toast({ title: 'Rejected', variant: 'destructive' }); setPendingPosts(prev => prev.filter(x => x.id !== p.id)); }}>Reject</Button>
                       </div>
                     </CardContent>
                   </Card>

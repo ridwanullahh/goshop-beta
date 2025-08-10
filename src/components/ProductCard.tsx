@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Product } from '@/lib/commerce-sdk';
+import { Product } from '@/lib';
 import { useCommerce } from '@/context/CommerceContext';
 import { Heart, ShoppingCart, Star, Eye, GitCompare } from 'lucide-react';
 import QuickView from './QuickView';

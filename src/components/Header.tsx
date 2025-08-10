@@ -32,7 +32,7 @@ import {
   RefreshCw,
   FileText
 } from 'lucide-react';
-import { Product, Notification } from '@/lib/commerce-sdk';
+import { Product, Notification } from '@/lib';
 
 export function Header() {
   const navigate = useNavigate();

@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useCommerce } from '@/context/CommerceContext';
 import { useRealTimeData } from '@/hooks/useRealTimeData';
-import { Order } from '@/lib/commerce-sdk';
+import { Order } from '@/lib';
 import { toast } from 'sonner';
 import { 
   Package, 

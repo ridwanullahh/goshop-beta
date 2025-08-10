@@ -4,7 +4,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LiveStream } from '@/lib/commerce-sdk';
+import { LiveStream } from '@/lib';
 import { Link } from 'react-router-dom';
 
 export default function LiveShopping() {

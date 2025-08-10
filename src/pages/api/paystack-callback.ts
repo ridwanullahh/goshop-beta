@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import CommerceSDK from '@/lib/commerce-sdk';
+import { CommerceSDK } from '@/lib';
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY!;
 

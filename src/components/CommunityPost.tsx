@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Heart, MessageCircle, Share2 } from 'lucide-react';
-import { Post } from '@/lib/commerce-sdk';
+import { Post } from '@/lib';
 
 interface CommunityPostProps {
   post: Post;

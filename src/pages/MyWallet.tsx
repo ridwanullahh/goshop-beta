@@ -5,7 +5,7 @@ import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Wallet, Transaction } from '@/lib/commerce-sdk';
+import { Wallet, Transaction } from '@/lib';
 import { toast } from 'sonner';
 import { ArrowLeft, Plus, DollarSign, History } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';

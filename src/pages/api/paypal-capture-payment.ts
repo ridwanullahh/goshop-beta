@@ -1,4 +1,4 @@
-import CommerceSDK from '@/lib/commerce-sdk';
+import { CommerceSDK } from '@/lib';
 import paypalClient from '@/lib/paypal-client';
 import checkoutNodeJssdk from '@paypal/checkout-server-sdk';
 

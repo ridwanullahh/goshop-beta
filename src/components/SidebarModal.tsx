@@ -21,7 +21,7 @@ import {
   AlertCircle,
   Info
 } from 'lucide-react';
-import { Product, Notification, WishlistItem } from '@/lib/commerce-sdk';
+import { Product, Notification, WishlistItem } from '@/lib';
 
 interface SidebarModalProps {
   children: React.ReactNode;
