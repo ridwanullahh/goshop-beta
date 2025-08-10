@@ -1,6 +1,5 @@
-import CommerceSDK from './commerce-sdk';
+import { CommerceSDK, type User } from './commerce-sdk';
 import jwt from 'jsonwebtoken';
-import { User } from './commerce-sdk';
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 
