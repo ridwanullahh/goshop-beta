@@ -56,7 +56,7 @@ import EnhancedProducts from './pages/seller-dashboard/EnhancedProducts';
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+    <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
       <CommerceProvider>
       <RealTimeProvider>
         <EnhancedRealTimeProvider>
