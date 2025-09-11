@@ -104,6 +104,12 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/customer-dashboard/orders" element={<ProtectedRoute><MobileDashboardLayout userType="customer"><Orders /></MobileDashboardLayout></ProtectedRoute>} />
+              <Route path="/customer-dashboard/wishlist" element={<ProtectedRoute><MobileDashboardLayout userType="customer"><Wishlist /></MobileDashboardLayout></ProtectedRoute>} />
+              <Route path="/customer-dashboard/profile" element={<ProtectedRoute><MobileDashboardLayout userType="customer"><Profile /></MobileDashboardLayout></ProtectedRoute>} />
+              <Route path="/customer-dashboard/wallet" element={<ProtectedRoute><MobileDashboardLayout userType="customer"><Wallet /></MobileDashboardLayout></ProtectedRoute>} />
+              <Route path="/customer-dashboard/notifications" element={<ProtectedRoute><MobileDashboardLayout userType="customer"><Notifications /></MobileDashboardLayout></ProtectedRoute>} />
+              <Route path="/customer-dashboard/support" element={<ProtectedRoute><MobileDashboardLayout userType="customer"><HelpCenter /></MobileDashboardLayout></ProtectedRoute>} />
               <Route
                 path="/seller-dashboard"
                 element={
@@ -137,6 +143,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/affiliate-dashboard/wallet" element={<ProtectedRoute><MobileDashboardLayout userType="affiliate"><Wallet /></MobileDashboardLayout></ProtectedRoute>} />
               <Route
                 path="/admin-dashboard"
                 element={
