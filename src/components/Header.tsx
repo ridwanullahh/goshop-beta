@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useCommerce } from '@/context/CommerceContext';
 import { useRealTimeData } from '@/hooks/useRealTimeData';
-import Notifications from './Notifications';
 import { SidebarModal } from '@/components/SidebarModal';
 import { SearchModal } from '@/components/SearchModal';
 import { 
@@ -33,6 +32,7 @@ import {
   FileText
 } from 'lucide-react';
 import { Product, Notification } from '@/lib';
+import { ThemeToggle } from './ThemeToggle';
 
 export function Header() {
   const navigate = useNavigate();
@@ -290,6 +290,7 @@ export function Header() {
 
           {/* Action Buttons */}
           <div className="flex items-center space-x-2">
+            <ThemeToggle />
             {/* Mobile Search */}
             <SearchModal>
               <Button
@@ -312,8 +313,6 @@ export function Header() {
                 )}
               </Button>
             </SidebarModal>
-            
-            <Notifications />
 
             {/* Wishlist */}
             <SidebarModal type="wishlist">

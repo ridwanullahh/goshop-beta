@@ -23,9 +23,12 @@ import LiveShopping from './pages/LiveShopping';
 import LiveStream from './pages/LiveStream';
 import ComparePage from './pages/ComparePage';
 import CommunityHub from './pages/CommunityHub';
+import Help from './pages/Help';
 import HelpCenter from './pages/HelpCenter';
 import ContactUs from './pages/ContactUs';
 import CustomerDashboard from './pages/CustomerDashboard';
+import ReturnsRefunds from './pages/ReturnsRefunds';
+import ShippingInfo from './pages/ShippingInfo';
 import SellerDashboard from './pages/SellerDashboard';
 import AffiliateDashboard from './pages/AffiliateDashboard';
 import AdminDashboard from './pages/AdminDashboard';
@@ -56,7 +59,7 @@ import EnhancedProducts from './pages/seller-dashboard/EnhancedProducts';
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+    <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
       <CommerceProvider>
       <RealTimeProvider>
         <EnhancedRealTimeProvider>
@@ -88,6 +91,9 @@ function App() {
               <Route path="/community" element={<CommunityHub />} />
               <Route path="/support" element={<HelpCenter />} />
               <Route path="/contact" element={<ContactUs />} />
+              <Route path="/help" element={<Help />} />
+              <Route path="/returns" element={<ReturnsRefunds />} />
+              <Route path="/shipping" element={<ShippingInfo />} />
               <Route
                 path="/customer-dashboard"
                 element={
