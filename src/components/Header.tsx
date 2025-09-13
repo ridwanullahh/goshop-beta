@@ -33,8 +33,12 @@ import {
 } from 'lucide-react';
 import { Product, Notification } from '@/lib';
 import { ThemeToggle } from './ThemeToggle';
+import { LanguageSelector } from './LanguageSelector';
+import { CurrencySelector } from './CurrencySelector';
+import { useTranslation } from 'react-i18next';
 
 export function Header() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, cart, logout } = useCommerce();
@@ -105,11 +109,11 @@ export function Header() {
             </div>
             
             <div className="flex items-center space-x-4">
-              <Link to="/help" className="hover:text-foreground">Help</Link>
-              <Link to="/track-order" className="hover:text-foreground">Track Order</Link>
-              <div className="flex items-center space-x-1">
-                <MapPin className="h-3 w-3" />
-                <span>Ship to: USA</span>
+              <Link to="/help" className="hover:text-foreground">{t('help')}</Link>
+              <Link to="/track-order" className="hover:text-foreground">{t('track_order')}</Link>
+              <div className="flex items-center space-x-4">
+                <LanguageSelector />
+                <CurrencySelector />
               </div>
             </div>
           </div>
@@ -132,7 +136,7 @@ export function Header() {
             <div className="group relative">
               <Button variant="ghost" className="flex items-center space-x-1">
                 <Grid3X3 className="h-4 w-4" />
-                <span>Categories</span>
+                <span>{t('categories')}</span>
               </Button>
               
               {/* Mega Menu */}
@@ -178,13 +182,13 @@ export function Header() {
               </div>
             </div>
             
-            <Link to="/stores" className="hover:text-primary">Stores</Link>
-            <Link to="/products" className="hover:text-primary">Products</Link>
-            <Link to="/blog" className="hover:text-primary">Blog</Link>
+            <Link to="/stores" className="hover:text-primary">{t('stores')}</Link>
+            <Link to="/products" className="hover:text-primary">{t('products')}</Link>
+            <Link to="/blog" className="hover:text-primary">{t('blog')}</Link>
             {currentUser && (
               <div className="relative group">
                 <span className="hover:text-primary cursor-pointer flex items-center">
-                  My Account
+                  {t('my_account')}
                   <ChevronDown className="h-3 w-3 ml-1" />
                 </span>
                 <div className="absolute top-full left-0 mt-1 w-48 bg-background border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
@@ -210,7 +214,7 @@ export function Header() {
             {currentUser?.role === 'seller' && (
               <div className="relative group">
                 <Link to="/seller-dashboard" className="hover:text-primary flex items-center">
-                  Dashboard
+                  {t('dashboard')}
                   <ChevronDown className="h-3 w-3 ml-1" />
                 </Link>
                 <div className="absolute top-full left-0 mt-1 w-48 bg-background border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
@@ -239,7 +243,7 @@ export function Header() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search products, stores, categories..."
+                placeholder={t('search_placeholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 pr-4"
@@ -389,10 +393,10 @@ export function Header() {
             ) : (
               <div className="hidden md:flex items-center space-x-2">
                 <Link to="/login">
-                  <Button variant="ghost" size="sm">Login</Button>
+                  <Button variant="ghost" size="sm">{t('login')}</Button>
                 </Link>
                 <Link to="/signup">
-                  <Button size="sm">Sign Up</Button>
+                  <Button size="sm">{t('signup')}</Button>
                 </Link>
               </div>
             )}
@@ -577,6 +581,7 @@ export function Header() {
                       </>
                     )}
                   </nav>
+
                 </div>
               </SheetContent>
             </Sheet>

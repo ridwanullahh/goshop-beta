@@ -3,6 +3,8 @@ import { Product } from '@/lib';
 import { Button } from './ui/button';
 import { ShoppingCart, X } from 'lucide-react';
 import { useCommerce } from '@/context/CommerceContext';
+import { useTranslation } from 'react-i18next';
+import { useFormatPrice } from '@/hooks/useFormatPrice';
 
 interface QuickViewProps {
   product: Product;
@@ -10,7 +12,9 @@ interface QuickViewProps {
 }
 
 export default function QuickView({ product, onClose }: QuickViewProps) {
+  const { t } = useTranslation();
   const { addToCart } = useCommerce();
+  const formattedPrice = useFormatPrice(product.price, product.currency);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
@@ -24,11 +28,11 @@ export default function QuickView({ product, onClose }: QuickViewProps) {
           </div>
           <div>
             <h2 className="text-2xl font-bold mb-2">{product.name}</h2>
-            <p className="text-lg text-primary font-bold mb-4">${product.price}</p>
+            <p className="text-lg text-primary font-bold mb-4">{formattedPrice}</p>
             <p className="text-muted-foreground mb-4">{product.description}</p>
             <Button onClick={() => addToCart(product.id)}>
               <ShoppingCart className="h-4 w-4 mr-2" />
-              Add to Cart
+              {t('add_to_cart')}
             </Button>
           </div>
         </div>
