@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useTranslation } from 'react-i18next';
 import { Heart, Trash2, ShoppingCart } from 'lucide-react';
 import { useCommerce } from '@/context/CommerceContext';
 import { ProductCard } from './ProductCard';
@@ -12,6 +13,7 @@ interface WishlistModalProps {
 }
 
 export function WishlistModal({ children }: WishlistModalProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const { currentUser, products, addToCart } = useCommerce();
   const [wishlistItems, setWishlistItems] = useState<any[]>([]);
@@ -56,15 +58,15 @@ export function WishlistModal({ children }: WishlistModalProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Heart className="h-5 w-5 text-red-500" />
-              Wishlist
+              {t('wishlist')}
             </DialogTitle>
           </DialogHeader>
           <div className="text-center py-8">
             <p className="text-muted-foreground mb-4">
-              Please sign in to view your wishlist
+              {t('signin_to_view_wishlist')}
             </p>
             <Button onClick={() => setOpen(false)}>
-              Sign In
+              {t('sign_in')}
             </Button>
           </div>
         </DialogContent>
@@ -82,12 +84,12 @@ export function WishlistModal({ children }: WishlistModalProps) {
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Heart className="h-5 w-5 text-red-500" />
-              My Wishlist ({wishlistItems.length})
+              {t('my_wishlist', { count: wishlistItems.length })}
             </div>
             {wishlistItems.length > 0 && (
               <Button onClick={addAllToCart} size="sm">
                 <ShoppingCart className="h-4 w-4 mr-2" />
-                Add All to Cart
+                {t('add_all_to_cart')}
               </Button>
             )}
           </DialogTitle>
@@ -97,12 +99,12 @@ export function WishlistModal({ children }: WishlistModalProps) {
           {wishlistItems.length === 0 ? (
             <div className="text-center py-12">
               <Heart className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-semibold mb-2">Your wishlist is empty</h3>
+              <h3 className="text-lg font-semibold mb-2">{t('your_wishlist_is_empty')}</h3>
               <p className="text-muted-foreground mb-4">
-                Save items you love by clicking the heart icon
+                {t('empty_wishlist_desc')}
               </p>
               <Button onClick={() => setOpen(false)}>
-                Start Shopping
+                {t('start_shopping')}
               </Button>
             </div>
           ) : (
