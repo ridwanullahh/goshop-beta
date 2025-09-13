@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { useTranslation } from 'react-i18next';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -14,6 +15,7 @@ import { useCommerce } from '@/context/CommerceContext';
 import { Link } from 'react-router-dom';
 
 export function CategoriesMegaMenu() {
+  const { t } = useTranslation();
   const { sdk } = useCommerce();
   const [categories, setCategories] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,7 +52,7 @@ export function CategoriesMegaMenu() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="hidden md:flex items-center gap-2">
           <Grid3X3 className="h-4 w-4" />
-          Categories
+          {t('categories')}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-96 p-0">
@@ -76,7 +78,7 @@ export function CategoriesMegaMenu() {
           <Link to="/categories">
             <Button variant="ghost" className="w-full justify-start">
               <ShoppingBag className="h-4 w-4 mr-2" />
-              View All Categories
+              {t('view_all_categories')}
             </Button>
           </Link>
         </div>
@@ -94,7 +96,7 @@ export function CategoriesMegaMenu() {
       </SheetTrigger>
       <SheetContent side="left" className="w-80 p-0">
         <div className="p-6 border-b">
-          <h2 className="text-lg font-semibold">Categories</h2>
+          <h2 className="text-lg font-semibold">{t('categories')}</h2>
         </div>
         <div className="flex-1 overflow-y-auto">
           {categories.map((category) => (
@@ -117,7 +119,7 @@ export function CategoriesMegaMenu() {
             className="flex items-center p-4 hover:bg-muted transition-colors"
           >
             <ShoppingBag className="h-4 w-4 mr-3" />
-            <span className="font-medium">View All Categories</span>
+            <span className="font-medium">{t('view_all_categories')}</span>
           </Link>
         </div>
       </SheetContent>

@@ -2,6 +2,7 @@ import React from 'react';
 import { Product } from '@/lib';
 import { Button } from './ui/button';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface CompareProps {
@@ -11,6 +12,7 @@ interface CompareProps {
 }
 
 export default function Compare({ products, onClose, onRemove }: CompareProps) {
+  const { t } = useTranslation();
   if (products.length === 0) {
     return null;
   }
@@ -23,11 +25,11 @@ export default function Compare({ products, onClose, onRemove }: CompareProps) {
         <Button variant="ghost" size="icon" className="absolute top-4 right-4" onClick={onClose}>
           <X className="h-5 w-5" />
         </Button>
-        <h2 className="text-2xl font-bold mb-4">Compare Products</h2>
+        <h2 className="text-2xl font-bold mb-4">{t('compare_products')}</h2>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Feature</TableHead>
+              <TableHead>{t('feature')}</TableHead>
               {products.map(product => (
                 <TableHead key={product.id}>
                   {product.name}
@@ -41,7 +43,7 @@ export default function Compare({ products, onClose, onRemove }: CompareProps) {
           <TableBody>
             {attributes.map(attr => (
               <TableRow key={attr}>
-                <TableCell className="font-semibold">{attr.charAt(0).toUpperCase() + attr.slice(1)}</TableCell>
+                <TableCell className="font-semibold">{t(attr.toLowerCase())}</TableCell>
                 {products.map(product => (
                   <TableCell key={product.id}>{(product as any)[attr]}</TableCell>
                 ))}

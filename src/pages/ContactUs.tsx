@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { 
   Phone, 
   Mail, 
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react';
 
 export default function ContactUs() {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -107,9 +109,9 @@ export default function ContactUs() {
       <main className="flex-1 py-8">
         <div className="container mx-auto px-4 max-w-6xl">
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold mb-4">Contact Us</h1>
+            <h1 className="text-4xl font-bold mb-4">{t('contact_us')}</h1>
             <p className="text-muted-foreground text-lg">
-              We're here to help! Get in touch with our friendly support team.
+              {t('contact_us_desc')}
             </p>
           </div>
 
@@ -121,16 +123,16 @@ export default function ContactUs() {
                 <Card key={index} className="text-center hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <Icon className="h-12 w-12 mx-auto mb-4 text-primary" />
-                    <h3 className="font-semibold mb-2">{method.title}</h3>
+                    <h3 className="font-semibold mb-2">{t(method.title.toLowerCase().replace(/ /g, '_'))}</h3>
                     <p className="text-sm text-muted-foreground mb-3">
-                      {method.description}
+                      {t(method.description.toLowerCase().replace(/ /g, '_'))}
                     </p>
                     <div className="space-y-1">
                       <p className="font-medium text-sm">{method.contact}</p>
                       <p className="text-xs text-muted-foreground">{method.hours}</p>
                       {method.available && (
                         <Badge variant="secondary" className="text-xs">
-                          Available Now
+                          {t('available_now')}
                         </Badge>
                       )}
                     </div>
@@ -144,13 +146,13 @@ export default function ContactUs() {
             {/* Contact Form */}
             <Card>
               <CardHeader>
-                <CardTitle>Send us a Message</CardTitle>
+                <CardTitle>{t('send_us_a_message')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="name">Full Name</Label>
+                      <Label htmlFor="name">{t('full_name')}</Label>
                       <Input
                         id="name"
                         value={formData.name}
@@ -159,7 +161,7 @@ export default function ContactUs() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="email">Email Address</Label>
+                      <Label htmlFor="email">{t('email_address')}</Label>
                       <Input
                         id="email"
                         type="email"
@@ -171,7 +173,7 @@ export default function ContactUs() {
                   </div>
 
                   <div>
-                    <Label htmlFor="category">Category</Label>
+                    <Label htmlFor="category">{t('category')}</Label>
                     <select 
                       id="category"
                       className="w-full border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
@@ -179,42 +181,42 @@ export default function ContactUs() {
                       onChange={(e) => setFormData({...formData, category: e.target.value})}
                       required
                     >
-                      <option value="">Select a category</option>
-                      <option value="orders">Orders & Shipping</option>
-                      <option value="returns">Returns & Refunds</option>
-                      <option value="account">Account & Billing</option>
-                      <option value="products">Products & Inventory</option>
-                      <option value="technical">Technical Support</option>
-                      <option value="other">Other</option>
+                      <option value="">{t('select_a_category')}</option>
+                      <option value="orders">{t('orders_and_shipping')}</option>
+                      <option value="returns">{t('returns_and_refunds')}</option>
+                      <option value="account">{t('account_and_billing')}</option>
+                      <option value="products">{t('products_and_inventory')}</option>
+                      <option value="technical">{t('technical_support')}</option>
+                      <option value="other">{t('other')}</option>
                     </select>
                   </div>
 
                   <div>
-                    <Label htmlFor="subject">Subject</Label>
+                    <Label htmlFor="subject">{t('subject')}</Label>
                     <Input
                       id="subject"
                       value={formData.subject}
                       onChange={(e) => setFormData({...formData, subject: e.target.value})}
-                      placeholder="Brief description of your inquiry"
+                      placeholder={t('subject_placeholder')}
                       required
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="message">Message</Label>
+                    <Label htmlFor="message">{t('message')}</Label>
                     <Textarea
                       id="message"
                       rows={6}
                       value={formData.message}
                       onChange={(e) => setFormData({...formData, message: e.target.value})}
-                      placeholder="Please provide details about your inquiry..."
+                      placeholder={t('message_placeholder')}
                       required
                     />
                   </div>
 
                   <Button type="submit" className="w-full">
                     <Send className="h-4 w-4 mr-2" />
-                    Send Message
+                    {t('send_message')}
                   </Button>
                 </form>
               </CardContent>
@@ -227,7 +229,7 @@ export default function ContactUs() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <MapPin className="h-5 w-5" />
-                    Our Offices
+                    {t('our_offices')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -260,21 +262,21 @@ export default function ContactUs() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <HelpCircle className="h-5 w-5" />
-                    Popular Help Topics
+                    {t('popular_help_topics')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     {faqCategories.map((category, index) => (
                       <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
-                        <span className="font-medium">{category.name}</span>
-                        <Badge variant="secondary">{category.count} articles</Badge>
+                        <span className="font-medium">{t(category.name.toLowerCase().replace(/ /g, '_'))}</span>
+                        <Badge variant="secondary">{category.count} {t('articles')}</Badge>
                       </div>
                     ))}
                   </div>
                   <div className="mt-4 pt-4 border-t">
                     <Button variant="outline" className="w-full">
-                      Visit Help Center
+                      {t('visit_help_center')}
                     </Button>
                   </div>
                 </CardContent>
@@ -285,26 +287,26 @@ export default function ContactUs() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Clock className="h-5 w-5" />
-                    Business Hours
+                    {t('business_hours')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span>Monday - Friday</span>
+                      <span>{t('monday_friday')}</span>
                       <span className="font-medium">9:00 AM - 6:00 PM</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Saturday</span>
+                      <span>{t('saturday')}</span>
                       <span className="font-medium">10:00 AM - 4:00 PM</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Sunday</span>
-                      <span className="text-muted-foreground">Closed</span>
+                      <span>{t('sunday')}</span>
+                      <span className="text-muted-foreground">{t('closed')}</span>
                     </div>
                     <div className="pt-3 border-t">
                       <p className="text-sm text-muted-foreground">
-                        All times are West Africa Time (WAT)
+                        {t('all_times_are_wat')}
                       </p>
                     </div>
                   </div>
@@ -316,21 +318,21 @@ export default function ContactUs() {
           {/* Emergency Contact */}
           <Card className="bg-red-50 border-red-200">
             <CardContent className="p-6 text-center">
-              <h3 className="font-semibold text-red-800 mb-2">Emergency Support</h3>
+              <h3 className="font-semibold text-red-800 mb-2">{t('emergency_support')}</h3>
               <p className="text-red-700 mb-4">
-                For urgent issues like unauthorized transactions or account security concerns
+                {t('emergency_support_desc')}
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <a href="tel:+2341234567890" className="inline-block">
                   <Button variant="destructive">
                     <Phone className="h-4 w-4 mr-2" />
-                    Emergency Hotline
+                    {t('emergency_hotline')}
                   </Button>
                 </a>
                 <a href="mailto:emergency@goshop.com" className="inline-block">
                   <Button variant="outline" className="border-red-300 text-red-700 hover:bg-red-100">
                     <Mail className="h-4 w-4 mr-2" />
-                    Emergency Email
+                    {t('emergency_email')}
                   </Button>
                 </a>
               </div>

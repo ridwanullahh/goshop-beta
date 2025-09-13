@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Trans, useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +12,7 @@ import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const Login = () => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -87,19 +89,19 @@ const Login = () => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-subtle px-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Verify Your Email</CardTitle>
+            <CardTitle className="text-2xl">{t('verify_your_email')}</CardTitle>
             <CardDescription>
-              We've sent a verification code to {email}
+              {t('verification_code_sent', { email })}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleOtpSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="otp">Verification Code</Label>
+                <Label htmlFor="otp">{t('verification_code')}</Label>
                 <Input
                   id="otp"
                   type="text"
-                  placeholder="Enter 6-digit code"
+                  placeholder={t('enter_6_digit_code')}
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
                   maxLength={6}
@@ -113,7 +115,7 @@ const Login = () => {
                 variant="commerce"
                 disabled={isLoading || otp.length !== 6}
               >
-                {isLoading ? "Verifying..." : "Verify & Login"}
+                {isLoading ? t('verifying') : t('verify_and_login')}
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
               <Button
@@ -122,7 +124,7 @@ const Login = () => {
                 className="w-full"
                 onClick={() => setOtpRequired(false)}
               >
-                Back to Login
+                {t('back_to_login')}
               </Button>
             </form>
           </CardContent>
@@ -140,21 +142,21 @@ const Login = () => {
               <span className="text-white font-bold text-xl">C</span>
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
+          <CardTitle className="text-2xl font-bold">{t('welcome_back')}</CardTitle>
           <CardDescription>
-            Sign in to your CommerceOS account
+            {t('signin_to_account')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('email')}</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder={t('enter_your_email')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
@@ -164,13 +166,13 @@ const Login = () => {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('password')}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
+                  placeholder={t('enter_your_password')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 pr-10"
@@ -191,7 +193,7 @@ const Login = () => {
                 to="/forgot-password" 
                 className="text-sm text-primary hover:underline"
               >
-                Forgot password?
+                {t('forgot_password')}
               </Link>
             </div>
 
@@ -201,7 +203,7 @@ const Login = () => {
               variant="commerce"
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading ? t('signing_in') : t('sign_in')}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </form>
@@ -209,10 +211,12 @@ const Login = () => {
           <div className="mt-6">
             <Separator className="my-4" />
             <div className="text-center text-sm text-muted-foreground">
-              Don't have an account?{' '}
-              <Link to="/register" className="text-primary hover:underline font-medium">
-                Sign up for free
-              </Link>
+              <Trans i18nKey="dont_have_account">
+                Don't have an account?{' '}
+                <Link to="/register" className="text-primary hover:underline font-medium">
+                  Sign up for free
+                </Link>
+              </Trans>
             </div>
           </div>
         </CardContent>

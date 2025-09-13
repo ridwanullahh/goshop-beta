@@ -13,6 +13,8 @@ import { useRealTimeData } from '@/hooks/useRealTimeData';
 import useEmblaCarousel from 'embla-carousel-react';
 import { Product, ProductVariation } from '@/lib';
 import { toast } from 'sonner';
+import { useFormatPrice } from '@/hooks/useFormatPrice';
+import { useTranslation } from 'react-i18next';
 import { 
   Star, 
   Heart, 
@@ -30,7 +32,53 @@ import {
   X
 } from 'lucide-react';
 
+const RelatedProductCard = ({ product }: { product: Product }) => {
+  const { addToCart } = useCommerce();
+  const formattedPrice = useFormatPrice(product.price, product.currency);
+
+  return (
+    <Card key={product.id} className="group hover:shadow-lg transition-shadow">
+      <CardContent className="p-4">
+        <Link to={`/product/${product.id}`}>
+          <div className="aspect-square bg-muted rounded-lg overflow-hidden mb-3">
+            <img
+              src={product.images?.[0] || '/placeholder.svg'}
+              alt={product.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+            />
+          </div>
+        </Link>
+
+        <div className="space-y-2">
+          <Link to={`/product/${product.id}`}>
+            <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
+              {product.name}
+            </h3>
+          </Link>
+
+          <div className="flex items-center space-x-1">
+            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+            <span className="text-xs">{product.rating || 0}</span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-primary">{formattedPrice}</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => addToCart(product.id)}
+            >
+              <ShoppingCart className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function ProductDetails() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart, addToWishlist, currentUser } = useCommerce();
@@ -42,6 +90,9 @@ export default function ProductDetails() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariation | null>(null);
+
+  const formattedPrice = useFormatPrice(product?.price || 0, product?.currency);
+  const formattedOriginalPrice = useFormatPrice(product?.originalPrice || 0, product?.currency);
 
   useEffect(() => {
     if (products && id) {
@@ -115,7 +166,7 @@ export default function ProductDetails() {
           <div className="flex items-center justify-center min-h-96">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <p>Loading product...</p>
+              <p>{t('loading')}...</p>
             </div>
           </div>
         </main>
@@ -130,17 +181,17 @@ export default function ProductDetails() {
         <Header />
         <main className="container mx-auto px-4 py-8">
           <div className="text-center py-16">
-            <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
+            <h1 className="text-2xl font-bold mb-4">{t('product_not_found')}</h1>
             <p className="text-muted-foreground mb-6">
-              The product you're looking for doesn't exist or may have been removed.
+              {t('product_not_found_desc')}
             </p>
             <div className="space-x-4">
               <Button onClick={() => navigate(-1)} variant="outline">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Go Back
+                {t('go_back')}
               </Button>
               <Link to="/products">
-                <Button>Browse Products</Button>
+                <Button>{t('browse_products')}</Button>
               </Link>
             </div>
           </div>
@@ -156,9 +207,9 @@ export default function ProductDetails() {
       <main className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
-          <Link to="/" className="hover:text-foreground">Home</Link>
+          <Link to="/" className="hover:text-foreground">{t('home')}</Link>
           <span>/</span>
-          <Link to="/products" className="hover:text-foreground">Products</Link>
+          <Link to="/products" className="hover:text-foreground">{t('products')}</Link>
           <span>/</span>
           <Link to={`/category/${product.category?.toLowerCase()}`} className="hover:text-foreground">
             {product.category}
@@ -193,7 +244,7 @@ export default function ProductDetails() {
                 <div className="flex items-center gap-1">
                   <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                   <span className="font-medium">{product.rating || 0}</span>
-                  <span className="text-muted-foreground">({product.reviewCount || 0} reviews)</span>
+                  <span className="text-muted-foreground">({product.reviewCount || 0} {t('reviews')})</span>
                 </div>
                 
                 <Link to={`/${product.sellerName?.toLowerCase().replace(/\s+/g, '')}`} className="flex items-center gap-1 text-primary hover:underline">
@@ -203,10 +254,10 @@ export default function ProductDetails() {
               </div>
               
               <div className="flex items-center gap-4 mb-6">
-                <span className="text-3xl font-bold text-primary">${product.price}</span>
+                <span className="text-3xl font-bold text-primary">{formattedPrice}</span>
                 {product.originalPrice && product.originalPrice > product.price && (
                   <span className="text-lg text-muted-foreground line-through">
-                    ${product.originalPrice}
+                    {formattedOriginalPrice}
                   </span>
                 )}
               </div>
@@ -215,7 +266,7 @@ export default function ProductDetails() {
             {/* Variations */}
             {product.variations && product.variations.length > 0 && (
               <div className="space-y-4">
-                <h3 className="font-semibold">Variations</h3>
+                <h3 className="font-semibold">{t('variations')}</h3>
                 <div className="flex flex-wrap gap-2">
                   {product.variations.map(variation => (
                     <Button
@@ -253,7 +304,7 @@ export default function ProductDetails() {
               </div>
               
               <Badge variant={product.inventory > 0 ? "default" : "destructive"}>
-                {product.inventory > 0 ? `${product.inventory} in stock` : 'Out of stock'}
+                {product.inventory > 0 ? t('in_stock', { count: product.inventory }) : t('out_of_stock')}
               </Badge>
             </div>
 
@@ -267,7 +318,7 @@ export default function ProductDetails() {
                   disabled={product.inventory === 0}
                 >
                   <ShoppingCart className="h-4 w-4 mr-2" />
-                  Add to Cart
+                  {t('add_to_cart')}
                 </Button>
                 
                 <Button
@@ -294,7 +345,7 @@ export default function ProductDetails() {
                 onClick={handleBuyNow}
                 disabled={product.inventory === 0}
               >
-                Buy Now
+                {t('buy_now')}
               </Button>
             </div>
 
@@ -302,20 +353,20 @@ export default function ProductDetails() {
             <div className="grid grid-cols-3 gap-4 pt-6 border-t">
               <div className="text-center">
                 <Truck className="h-6 w-6 mx-auto mb-2 text-primary" />
-                <p className="text-sm font-medium">Free Shipping</p>
-                <p className="text-xs text-muted-foreground">On orders over $50</p>
+                <p className="text-sm font-medium">{t('free_shipping')}</p>
+                <p className="text-xs text-muted-foreground">{t('free_shipping_desc')}</p>
               </div>
               
               <div className="text-center">
                 <RotateCcw className="h-6 w-6 mx-auto mb-2 text-primary" />
-                <p className="text-sm font-medium">Easy Returns</p>
-                <p className="text-xs text-muted-foreground">30-day policy</p>
+                <p className="text-sm font-medium">{t('easy_returns')}</p>
+                <p className="text-xs text-muted-foreground">{t('easy_returns_desc')}</p>
               </div>
               
               <div className="text-center">
                 <Shield className="h-6 w-6 mx-auto mb-2 text-primary" />
-                <p className="text-sm font-medium">Secure Payment</p>
-                <p className="text-xs text-muted-foreground">SSL encrypted</p>
+                <p className="text-sm font-medium">{t('secure_payment')}</p>
+                <p className="text-xs text-muted-foreground">{t('secure_payment_desc')}</p>
               </div>
             </div>
           </div>
@@ -324,9 +375,9 @@ export default function ProductDetails() {
         {/* Product Details Tabs */}
         <Tabs defaultValue="description" className="mb-12">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="description">Description</TabsTrigger>
-            <TabsTrigger value="specifications">Specifications</TabsTrigger>
-            <TabsTrigger value="reviews">Reviews ({product.reviewCount || 0})</TabsTrigger>
+            <TabsTrigger value="description">{t('description')}</TabsTrigger>
+            <TabsTrigger value="specifications">{t('specifications')}</TabsTrigger>
+            <TabsTrigger value="reviews">{t('reviews')} ({product.reviewCount || 0})</TabsTrigger>
           </TabsList>
           
           <TabsContent value="description" className="mt-6">
@@ -371,18 +422,18 @@ export default function ProductDetails() {
           <TabsContent value="reviews" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Customer Reviews</CardTitle>
+                <CardTitle>{t('customer_reviews')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-center py-8">
                   <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground">No reviews yet</p>
+                  <p className="text-muted-foreground">{t('no_reviews')}</p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    Be the first to review this product
+                    {t('be_first_to_review')}
                   </p>
                   {currentUser && (
                     <Button className="mt-4" variant="outline">
-                      Write a Review
+                      {t('write_a_review')}
                     </Button>
                   )}
                 </div>
@@ -393,49 +444,13 @@ export default function ProductDetails() {
 
         {/* Related Products */}
         <section>
-          <h2 className="text-2xl font-bold mb-6">Related Products</h2>
+          <h2 className="text-2xl font-bold mb-6">{t('related_products')}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {products
               .filter(p => p.category === product.category && p.id !== product.id)
               .slice(0, 4)
               .map((relatedProduct) => (
-                <Card key={relatedProduct.id} className="group hover:shadow-lg transition-shadow">
-                  <CardContent className="p-4">
-                    <Link to={`/product/${relatedProduct.id}`}>
-                      <div className="aspect-square bg-muted rounded-lg overflow-hidden mb-3">
-                        <img 
-                          src={relatedProduct.images?.[0] || '/placeholder.svg'} 
-                          alt={relatedProduct.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        />
-                      </div>
-                    </Link>
-                    
-                    <div className="space-y-2">
-                      <Link to={`/product/${relatedProduct.id}`}>
-                        <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
-                          {relatedProduct.name}
-                        </h3>
-                      </Link>
-                      
-                      <div className="flex items-center space-x-1">
-                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                        <span className="text-xs">{relatedProduct.rating || 0}</span>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-primary">${relatedProduct.price}</span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => addToCart(relatedProduct.id)}
-                        >
-                          <ShoppingCart className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <RelatedProductCard product={relatedProduct} key={relatedProduct.id} />
               ))}
           </div>
         </section>
