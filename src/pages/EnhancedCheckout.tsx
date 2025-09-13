@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useCommerce } from '@/context/CommerceContext';
+import { useTranslation } from 'react-i18next';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import {
@@ -19,8 +20,10 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react';
+import { useFormatPrice } from '@/hooks/useFormatPrice';
 
 export default function EnhancedCheckout() {
+  const { t } = useTranslation();
   const { sdk, currentUser, cart, clearCart } = useCommerce();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -36,6 +39,14 @@ export default function EnhancedCheckout() {
   });
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [deliveryOptions, setDeliveryOptions] = useState<{ [key: string]: 'pickup' | 'shipping' }>({});
+
+  const formattedShippingCost = (cost: number) => useFormatPrice(cost);
+  const formattedItemTotal = (total: number) => useFormatPrice(total);
+  const formattedSubtotal = useFormatPrice(orderSummary?.subtotal || 0);
+  const formattedTotalShipping = useFormatPrice(orderSummary?.totalShipping || 0);
+  const formattedTotal = useFormatPrice(orderSummary?.total || 0);
+  const formattedPaidAtCheckout = useFormatPrice(orderSummary?.paidAtCheckout || 0);
+  const formattedRemainingAmount = useFormatPrice(orderSummary?.remainingAmount || 0);
 
   useEffect(() => {
     calculateOrderSummary();
@@ -198,8 +209,8 @@ export default function EnhancedCheckout() {
         <main className="container mx-auto px-4 py-8">
           <div className="text-center">
             <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h1 className="text-2xl font-bold mb-2">Your cart is empty</h1>
-            <p className="text-muted-foreground">Add some products to continue</p>
+            <h1 className="text-2xl font-bold mb-2">{t('your_cart_is_empty')}</h1>
+            <p className="text-muted-foreground">{t('add_products_to_continue')}</p>
           </div>
         </main>
         <Footer />
@@ -212,7 +223,7 @@ export default function EnhancedCheckout() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-2xl font-bold mb-8">Checkout</h1>
+          <h1 className="text-2xl font-bold mb-8">{t('checkout')}</h1>
           
           <div className="grid lg:grid-cols-2 gap-8">
             {/* Left Column - Forms */}
@@ -222,7 +233,7 @@ export default function EnhancedCheckout() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Truck className="h-5 w-5" />
-                    Delivery Options
+                    {t('delivery_options')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -240,7 +251,7 @@ export default function EnhancedCheckout() {
                           />
                           <div>
                             <h4 className="font-medium">{product.name}</h4>
-                            <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                            <p className="text-sm text-muted-foreground">{t('qty')}: {item.quantity}</p>
                           </div>
                         </div>
                         
@@ -253,7 +264,7 @@ export default function EnhancedCheckout() {
                               checked={deliveryOptions[item.productId] !== 'shipping'}
                               onChange={() => handleDeliveryMethodChange(item.productId, 'pickup')}
                             />
-                            <span className="text-sm">Pickup (Free)</span>
+                            <span className="text-sm">{t('pickup_free')}</span>
                           </label>
                           
                           {product.shippingEnabled && (
@@ -266,7 +277,7 @@ export default function EnhancedCheckout() {
                                 onChange={() => handleDeliveryMethodChange(item.productId, 'shipping')}
                               />
                               <span className="text-sm">
-                                Shipping (+${(product.shippingCost || 0).toFixed(2)})
+                                {t('shipping_cost', { cost: formattedShippingCost(product.shippingCost || 0) })}
                               </span>
                             </label>
                           )}
@@ -282,13 +293,13 @@ export default function EnhancedCheckout() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <MapPin className="h-5 w-5" />
-                    Shipping Address
+                    {t('shipping_address')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="fullName">Full Name</Label>
+                      <Label htmlFor="fullName">{t('full_name')}</Label>
                       <Input
                         id="fullName"
                         value={shippingAddress.fullName}
@@ -297,7 +308,7 @@ export default function EnhancedCheckout() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="address">Address</Label>
+                      <Label htmlFor="address">{t('address')}</Label>
                       <Input
                         id="address"
                         value={shippingAddress.address}
@@ -309,7 +320,7 @@ export default function EnhancedCheckout() {
                   
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <Label htmlFor="city">City</Label>
+                      <Label htmlFor="city">{t('city')}</Label>
                       <Input
                         id="city"
                         value={shippingAddress.city}
@@ -318,7 +329,7 @@ export default function EnhancedCheckout() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="state">State</Label>
+                      <Label htmlFor="state">{t('state')}</Label>
                       <Input
                         id="state"
                         value={shippingAddress.state}
@@ -327,7 +338,7 @@ export default function EnhancedCheckout() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="zipCode">ZIP Code</Label>
+                      <Label htmlFor="zipCode">{t('zip_code')}</Label>
                       <Input
                         id="zipCode"
                         value={shippingAddress.zipCode}
@@ -344,18 +355,18 @@ export default function EnhancedCheckout() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <CreditCard className="h-5 w-5" />
-                    Payment Method
+                    {t('payment_method')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select payment method" />
+                      <SelectValue placeholder={t('select_payment_method')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="card">Credit/Debit Card</SelectItem>
-                      <SelectItem value="paypal">PayPal</SelectItem>
-                      <SelectItem value="bank">Bank Transfer</SelectItem>
+                      <SelectItem value="card">{t('credit_debit_card')}</SelectItem>
+                      <SelectItem value="paypal">{t('paypal')}</SelectItem>
+                      <SelectItem value="bank">{t('bank_transfer')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </CardContent>
@@ -366,7 +377,7 @@ export default function EnhancedCheckout() {
             <div>
               <Card className="sticky top-4">
                 <CardHeader>
-                  <CardTitle>Order Summary</CardTitle>
+                  <CardTitle>{t('order_summary')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {orderSummary && (
@@ -378,20 +389,20 @@ export default function EnhancedCheckout() {
                             <div>
                               <p className="font-medium">{item.product.name}</p>
                               <p className="text-sm text-muted-foreground">
-                                Qty: {item.quantity} × ${item.product.price}
+                                {t('qty')}: {item.quantity} × {formattedItemTotal(item.product.price)}
                               </p>
                               <div className="flex gap-2 mt-1">
                                 <Badge variant="outline" className="text-xs">
-                                  {item.deliveryMethod === 'shipping' ? 'Shipping' : 'Pickup'}
+                                  {item.deliveryMethod === 'shipping' ? t('shipping_delivery') : t('pickup')}
                                 </Badge>
                                 {item.affiliateCommission > 0 && (
                                   <Badge variant="secondary" className="text-xs">
-                                    Affiliate Sale
+                                    {t('affiliate_sale')}
                                   </Badge>
                                 )}
                               </div>
                             </div>
-                            <p className="font-medium">${item.itemTotal.toFixed(2)}</p>
+                            <p className="font-medium">{formattedItemTotal(item.itemTotal)}</p>
                           </div>
                         ))}
                       </div>
@@ -401,20 +412,20 @@ export default function EnhancedCheckout() {
                       {/* Calculations */}
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span>Subtotal</span>
-                          <span>${orderSummary.subtotal.toFixed(2)}</span>
+                          <span>{t('subtotal')}</span>
+                          <span>{formattedSubtotal}</span>
                         </div>
                         
                         {orderSummary.totalShipping > 0 && (
                           <div className="flex justify-between">
-                            <span>Shipping</span>
-                            <span>${orderSummary.totalShipping.toFixed(2)}</span>
+                            <span>{t('shipping')}</span>
+                            <span>{formattedTotalShipping}</span>
                           </div>
                         )}
                         
                         <div className="flex justify-between text-lg font-semibold">
-                          <span>Total</span>
-                          <span>${orderSummary.total.toFixed(2)}</span>
+                          <span>{t('total')}</span>
+                          <span>{formattedTotal}</span>
                         </div>
                       </div>
 
@@ -424,23 +435,23 @@ export default function EnhancedCheckout() {
                       <div className="bg-blue-50 p-4 rounded-lg space-y-2">
                         <h4 className="font-medium flex items-center gap-2">
                           <Info className="h-4 w-4" />
-                          Payment Breakdown
+                          {t('payment_breakdown')}
                         </h4>
                         
                         <div className="space-y-1 text-sm">
                           <div className="flex justify-between">
-                            <span>Pay now (Service fees + Shipping)</span>
-                            <span className="font-medium">${orderSummary.paidAtCheckout.toFixed(2)}</span>
+                            <span>{t('pay_now')}</span>
+                            <span className="font-medium">{formattedPaidAtCheckout}</span>
                           </div>
                           <div className="flex justify-between text-muted-foreground">
-                            <span>Pay on delivery</span>
-                            <span>${orderSummary.remainingAmount.toFixed(2)}</span>
+                            <span>{t('pay_on_delivery')}</span>
+                            <span>{formattedRemainingAmount}</span>
                           </div>
                         </div>
                         
                         <div className="text-xs text-muted-foreground mt-2">
                           <AlertCircle className="h-3 w-3 inline mr-1" />
-                          You'll complete the remaining payment when your items are delivered
+                          {t('remaining_payment_desc')}
                         </div>
                       </div>
 
@@ -450,12 +461,12 @@ export default function EnhancedCheckout() {
                         onClick={handlePlaceOrder}
                         disabled={isLoading || !shippingAddress.fullName}
                       >
-                        {isLoading ? 'Processing...' : `Pay $${orderSummary.paidAtCheckout.toFixed(2)} Now`}
+                        {isLoading ? t('processing') : t('pay_now_button', { amount: formattedPaidAtCheckout })}
                       </Button>
 
                       <div className="text-xs text-center text-muted-foreground">
                         <CheckCircle className="h-3 w-3 inline mr-1" />
-                        Secure checkout powered by industry-standard encryption
+                        {t('secure_checkout_footer')}
                       </div>
                     </>
                   )}

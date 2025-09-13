@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Trans, useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,8 +13,9 @@ import { toast } from 'sonner';
 import { User, ShoppingBag, Store, TrendingUp, Eye, EyeOff } from 'lucide-react';
 
 export default function Signup() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
-  const { sdk } = useCommerce();
+  const { sdk, language, currency } = useCommerce();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -62,7 +64,9 @@ export default function Signup() {
         roles: [formData.role],
         businessName: formData.businessName,
         phone: formData.phone,
-        onboardingCompleted: false
+        onboardingCompleted: false,
+        language,
+        currency,
       };
 
       const user = await sdk.register({ // Fixed: changed to object parameter
@@ -104,20 +108,20 @@ export default function Signup() {
   const roleOptions = [
     {
       value: 'customer',
-      label: 'Customer',
-      description: 'Shop and buy products',
+      label: t('customer'),
+      description: t('customer_desc'),
       icon: User
     },
     {
       value: 'seller',
-      label: 'Seller',
-      description: 'Sell your products',
+      label: t('seller'),
+      description: t('seller_desc'),
       icon: Store
     },
     {
       value: 'affiliate',
-      label: 'Affiliate',
-      description: 'Earn through referrals',
+      label: t('affiliate'),
+      description: t('affiliate_desc'),
       icon: TrendingUp
     }
   ];
@@ -129,16 +133,16 @@ export default function Signup() {
           <div className="flex items-center justify-center mb-4">
             <ShoppingBag className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
+          <CardTitle className="text-2xl font-bold">{t('create_account')}</CardTitle>
           <CardDescription>
-            Choose your account type and get started
+            {t('choose_account_type')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Role Selection */}
             <div>
-              <Label htmlFor="role">Account Type</Label>
+              <Label htmlFor="role">{t('account_type')}</Label>
               <div className="grid grid-cols-1 gap-3 mt-2">
                 {roleOptions.map((option) => {
                   const Icon = option.icon;
@@ -168,57 +172,57 @@ export default function Signup() {
             {/* Personal Information */}
             <div className="space-y-4">
               <div>
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name">{t('full_name')}</Label>
                 <Input
                   id="name"
                   type="text"
                   value={formData.name}
                   onChange={(e) => handleChange('name', e.target.value)}
                   required
-                  placeholder="Enter your full name"
+                  placeholder={t('full_name')}
                 />
               </div>
 
               <div>
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email">{t('email_address')}</Label>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
                   required
-                  placeholder="Enter your email"
+                  placeholder={t('email_address')}
                 />
               </div>
 
               {(formData.role === 'seller' || formData.role === 'affiliate') && (
                 <div>
                   <Label htmlFor="businessName">
-                    {formData.role === 'seller' ? 'Business Name' : 'Brand/Business Name'}
+                    {formData.role === 'seller' ? t('business_name') : t('brand_business_name')}
                   </Label>
                   <Input
                     id="businessName"
                     type="text"
                     value={formData.businessName}
                     onChange={(e) => handleChange('businessName', e.target.value)}
-                    placeholder={`Enter your ${formData.role === 'seller' ? 'business' : 'brand'} name`}
+                    placeholder={formData.role === 'seller' ? t('business_name') : t('brand_business_name')}
                   />
                 </div>
               )}
 
               <div>
-                <Label htmlFor="phone">Phone Number (Optional)</Label>
+                <Label htmlFor="phone">{t('phone_optional')}</Label>
                 <Input
                   id="phone"
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
-                  placeholder="Enter your phone number"
+                  placeholder={t('phone_optional')}
                 />
               </div>
 
               <div>
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t('password')}</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -226,7 +230,7 @@ export default function Signup() {
                     value={formData.password}
                     onChange={(e) => handleChange('password', e.target.value)}
                     required
-                    placeholder="Create a password"
+                    placeholder={t('password')}
                     minLength={6}
                   />
                   <Button
@@ -242,14 +246,14 @@ export default function Signup() {
               </div>
 
               <div>
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword">{t('confirm_password')}</Label>
                 <Input
                   id="confirmPassword"
                   type="password"
                   value={formData.confirmPassword}
                   onChange={(e) => handleChange('confirmPassword', e.target.value)}
                   required
-                  placeholder="Confirm your password"
+                  placeholder={t('confirm_password')}
                 />
               </div>
             </div>
@@ -262,28 +266,22 @@ export default function Signup() {
                 onCheckedChange={(checked) => handleChange('agreeTerms', checked)}
               />
               <Label htmlFor="terms" className="text-sm">
-                I agree to the{' '}
-                <Link to="/terms" className="text-primary hover:underline">
-                  Terms of Service
-                </Link>{' '}
-                and{' '}
-                <Link to="/privacy" className="text-primary hover:underline">
-                  Privacy Policy
-                </Link>
+                <Trans i18nKey="agree_terms">
+                  I agree to the <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link> and <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
+                </Trans>
               </Label>
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Creating Account...' : 'Create Account'}
+              {loading ? t('creating_account') : t('create_account')}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              Already have an account?{' '}
-              <Link to="/login" className="text-primary hover:underline font-medium">
-                Sign in
-              </Link>
+              <Trans i18nKey="already_have_account">
+                Already have an account? <Link to="/login" className="text-primary hover:underline font-medium">Sign in</Link>
+              </Trans>
             </p>
           </div>
         </CardContent>

@@ -17,6 +17,8 @@ export interface User {
   verified?: boolean;
   permissions?: string[];
   walletBalance?: number;
+  language?: string;
+  currency?: string;
 }
 
 export interface ProductVariation {
@@ -86,6 +88,7 @@ export interface Product {
   // Affiliate settings
   affiliateEnabled: boolean;
   affiliateCommission?: number; // percentage
+  currency?: string; // e.g., 'USD', 'NGN'
 }
 
 export interface Wallet {
@@ -412,6 +415,17 @@ export interface Commission {
   status: string;
   createdAt: string;
 }
+
+export interface Affiliate {
+  id: string;
+  userId: string;
+  commissionRate: number;
+  businessName?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface LiveStream {
   id: string;
   sellerId: string;
@@ -422,6 +436,20 @@ export interface LiveStream {
   startTime: string;
   endTime?: string;
   agoraToken?: string;
+}
+
+export interface Language {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface Currency {
+  id: string;
+  code: string;
+  name: string;
+  symbol: string;
+  exchangeRate: number; // Rate against a base currency (e.g., USD)
 }
 
 export class CommerceSDK {
@@ -437,10 +465,9 @@ export class CommerceSDK {
     this.owner = import.meta.env.VITE_GITHUB_OWNER || 'ridwanullahh';
     this.repo = import.meta.env.VITE_GITHUB_REPO || 'goshopdb';
     this.sdk = this;
-    this.initializeCollections();
   }
 
-  private async initializeCollections(): Promise<void> {
+  async init(): Promise<void> {
     const collections = [
       'platformCommissions',
       'affiliateLinks',
@@ -450,7 +477,9 @@ export class CommerceSDK {
       'withdrawalRequests',
       'sellerAgreements',
       'wallets',
-      'transactions'
+      'transactions',
+      'languages',
+      'currencies'
     ];
 
     for (const collection of collections) {
@@ -501,6 +530,24 @@ This agreement is effective immediately and may be updated from time to time.`,
           commission_percentage: '5'
         }
       });
+    }
+
+    // Initialize default languages if not exist
+    const languages = await this.getData('languages');
+    if (languages.length === 0) {
+      await this.saveData('languages', [
+        { id: '1', code: 'en', name: 'English' },
+        { id: '2', code: 'fr', name: 'French' },
+      ]);
+    }
+
+    // Initialize default currencies if not exist
+    const currencies = await this.getData('currencies');
+    if (currencies.length === 0) {
+      await this.saveData('currencies', [
+        { id: '1', code: 'USD', name: 'US Dollar', symbol: '$', exchangeRate: 1 },
+        { id: '2', code: 'NGN', name: 'Nigerian Naira', symbol: '₦', exchangeRate: 1500 },
+      ]);
     }
   }
 
@@ -985,6 +1032,7 @@ async uploadToCloudinary(file: File): Promise<string> {
       const newProduct: Product = {
         inventory: 0,
         category: 'General',
+        currency: 'USD',
         ...productData,
         id: Date.now().toString(),
         images: imageUrls,
@@ -1708,19 +1756,41 @@ async uploadToCloudinary(file: File): Promise<string> {
     return await this.update('livestreams', id, updates);
   }
 
-  async createAffiliate(affiliateData: any): Promise<User> {
-    const newAffiliate: User = {
-      ...affiliateData,
-      id: Date.now().toString(),
-      role: 'affiliate',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+  async createAffiliate(affiliateData: any): Promise<Affiliate> {
+    try {
+      const newAffiliate: Affiliate = {
+        id: Date.now().toString(),
+        ...affiliateData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
 
-    const users = await this.getData('users');
-    users.push(newAffiliate);
-    await this.saveData('users', users);
+      const affiliates = await this.getData('affiliates');
+      affiliates.push(newAffiliate);
+      await this.saveData('affiliates', affiliates);
 
-    return newAffiliate;
+      return newAffiliate;
+    } catch (error) {
+      console.error('Error creating affiliate:', error);
+      throw error;
+    }
+  }
+
+  async convertCurrency(amount: number, fromCurrency: string, toCurrency: string): Promise<number> {
+    if (fromCurrency === toCurrency) {
+      return amount;
+    }
+
+    const currencies = await this.getData('currencies') as Currency[];
+    const fromRate = currencies.find(c => c.code === fromCurrency)?.exchangeRate;
+    const toRate = currencies.find(c => c.code === toCurrency)?.exchangeRate;
+
+    if (!fromRate || !toRate) {
+      console.warn(`Could not find exchange rate for ${fromCurrency} or ${toCurrency}`);
+      return amount;
+    }
+
+    const amountInBase = amount / fromRate;
+    return amountInBase * toRate;
   }
 }
