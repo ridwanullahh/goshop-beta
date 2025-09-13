@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -9,8 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { useCommerce } from '@/context/CommerceContext';
 import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, CreditCard } from 'lucide-react';
+import { useFormatPrice } from '@/hooks/useFormatPrice';
 
 const Cart = () => {
+  const { t } = useTranslation();
   const { cart, products, removeFromCart, currentUser, updateCartQuantity } = useCommerce();
   const navigate = useNavigate();
 
@@ -24,6 +27,14 @@ const Cart = () => {
   const shipping = subtotal > 50 ? 0 : 9.99;
   const tax = subtotal * 0.08; // 8% tax
   const total = subtotal + shipping + tax;
+
+  const formattedSubtotal = useFormatPrice(subtotal);
+  const formattedShipping = useFormatPrice(shipping);
+  const formattedTax = useFormatPrice(tax);
+  const formattedTotal = useFormatPrice(total);
+  const formattedItemTotal = (price: number, quantity: number) => useFormatPrice(price * quantity);
+  const formattedFreeShippingThreshold = useFormatPrice(50 - subtotal);
+
 
   const handleRemoveItem = (productId: string) => {
     removeFromCart(productId);
@@ -53,19 +64,19 @@ const Cart = () => {
           <div className="container mx-auto px-4 py-16 text-center">
             <div className="max-w-md mx-auto">
               <ShoppingBag className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-              <h2 className="text-2xl font-bold mb-4">Your Cart</h2>
+              <h2 className="text-2xl font-bold mb-4">{t('your_cart')}</h2>
               <p className="text-muted-foreground mb-6">
-                Please sign in to view your cart and continue shopping.
+                {t('signin_to_view_cart')}
               </p>
               <div className="space-y-3">
                 <Link to="/login">
                   <Button className="w-full" variant="commerce">
-                    Sign In
+                    {t('sign_in')}
                   </Button>
                 </Link>
                 <Link to="/products">
                   <Button variant="outline" className="w-full">
-                    Continue Shopping
+                    {t('continue_shopping')}
                   </Button>
                 </Link>
               </div>
@@ -85,14 +96,14 @@ const Cart = () => {
           <div className="container mx-auto px-4 py-16 text-center">
             <div className="max-w-md mx-auto">
               <ShoppingBag className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-              <h2 className="text-2xl font-bold mb-4">Your cart is empty</h2>
+              <h2 className="text-2xl font-bold mb-4">{t('your_cart_is_empty')}</h2>
               <p className="text-muted-foreground mb-6">
-                Looks like you haven't added anything to your cart yet. Start shopping to fill it up!
+                {t('empty_cart_desc')}
               </p>
               <Link to="/products">
                 <Button variant="commerce">
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Continue Shopping
+                  {t('continue_shopping')}
                 </Button>
               </Link>
             </div>
@@ -111,7 +122,7 @@ const Cart = () => {
           <div className="mb-6">
             <Link to="/products" className="inline-flex items-center text-muted-foreground hover:text-foreground">
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Continue Shopping
+              {t('continue_shopping')}
             </Link>
           </div>
 
@@ -122,7 +133,7 @@ const Cart = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <ShoppingBag className="w-5 h-5 mr-2" />
-                    Shopping Cart ({cartItems.length} items)
+                    {t('shopping_cart_items', { count: cartItems.length })}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -171,7 +182,7 @@ const Cart = () => {
                           
                           <div className="flex items-center gap-4">
                             <span className="font-semibold text-lg">
-                              ${(item.product.price * item.quantity).toFixed(2)}
+                              {formattedItemTotal(item.product.price, item.quantity)}
                             </span>
                             <Button
                               size="icon"
@@ -194,40 +205,40 @@ const Cart = () => {
             <div>
               <Card>
                 <CardHeader>
-                  <CardTitle>Order Summary</CardTitle>
+                  <CardTitle>{t('order_summary')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex justify-between">
-                    <span>Subtotal</span>
-                    <span>${subtotal.toFixed(2)}</span>
+                    <span>{t('subtotal')}</span>
+                    <span>{formattedSubtotal}</span>
                   </div>
                   
                   <div className="flex justify-between">
-                    <span>Shipping</span>
+                    <span>{t('shipping')}</span>
                     <span>
                       {shipping === 0 ? (
-                        <Badge variant="secondary">FREE</Badge>
+                        <Badge variant="secondary">{t('free')}</Badge>
                       ) : (
-                        `$${shipping.toFixed(2)}`
+                        formattedShipping
                       )}
                     </span>
                   </div>
                   
                   <div className="flex justify-between">
-                    <span>Tax</span>
-                    <span>${tax.toFixed(2)}</span>
+                    <span>{t('tax')}</span>
+                    <span>{formattedTax}</span>
                   </div>
                   
                   <Separator />
                   
                   <div className="flex justify-between text-lg font-semibold">
-                    <span>Total</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>{t('total')}</span>
+                    <span>{formattedTotal}</span>
                   </div>
 
                   {shipping > 0 && (
                     <div className="text-sm text-muted-foreground p-3 bg-muted rounded-lg">
-                      💡 Add ${(50 - subtotal).toFixed(2)} more to get free shipping!
+                      {t('free_shipping_add_more', { amount: formattedFreeShippingThreshold })}
                     </div>
                   )}
 
@@ -238,11 +249,11 @@ const Cart = () => {
                     onClick={handleProceedToCheckout}
                   >
                     <CreditCard className="w-4 h-4 mr-2" />
-                    Proceed to Checkout
+                    {t('proceed_to_checkout')}
                   </Button>
 
                   <div className="text-xs text-muted-foreground text-center">
-                    Secure checkout with 256-bit SSL encryption
+                    {t('secure_checkout')}
                   </div>
                 </CardContent>
               </Card>
@@ -252,20 +263,20 @@ const Cart = () => {
                 <CardContent className="p-4">
                   <div className="grid grid-cols-2 gap-4 text-xs text-center">
                     <div>
-                      <div className="font-semibold">Free Returns</div>
-                      <div className="text-muted-foreground">30 days</div>
+                      <div className="font-semibold">{t('free_returns')}</div>
+                      <div className="text-muted-foreground">{t('free_returns_desc')}</div>
                     </div>
                     <div>
-                      <div className="font-semibold">Fast Shipping</div>
-                      <div className="text-muted-foreground">1-2 days</div>
+                      <div className="font-semibold">{t('fast_shipping')}</div>
+                      <div className="text-muted-foreground">{t('fast_shipping_desc')}</div>
                     </div>
                     <div>
-                      <div className="font-semibold">Secure Payment</div>
-                      <div className="text-muted-foreground">SSL Protected</div>
+                      <div className="font-semibold">{t('secure_payment_footer')}</div>
+                      <div className="text-muted-foreground">{t('secure_payment_footer_desc')}</div>
                     </div>
                     <div>
-                      <div className="font-semibold">24/7 Support</div>
-                      <div className="text-muted-foreground">Always here</div>
+                      <div className="font-semibold">{t('support_24_7')}</div>
+                      <div className="text-muted-foreground">{t('support_24_7_desc')}</div>
                     </div>
                   </div>
                 </CardContent>

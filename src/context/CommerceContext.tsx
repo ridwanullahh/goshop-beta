@@ -6,9 +6,12 @@ import {
   Order,
   Category,
   CartItem,
-  WishlistItem
+  WishlistItem,
+  Language,
+  Currency
 } from '@/lib';
 import { toast } from 'sonner';
+import i18n from '@/i18n';
 
 // Define the context type
 type CommerceContextType = {
@@ -44,6 +47,12 @@ type CommerceContextType = {
   loadUserData: () => Promise<void>;
   addToCompare: (productId: string) => void;
   removeFromCompare: (productId: string) => void;
+  language: string;
+  setLanguage: (lang: string) => void;
+  currency: string;
+  setCurrency: (curr: string) => void;
+  languages: Language[];
+  currencies: Currency[];
 };
 
 // Create the context with a default value
@@ -68,7 +77,13 @@ export const CommerceContext = createContext<CommerceContextType>({
   searchProducts: async () => { return []; },
   loadUserData: async () => { throw new Error('loadUserData function not implemented'); },
   addToCompare: () => { throw new Error('addToCompare function not implemented'); },
-  removeFromCompare: () => { throw new Error('removeFromCompare function not implemented'); }
+  removeFromCompare: () => { throw new Error('removeFromCompare function not implemented'); },
+  language: 'en',
+  setLanguage: () => {},
+  currency: 'USD',
+  setCurrency: () => {},
+  languages: [],
+  currencies: [],
 });
 
 // Create a custom hook to use the context
@@ -84,6 +99,10 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [compareList, setCompareList] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sdk] = useState(() => new CommerceSDK());
+  const [language, setLanguageState] = useState('en');
+  const [currency, setCurrencyState] = useState('USD');
+  const [languages, setLanguages] = useState<Language[]>([]);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
 
   useEffect(() => {
     initializeApp();
@@ -104,7 +123,9 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       
       await Promise.all([
         loadProducts(),
-        loadCategories()
+        loadCategories(),
+        loadLanguages(),
+        loadCurrencies()
       ]);
     } catch (error) {
       console.error('Failed to initialize app:', error);
@@ -372,6 +393,33 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     toast.success('Product removed from compare list');
   };
 
+  const loadLanguages = async () => {
+    try {
+      const languagesData = await sdk.get<Language>('languages');
+      setLanguages(languagesData);
+    } catch (error) {
+      console.error('Error loading languages:', error);
+    }
+  };
+
+  const loadCurrencies = async () => {
+    try {
+      const currenciesData = await sdk.get<Currency>('currencies');
+      setCurrencies(currenciesData);
+    } catch (error) {
+      console.error('Error loading currencies:', error);
+    }
+  };
+
+  const setLanguage = (lang: string) => {
+    i18n.changeLanguage(lang);
+    setLanguageState(lang);
+  };
+
+  const setCurrency = (curr: string) => {
+    setCurrencyState(curr);
+  };
+
   const value: CommerceContextType = {
     currentUser,
     products,
@@ -393,7 +441,13 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     searchProducts,
     loadUserData,
     addToCompare,
-    removeFromCompare
+    removeFromCompare,
+    language,
+    setLanguage,
+    currency,
+    setCurrency,
+    languages,
+    currencies,
   };
 
   return (
