@@ -539,6 +539,17 @@ This agreement is effective immediately and may be updated from time to time.`,
       await this.saveData('languages', [
         { id: '1', code: 'en', name: 'English' },
         { id: '2', code: 'fr', name: 'French' },
+        { id: '3', code: 'es', name: 'Spanish' },
+        { id: '4', code: 'de', name: 'German' },
+        { id: '5', code: 'zh', name: 'Chinese' },
+        { id: '6', code: 'ar', name: 'Arabic' },
+        { id: '7', code: 'hi', name: 'Hindi' },
+        { id: '8', code: 'pt', name: 'Portuguese' },
+        { id: '9', code: 'ru', name: 'Russian' },
+        { id: '10', code: 'ja', name: 'Japanese' },
+        { id: '11', code: 'bn', name: 'Bengali' },
+        { id: '12', code: 'pa', name: 'Punjabi' },
+        { id: '13', code: 'jv', name: 'Javanese' },
       ]);
     }
 
