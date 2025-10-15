@@ -1,24 +1,38 @@
 import React from 'react';
 import { useCommerce } from '@/context/CommerceContext';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Check } from 'lucide-react';
 
-export const CurrencySelector = () => {
+export function CurrencySelector() {
   const { currency, setCurrency, currencies } = useCommerce();
 
   if (!currencies || currencies.length === 0) return null;
 
   return (
-    <div className="flex items-center">
-      <select
-        value={currency}
-        onChange={(e) => setCurrency(e.target.value)}
-        className="bg-transparent text-sm text-muted-foreground hover:text-foreground focus:outline-none"
-      >
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="flex items-center gap-2">
+          <span>{currency.code} ({currency.symbol})</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
         {currencies.map((curr) => (
-          <option key={curr.code} value={curr.code} className="bg-background text-foreground">
-            {curr.code} ({curr.symbol})
-          </option>
+          <DropdownMenuItem
+            key={curr.code}
+            onSelect={() => setCurrency(curr.code)}
+            className="flex items-center justify-between"
+          >
+            <span>{curr.name} ({curr.code})</span>
+            {currency.code === curr.code && <Check className="h-4 w-4" />}
+          </DropdownMenuItem>
         ))}
-      </select>
-    </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
-};
+}
