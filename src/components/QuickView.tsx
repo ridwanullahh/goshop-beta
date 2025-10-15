@@ -4,7 +4,6 @@ import { Button } from './ui/button';
 import { ShoppingCart, X } from 'lucide-react';
 import { useCommerce } from '@/context/CommerceContext';
 import { useTranslation } from 'react-i18next';
-import { useFormatPrice } from '@/hooks/useFormatPrice';
 
 interface QuickViewProps {
   product: Product;
@@ -13,8 +12,16 @@ interface QuickViewProps {
 
 export default function QuickView({ product, onClose }: QuickViewProps) {
   const { t } = useTranslation();
-  const { addToCart } = useCommerce();
-  const formattedPrice = useFormatPrice(product.price, product.currency);
+  const { addToCart, currency } = useCommerce();
+
+  const formatPrice = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.code,
+    }).format(amount);
+  };
+
+  const formattedPrice = formatPrice(product.price);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
