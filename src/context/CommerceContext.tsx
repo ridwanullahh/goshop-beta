@@ -49,10 +49,11 @@ type CommerceContextType = {
   removeFromCompare: (productId: string) => void;
   language: string;
   setLanguage: (lang: string) => void;
-  currency: string;
+  currency: Currency;
   setCurrency: (curr: string) => void;
   languages: Language[];
   currencies: Currency[];
+  convertCurrency: (amount: number) => number;
 };
 
 // Create the context with a default value
@@ -80,10 +81,11 @@ export const CommerceContext = createContext<CommerceContextType>({
   removeFromCompare: () => { throw new Error('removeFromCompare function not implemented'); },
   language: 'en',
   setLanguage: () => {},
-  currency: 'USD',
+  currency: { code: 'USD', exchangeRate: 1 },
   setCurrency: () => {},
   languages: [],
   currencies: [],
+  convertCurrency: (amount: number) => amount,
 });
 
 // Create a custom hook to use the context
@@ -92,6 +94,7 @@ export const useCommerce = () => useContext(CommerceContext);
 export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [originalProducts, setOriginalProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [cart, setCart] = useState<{ items: CartItem[] }>({ items: [] });
@@ -99,14 +102,39 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [compareList, setCompareList] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sdk] = useState(() => new CommerceSDK());
-  const [language, setLanguageState] = useState('en');
-  const [currency, setCurrencyState] = useState('USD');
-  const [languages, setLanguages] = useState<Language[]>([]);
+  const [language, setLanguageState] = useState(i18n.language || 'en');
   const [currencies, setCurrencies] = useState<Currency[]>([]);
+  const [currency, setCurrencyState] = useState<Currency>({ code: 'USD', exchangeRate: 1 });
+  const [languages, setLanguages] = useState<Language[]>([]);
 
   useEffect(() => {
     initializeApp();
   }, []);
+
+  useEffect(() => {
+    const savedCurrency = localStorage.getItem('currency');
+    if (savedCurrency && currencies.length) {
+      const foundCurrency = currencies.find(c => c.code === savedCurrency);
+      if (foundCurrency) {
+        setCurrency(foundCurrency);
+      }
+    }
+  }, [currencies]);
+
+  const convertCurrency = (amount: number) => {
+    return amount * currency.exchangeRate;
+  };
+
+  useEffect(() => {
+    if (originalProducts.length) {
+      const convertedProducts = originalProducts.map(product => ({
+        ...product,
+        price: product.price * currency.exchangeRate,
+        originalPrice: product.originalPrice ? product.originalPrice * currency.exchangeRate : undefined
+      }));
+      setProducts(convertedProducts);
+    }
+  }, [currency, originalProducts]);
 
   const initializeApp = async () => {
     try {
@@ -155,6 +183,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const loadProducts = async () => {
     try {
       const productsData = await sdk.getProducts();
+      setOriginalProducts(productsData);
       setProducts(productsData);
     } catch (error) {
       console.error('Error loading products:', error);
@@ -414,10 +443,15 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setLanguage = (lang: string) => {
     i18n.changeLanguage(lang);
     setLanguageState(lang);
+    localStorage.setItem('language', lang);
   };
 
-  const setCurrency = (curr: string) => {
-    setCurrencyState(curr);
+  const setCurrency = (currencyCode: string) => {
+    const selectedCurrency = currencies.find(c => c.code === currencyCode);
+    if (selectedCurrency) {
+      setCurrencyState(selectedCurrency);
+      localStorage.setItem('currency', currencyCode);
+    }
   };
 
   const value: CommerceContextType = {
@@ -448,6 +482,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCurrency,
     languages,
     currencies,
+    convertCurrency,
   };
 
   return (

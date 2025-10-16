@@ -20,7 +20,6 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react';
-import { useFormatPrice } from '@/hooks/useFormatPrice';
 
 export default function EnhancedCheckout() {
   const { t } = useTranslation();
@@ -40,13 +39,22 @@ export default function EnhancedCheckout() {
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [deliveryOptions, setDeliveryOptions] = useState<{ [key: string]: 'pickup' | 'shipping' }>({});
 
-  const formattedShippingCost = (cost: number) => useFormatPrice(cost);
-  const formattedItemTotal = (total: number) => useFormatPrice(total);
-  const formattedSubtotal = useFormatPrice(orderSummary?.subtotal || 0);
-  const formattedTotalShipping = useFormatPrice(orderSummary?.totalShipping || 0);
-  const formattedTotal = useFormatPrice(orderSummary?.total || 0);
-  const formattedPaidAtCheckout = useFormatPrice(orderSummary?.paidAtCheckout || 0);
-  const formattedRemainingAmount = useFormatPrice(orderSummary?.remainingAmount || 0);
+  const { currency } = useCommerce();
+
+  const formatPrice = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.code,
+    }).format(amount);
+  };
+
+  const formattedShippingCost = (cost: number) => formatPrice(cost);
+  const formattedItemTotal = (total: number) => formatPrice(total);
+  const formattedSubtotal = formatPrice(orderSummary?.subtotal || 0);
+  const formattedTotalShipping = formatPrice(orderSummary?.totalShipping || 0);
+  const formattedTotal = formatPrice(orderSummary?.total || 0);
+  const formattedPaidAtCheckout = formatPrice(orderSummary?.paidAtCheckout || 0);
+  const formattedRemainingAmount = formatPrice(orderSummary?.remainingAmount || 0);
 
   useEffect(() => {
     calculateOrderSummary();
