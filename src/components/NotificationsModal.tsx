@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useTranslation } from 'react-i18next';
 import { Bell, Check, Trash2, Package, Heart, MessageCircle } from 'lucide-react';
 import { useCommerce } from '@/context/CommerceContext';
 
@@ -20,6 +21,7 @@ interface Notification {
 }
 
 export function NotificationsModal({ children }: NotificationsModalProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const { currentUser } = useCommerce();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -94,11 +96,11 @@ export function NotificationsModal({ children }: NotificationsModalProps) {
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / 60000);
     
     if (diffInMinutes < 60) {
-      return `${diffInMinutes}m ago`;
+      return t('ago', { time: `${diffInMinutes}m` });
     } else if (diffInMinutes < 1440) {
-      return `${Math.floor(diffInMinutes / 60)}h ago`;
+      return t('ago', { time: `${Math.floor(diffInMinutes / 60)}h` });
     } else {
-      return `${Math.floor(diffInMinutes / 1440)}d ago`;
+      return t('ago', { time: `${Math.floor(diffInMinutes / 1440)}d` });
     }
   };
 
@@ -114,15 +116,15 @@ export function NotificationsModal({ children }: NotificationsModalProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5" />
-              Notifications
+              {t('notifications')}
             </DialogTitle>
           </DialogHeader>
           <div className="text-center py-8">
             <p className="text-muted-foreground mb-4">
-              Please sign in to view your notifications
+              {t('signin_to_view_notifications')}
             </p>
             <Button onClick={() => setOpen(false)}>
-              Sign In
+              {t('sign_in')}
             </Button>
           </div>
         </DialogContent>
@@ -140,7 +142,7 @@ export function NotificationsModal({ children }: NotificationsModalProps) {
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bell className="h-5 w-5" />
-              Notifications
+              {t('notifications')}
               {unreadCount > 0 && (
                 <Badge className="bg-red-500 text-white">
                   {unreadCount}
@@ -150,7 +152,7 @@ export function NotificationsModal({ children }: NotificationsModalProps) {
             {unreadCount > 0 && (
               <Button onClick={markAllAsRead} size="sm" variant="outline">
                 <Check className="h-4 w-4 mr-2" />
-                Mark all read
+                {t('mark_all_read')}
               </Button>
             )}
           </DialogTitle>
@@ -160,9 +162,9 @@ export function NotificationsModal({ children }: NotificationsModalProps) {
           {notifications.length === 0 ? (
             <div className="text-center py-12">
               <Bell className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-semibold mb-2">No notifications</h3>
+              <h3 className="text-lg font-semibold mb-2">{t('no_notifications')}</h3>
               <p className="text-muted-foreground">
-                You're all caught up! We'll notify you when something happens.
+                {t('all_caught_up')}
               </p>
             </div>
           ) : (
@@ -183,7 +185,7 @@ export function NotificationsModal({ children }: NotificationsModalProps) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <h4 className="font-medium text-sm">
-                          {notification.title}
+                          {t(notification.title.toLowerCase().replace(/ /g, '_'))}
                         </h4>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground">
@@ -200,7 +202,7 @@ export function NotificationsModal({ children }: NotificationsModalProps) {
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground mb-2">
-                        {notification.message}
+                        {t(notification.message.toLowerCase().replace(/ /g, '_'))}
                       </p>
                       {!notification.isRead && (
                         <Button
@@ -209,7 +211,7 @@ export function NotificationsModal({ children }: NotificationsModalProps) {
                           onClick={() => markAsRead(notification.id)}
                           className="h-6 text-xs"
                         >
-                          Mark as read
+                          {t('mark_as_read')}
                         </Button>
                       )}
                     </div>

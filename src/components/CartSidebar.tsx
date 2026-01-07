@@ -3,15 +3,18 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
+import { useTranslation } from 'react-i18next';
 import { ShoppingCart, Plus, Minus, Trash2, CreditCard } from 'lucide-react';
 import { useCommerce } from '@/context/CommerceContext';
 import { Link } from 'react-router-dom';
+import { useFormatPrice } from '@/hooks/useFormatPrice';
 
 interface CartSidebarProps {
   children: React.ReactNode;
 }
 
 export function CartSidebar({ children }: CartSidebarProps) {
+  const { t } = useTranslation();
   const { cart, products, removeFromCart, currentUser } = useCommerce();
 
   const cartItems = cart?.items?.map(item => {
@@ -23,6 +26,12 @@ export function CartSidebar({ children }: CartSidebarProps) {
   const shipping = subtotal > 50 ? 0 : 9.99;
   const total = subtotal + shipping;
 
+  const formattedSubtotal = useFormatPrice(subtotal);
+  const formattedShipping = useFormatPrice(shipping);
+  const formattedTotal = useFormatPrice(total);
+  const formattedItemPrice = (price: number) => useFormatPrice(price);
+  const formattedFreeShippingThreshold = useFormatPrice(50 - subtotal);
+
   return (
     <Drawer direction="right">
       <DrawerTrigger asChild>
@@ -32,7 +41,7 @@ export function CartSidebar({ children }: CartSidebarProps) {
         <DrawerHeader className="border-b">
           <DrawerTitle className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5" />
-            Shopping Cart ({cartItems.length})
+            {t('shopping_cart')} ({cartItems.length})
           </DrawerTitle>
         </DrawerHeader>
         
@@ -42,20 +51,20 @@ export function CartSidebar({ children }: CartSidebarProps) {
             {!currentUser ? (
               <div className="text-center py-8">
                 <ShoppingCart className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <h3 className="font-semibold mb-2">Sign in to view cart</h3>
+                <h3 className="font-semibold mb-2">{t('signin_to_view_cart_sidebar')}</h3>
                 <p className="text-muted-foreground text-sm mb-4">
-                  Your cart items will be saved when you sign in
+                  {t('cart_items_will_be_saved')}
                 </p>
                 <Link to="/login">
-                  <Button>Sign In</Button>
+                  <Button>{t('sign_in')}</Button>
                 </Link>
               </div>
             ) : cartItems.length === 0 ? (
               <div className="text-center py-8">
                 <ShoppingCart className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <h3 className="font-semibold mb-2">Your cart is empty</h3>
+                <h3 className="font-semibold mb-2">{t('your_cart_is_empty')}</h3>
                 <p className="text-muted-foreground text-sm">
-                  Start shopping to add items to your cart
+                  {t('empty_cart_desc_sidebar')}
                 </p>
               </div>
             ) : (
@@ -72,7 +81,7 @@ export function CartSidebar({ children }: CartSidebarProps) {
                         {item.product.name}
                       </h4>
                       <p className="text-sm text-muted-foreground">
-                        ${item.product.price.toFixed(2)}
+                        {formattedItemPrice(item.product.price)}
                       </p>
                       <div className="flex items-center justify-between mt-2">
                         <div className="flex items-center gap-1">
@@ -105,23 +114,23 @@ export function CartSidebar({ children }: CartSidebarProps) {
             <div className="border-t p-4 space-y-4">
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Subtotal</span>
-                  <span>${subtotal.toFixed(2)}</span>
+                  <span>{t('subtotal')}</span>
+                  <span>{formattedSubtotal}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span>Shipping</span>
+                  <span>{t('shipping')}</span>
                   <span>
                     {shipping === 0 ? (
-                      <Badge variant="secondary">FREE</Badge>
+                      <Badge variant="secondary">{t('free')}</Badge>
                     ) : (
-                      `$${shipping.toFixed(2)}`
+                      formattedShipping
                     )}
                   </span>
                 </div>
                 <div className="border-t pt-2">
                   <div className="flex justify-between font-semibold">
-                    <span>Total</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>{t('total')}</span>
+                    <span>{formattedTotal}</span>
                   </div>
                 </div>
               </div>
@@ -129,18 +138,18 @@ export function CartSidebar({ children }: CartSidebarProps) {
               <div className="space-y-2">
                 <Button className="w-full" size="lg">
                   <CreditCard className="h-4 w-4 mr-2" />
-                  Checkout
+                  {t('checkout')}
                 </Button>
                 <Link to="/cart" className="block">
                   <Button variant="outline" className="w-full">
-                    View Full Cart
+                    {t('view_full_cart')}
                   </Button>
                 </Link>
               </div>
 
               {shipping > 0 && (
                 <div className="text-xs text-muted-foreground text-center p-2 bg-muted rounded">
-                  💡 Add ${(50 - subtotal).toFixed(2)} more for free shipping!
+                  {t('free_shipping_add_more_sidebar', { amount: formattedFreeShippingThreshold })}
                 </div>
               )}
             </div>
