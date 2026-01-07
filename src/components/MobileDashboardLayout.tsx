@@ -53,12 +53,12 @@ export function MobileDashboardLayout({ children, userType }: MobileDashboardLay
       case 'customer':
         return [
           ...baseItems,
-          { id: 'orders', label: 'My Orders', icon: Package, path: '/orders', badge: null },
-          { id: 'wishlist', label: 'Wishlist', icon: Heart, path: '/wishlist', badge: null },
-          { id: 'profile', label: 'Profile', icon: User, path: '/profile', badge: null },
-          { id: 'wallet', label: 'Wallet', icon: CreditCard, path: '/wallet', badge: null },
-          { id: 'notifications', label: 'Notifications', icon: Bell, path: '/notifications', badge: '3' },
-          { id: 'support', label: 'Support', icon: HelpCircle, path: '/support', badge: null }
+          { id: 'orders', label: 'My Orders', icon: Package, path: '/customer-dashboard/orders', badge: null },
+          { id: 'wishlist', label: 'Wishlist', icon: Heart, path: '/customer-dashboard/wishlist', badge: null },
+          { id: 'profile', label: 'Profile', icon: User, path: '/customer-dashboard/profile', badge: null },
+          { id: 'wallet', label: 'Wallet', icon: CreditCard, path: '/customer-dashboard/wallet', badge: null },
+          { id: 'notifications', label: 'Notifications', icon: Bell, path: '/customer-dashboard/notifications', badge: '3' },
+          { id: 'support', label: 'Support', icon: HelpCircle, path: '/customer-dashboard/support', badge: null }
         ];
       
       case 'seller':
@@ -78,7 +78,7 @@ export function MobileDashboardLayout({ children, userType }: MobileDashboardLay
           ...baseItems,
           { id: 'dashboard', label: 'Dashboard', icon: TrendingUp, path: '/affiliate-dashboard', badge: null },
           { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/affiliate-dashboard#analytics', badge: null },
-          { id: 'payments', label: 'Payments', icon: CreditCard, path: '/wallet', badge: null },
+          { id: 'payments', label: 'Payments', icon: CreditCard, path: '/affiliate-dashboard/wallet', badge: null },
           { id: 'assets', label: 'Assets', icon: Package, path: '/affiliate-dashboard#assets', badge: null }
         ];
       
