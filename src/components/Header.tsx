@@ -111,10 +111,6 @@ export function Header() {
             <div className="flex items-center space-x-4">
               <Link to="/help" className="hover:text-foreground">{t('help')}</Link>
               <Link to="/track-order" className="hover:text-foreground">{t('track_order')}</Link>
-              <div className="flex items-center space-x-4">
-                <LanguageSelector />
-                <CurrencySelector />
-              </div>
             </div>
           </div>
         </div>
@@ -294,6 +290,8 @@ export function Header() {
 
           {/* Action Buttons */}
           <div className="flex items-center space-x-2">
+            <LanguageSelector />
+            <CurrencySelector />
             <ThemeToggle />
             {/* Mobile Search */}
             <SearchModal>
@@ -581,17 +579,6 @@ export function Header() {
                       </>
                     )}
                   </nav>
-
-                  <div className="border-t pt-4 mt-4">
-                     <div className="flex items-center justify-between py-2">
-                       <label className="text-sm text-muted-foreground">Language</label>
-                       <LanguageSelector />
-                     </div>
-                     <div className="flex items-center justify-between py-2">
-                       <label className="text-sm text-muted-foreground">Currency</label>
-                       <CurrencySelector />
-                     </div>
-                  </div>
 
                 </div>
               </SheetContent>
