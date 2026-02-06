@@ -7,7 +7,6 @@ import { Product } from '@/lib';
 import { useCommerce } from '@/context/CommerceContext';
 import { Heart, ShoppingCart, Star, Eye, GitCompare } from 'lucide-react';
 import QuickView from './QuickView';
-import { useFormatPrice } from '@/hooks/useFormatPrice';
 
 interface ProductCardProps {
   product: Product;
@@ -15,10 +14,18 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, className }: ProductCardProps) {
-  const { addToCart, addToCompare } = useCommerce();
+  const { addToCart, addToCompare, currency } = useCommerce();
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
-  const formattedPrice = useFormatPrice(product.price, product.currency);
-  const formattedOriginalPrice = useFormatPrice(product.originalPrice || 0, product.currency);
+
+  const formatPrice = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.code,
+    }).format(amount);
+  };
+
+  const formattedPrice = formatPrice(product.price);
+  const formattedOriginalPrice = product.originalPrice ? formatPrice(product.originalPrice) : null;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();

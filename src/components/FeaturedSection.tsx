@@ -4,15 +4,20 @@ import { ProductGrid } from './ProductGrid';
 import { useCommerce } from '@/context/CommerceContext';
 import { useTranslation } from 'react-i18next';
 import { TrendingUp, Flame, Star } from 'lucide-react';
-import { useFormatPrice } from '@/hooks/useFormatPrice';
 
 export function FeaturedSection() {
   const { t } = useTranslation();
-  const { products } = useCommerce();
+  const { products, currency } = useCommerce();
 
   const featuredProducts = products.filter(p => p.isFeatured).slice(0, 8);
   const trendingProducts = products.filter(p => p.rating >= 4.5).slice(0, 4);
-  const formattedPrice = (price: number, currency?: string) => useFormatPrice(price, currency);
+
+  const formatPrice = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.code,
+    }).format(amount);
+  };
 
   return (
     <section className="py-16 bg-background">
@@ -70,7 +75,7 @@ export function FeaturedSection() {
                   />
                   <h3 className="font-semibold text-sm mb-1 line-clamp-2">{product.name}</h3>
                   <div className="flex items-center space-x-2">
-                    <span className="text-primary font-bold">{formattedPrice(product.price, product.currency)}</span>
+                    <span className="text-primary font-bold">{formatPrice(product.price)}</span>
                     <div className="flex items-center">
                       <Star className="w-3 h-3 fill-secondary text-secondary" />
                       <span className="text-xs ml-1">{product.rating}</span>
