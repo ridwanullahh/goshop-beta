@@ -13,7 +13,6 @@ import { useRealTimeData } from '@/hooks/useRealTimeData';
 import useEmblaCarousel from 'embla-carousel-react';
 import { Product, ProductVariation } from '@/lib';
 import { toast } from 'sonner';
-import { useFormatPrice } from '@/hooks/useFormatPrice';
 import { useTranslation } from 'react-i18next';
 import { 
   Star, 
@@ -33,8 +32,16 @@ import {
 } from 'lucide-react';
 
 const RelatedProductCard = ({ product }: { product: Product }) => {
-  const { addToCart } = useCommerce();
-  const formattedPrice = useFormatPrice(product.price, product.currency);
+  const { addToCart, currency } = useCommerce();
+
+  const formatPrice = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.code,
+    }).format(amount);
+  };
+
+  const formattedPrice = formatPrice(product.price);
 
   return (
     <Card key={product.id} className="group hover:shadow-lg transition-shadow">
@@ -91,8 +98,17 @@ export default function ProductDetails() {
   const [loading, setLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariation | null>(null);
 
-  const formattedPrice = useFormatPrice(product?.price || 0, product?.currency);
-  const formattedOriginalPrice = useFormatPrice(product?.originalPrice || 0, product?.currency);
+  const { currency } = useCommerce();
+
+  const formatPrice = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.code,
+    }).format(amount);
+  };
+
+  const formattedPrice = product ? formatPrice(product.price) : '';
+  const formattedOriginalPrice = product?.originalPrice ? formatPrice(product.originalPrice) : null;
 
   useEffect(() => {
     if (products && id) {

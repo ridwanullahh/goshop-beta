@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { useCommerce } from '@/context/CommerceContext';
 import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, CreditCard } from 'lucide-react';
-import { useFormatPrice } from '@/hooks/useFormatPrice';
 
 const Cart = () => {
   const { t } = useTranslation();
@@ -28,12 +27,21 @@ const Cart = () => {
   const tax = subtotal * 0.08; // 8% tax
   const total = subtotal + shipping + tax;
 
-  const formattedSubtotal = useFormatPrice(subtotal);
-  const formattedShipping = useFormatPrice(shipping);
-  const formattedTax = useFormatPrice(tax);
-  const formattedTotal = useFormatPrice(total);
-  const formattedItemTotal = (price: number, quantity: number) => useFormatPrice(price * quantity);
-  const formattedFreeShippingThreshold = useFormatPrice(50 - subtotal);
+  const { currency } = useCommerce();
+
+  const formatPrice = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.code,
+    }).format(amount);
+  };
+
+  const formattedSubtotal = formatPrice(subtotal);
+  const formattedShipping = formatPrice(shipping);
+  const formattedTax = formatPrice(tax);
+  const formattedTotal = formatPrice(total);
+  const formattedItemTotal = (price: number, quantity: number) => formatPrice(price * quantity);
+  const formattedFreeShippingThreshold = formatPrice(50 - subtotal);
 
 
   const handleRemoveItem = (productId: string) => {

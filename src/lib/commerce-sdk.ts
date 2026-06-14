@@ -534,21 +534,55 @@ This agreement is effective immediately and may be updated from time to time.`,
     }
 
     // Initialize default languages if not exist
-    const languages = await this.getData('languages');
-    if (languages.length === 0) {
-      await this.saveData('languages', [
-        { id: '1', code: 'en', name: 'English' },
-        { id: '2', code: 'fr', name: 'French' },
-      ]);
+    const existingLanguages = await this.getData('languages');
+    const defaultLanguages = [
+      { id: '1', code: 'en', name: 'English' },
+      { id: '2', code: 'fr', name: 'French' },
+      { id: '3', code: 'es', name: 'Spanish' },
+      { id: '4', code: 'de', name: 'German' },
+      { id: '5', code: 'zh', name: 'Chinese' },
+      { id: '6', code: 'ar', name: 'Arabic' },
+      { id: '7', code: 'hi', name: 'Hindi' },
+      { id: '8', code: 'pt', name: 'Portuguese' },
+      { id: '9', code: 'ru', name: 'Russian' },
+      { id: '10', code: 'ja', name: 'Japanese' },
+      { id: '11', code: 'bn', name: 'Bengali' },
+      { id: '12', code: 'pa', name: 'Punjabi' },
+      { id: '13', code: 'jv', name: 'Javanese' },
+    ];
+
+    const missingLanguages = defaultLanguages.filter(
+      (lang) => !existingLanguages.some((l) => l.code === lang.code)
+    );
+
+    if (missingLanguages.length > 0) {
+      await this.saveData('languages', [...existingLanguages, ...missingLanguages]);
     }
 
     // Initialize default currencies if not exist
-    const currencies = await this.getData('currencies');
-    if (currencies.length === 0) {
-      await this.saveData('currencies', [
-        { id: '1', code: 'USD', name: 'US Dollar', symbol: '$', exchangeRate: 1 },
-        { id: '2', code: 'NGN', name: 'Nigerian Naira', symbol: '₦', exchangeRate: 1500 },
-      ]);
+    const existingCurrencies = await this.getData('currencies');
+    const defaultCurrencies = [
+      { id: '1', code: 'USD', name: 'US Dollar', symbol: '$', exchangeRate: 1 },
+      { id: '2', code: 'NGN', name: 'Nigerian Naira', symbol: '₦', exchangeRate: 1500 },
+      { id: '3', code: 'EUR', name: 'Euro', symbol: '€', exchangeRate: 0.92 },
+      { id: '4', code: 'JPY', name: 'Japanese Yen', symbol: '¥', exchangeRate: 157.64 },
+      { id: '5', code: 'GBP', name: 'British Pound', symbol: '£', exchangeRate: 0.79 },
+      { id: '6', code: 'AUD', name: 'Australian Dollar', symbol: 'A$', exchangeRate: 1.51 },
+      { id: '7', code: 'CAD', name: 'Canadian Dollar', symbol: 'C$', exchangeRate: 1.37 },
+      { id: '8', code: 'CHF', name: 'Swiss Franc', symbol: 'CHF', exchangeRate: 0.90 },
+      { id: '9', code: 'CNY', name: 'Chinese Yuan', symbol: '¥', exchangeRate: 7.25 },
+      { id: '10', code: 'INR', name: 'Indian Rupee', symbol: '₹', exchangeRate: 83.54 },
+      { id: '11', code: 'BRL', name: 'Brazilian Real', symbol: 'R$', exchangeRate: 5.37 },
+      { id: '12', code: 'RUB', name: 'Russian Ruble', symbol: '₽', exchangeRate: 88.21 },
+      { id: '13', code: 'ZAR', name: 'South African Rand', symbol: 'R', exchangeRate: 18.78 },
+    ];
+
+    const missingCurrencies = defaultCurrencies.filter(
+      (curr) => !existingCurrencies.some((c) => c.code === curr.code)
+    );
+
+    if (missingCurrencies.length > 0) {
+      await this.saveData('currencies', [...existingCurrencies, ...missingCurrencies]);
     }
   }
 
