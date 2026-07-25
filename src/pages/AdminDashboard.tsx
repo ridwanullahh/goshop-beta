@@ -92,23 +92,30 @@ const AdminDashboard = () => {
         usersData,
         productsData,
         ordersData,
-        sellersData,
-        affiliatesData,
         storesData,
         helpArticlesData,
-        blogsData,
-        analyticsData
+        blogsData
       ] = await Promise.all([
-        sdk.sdk.get('users'),
-        sdk.sdk.get('products'),
-        sdk.sdk.get('orders'),
-        sdk.sdk.get('sellers'),
-        sdk.sdk.get('affiliates'),
+        sdk.getUsers(),
+        sdk.getProducts(),
+        sdk.getOrders(),
         sdk.getStores(),
         sdk.getHelpArticles(),
-        sdk.getBlogs(),
-        sdk.getPlatformAnalytics()
+        sdk.getBlogs()
       ]);
+
+      const sellersData = (usersData || []).filter((u: any) => u.role === 'seller' || (u.roles || []).includes('seller'));
+      const affiliatesData = (usersData || []).filter((u: any) => u.role === 'affiliate' || (u.roles || []).includes('affiliate'));
+      const totalRevenue = (ordersData || []).reduce((sum: number, o: any) => sum + (o.total || 0), 0);
+      const analyticsData = {
+        totalUsers: (usersData || []).length,
+        totalProducts: (productsData || []).length,
+        totalOrders: (ordersData || []).length,
+        totalStores: (storesData || []).length,
+        totalRevenue,
+        totalSellers: sellersData.length,
+        totalAffiliates: affiliatesData.length,
+      };
 
       setUsers(usersData);
       setProducts(productsData);
@@ -176,7 +183,7 @@ const AdminDashboard = () => {
     if (!sdk) return;
 
     try {
-      await sdk.sdk.update(collection, itemId, updates);
+      await sdk.update(collection, itemId, updates);
       toast.success('Status updated successfully');
       fetchAdminData();
     } catch (error) {
@@ -189,7 +196,7 @@ const AdminDashboard = () => {
     if (!sdk || !confirm(`Are you sure you want to delete "${itemName}"?`)) return;
 
     try {
-      await sdk.sdk.delete(collection, itemId);
+      await sdk.delete(collection, itemId);
       toast.success('Item deleted successfully');
       fetchAdminData();
     } catch (error) {

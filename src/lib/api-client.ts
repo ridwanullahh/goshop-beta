@@ -375,6 +375,14 @@ class APIClient {
     return this.getAll<any>('help_articles');
   }
 
+  async createHelpArticle(data: any) {
+    return this.create<any>('help_articles', data);
+  }
+
+  async createBlog(data: any) {
+    return this.create<any>('blogs', data);
+  }
+
   async getLivestreams() {
     return this.getAll<any>('livestreams');
   }
