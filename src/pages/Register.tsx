@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,17 @@ const Register = () => {
   const { register } = useCommerce();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Capture inherent referral code from ?ref= (stored for use at register time).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      localStorage.setItem('pendingReferralCode', ref);
+      // Track the click on the referrer's link (best-effort).
+      import('@/lib/api-client').then((m) => m.default.trackReferralClick(ref).catch(() => {}));
+    }
+  }, []);
 
   const handleChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -77,19 +88,23 @@ const Register = () => {
         lastName: formData.lastName,
         role: formData.role,
         businessName: formData.businessName,
-        roles: [formData.role]
+        roles: [formData.role],
+        referralCode: localStorage.getItem('pendingReferralCode') || undefined
       });
+      localStorage.removeItem('pendingReferralCode');
       
       toast({
         title: "Account Created!",
-        description: "Welcome to CommerceOS! Let's set up your account."
+        description: "Welcome to GoShop! Your account is ready."
       });
       
-      // Redirect to appropriate onboarding based on role
+      // Redirect to the appropriate dashboard.
       if (formData.role === 'seller') {
-        navigate('/seller-onboarding');
+        navigate('/seller-dashboard');
+      } else if (formData.role === 'affiliate') {
+        navigate('/affiliate-dashboard');
       } else {
-        navigate('/customer-onboarding');
+        navigate('/customer-dashboard');
       }
     } catch (error) {
       toast({

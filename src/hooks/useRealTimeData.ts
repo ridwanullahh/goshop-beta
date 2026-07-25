@@ -52,7 +52,7 @@ export function useRealTimeData<T>(
           result = [];
       }
       
-      setData(result || []);
+      setData(Array.isArray(result) ? result : (result ? [result] : []));
     } catch (err: any) {
       setError(err.message || 'Failed to fetch data');
       console.error(`Error fetching ${collection}:`, err);
