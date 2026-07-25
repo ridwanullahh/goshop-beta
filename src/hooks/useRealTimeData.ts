@@ -19,7 +19,16 @@ export function useRealTimeData<T>(
       setLoading(true);
       setError(null);
       let result;
-      
+
+      // Auth-required collections: skip entirely when there is no token (avoids 401 spam).
+      const authRequired = collection === 'notifications' || collection === 'orders';
+      const token = typeof sdk !== 'undefined' && sdk.getToken ? sdk.getToken() : null;
+      if (authRequired && !token) {
+        setData(initialData);
+        setLoading(false);
+        return;
+      }
+
       // Use the correct SDK methods based on collection type
       switch (collection) {
         case 'products':
@@ -36,7 +45,8 @@ export function useRealTimeData<T>(
           break;
         case 'notifications':
           const currentUser = await sdk.getCurrentUser();
-          result = await sdk.getNotifications(currentUser?.id || '');
+          if (!currentUser) { setData(initialData); break; }
+          result = await sdk.getNotifications(currentUser.id);
           break;
         default:
           result = [];
