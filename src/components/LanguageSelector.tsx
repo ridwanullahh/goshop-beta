@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
+import { Globe, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -7,65 +7,59 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Check } from 'lucide-react';
-import { useCommerce } from '@/context/CommerceContext';
+import { translationService } from '@/lib/i18n/translation-service';
 
 export function LanguageSelector() {
-  const { i18n } = useTranslation();
-  const { languages, isLoading } = useCommerce();
+  const [currentLanguage, setCurrentLanguage] = React.useState(
+    translationService.getCurrentLanguage()
+  );
+  const languages = translationService.getSupportedLanguages();
 
-  const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng);
+  const currentLangData = languages.find(l => l.code === currentLanguage);
+
+  const changeLanguage = (code: string) => {
+    translationService.setLanguage(code);
+    setCurrentLanguage(code);
   };
 
-  const currentLanguage = languages.find(lang => lang.code === i18n.language);
-
-  const getFlagEmoji = (languageCode: string) => {
-    const countryCode = languageCode.split('-')[0].toUpperCase();
-    switch (countryCode) {
-      case 'EN': return '🇺🇸';
-      case 'FR': return '🇫🇷';
-      case 'ES': return '🇪🇸';
-      case 'DE': return '🇩🇪';
-      case 'ZH': return '🇨🇳';
-      case 'AR': return '🇸🇦';
-      case 'HI': return '🇮🇳';
-      case 'PT': return '🇵🇹';
-      case 'RU': return '🇷🇺';
-      case 'JA': return '🇯🇵';
-      case 'BN': return '🇧🇩';
-      case 'PA': return '🇮🇳';
-      case 'JV': return '🇮🇩';
-      default: return '🌐';
-    }
+  const getFlagEmoji = (code: string) => {
+    const map: Record<string, string> = {
+      en: '🇺🇸', ar: '🇸🇦', fr: '🇫🇷', es: '🇪🇸', de: '🇩🇪', it: '🇮🇹',
+      pt: '🇵🇹', ru: '🇷🇺', zh: '🇨🇳', ja: '🇯🇵', ko: '🇰🇷', hi: '🇮🇳',
+      ur: '🇵🇰', tr: '🇹🇷', fa: '🇮🇷', ha: '🇳🇬', sw: '🇰🇪', id: '🇮🇩',
+      ms: '🇲🇾', th: '🇹🇭', vi: '🇻🇳',
+    };
+    return map[code] || '🌐';
   };
-
-  if (isLoading || !currentLanguage) {
-    return (
-      <Button variant="outline" size="sm" className="flex items-center gap-2" disabled>
-        <span>🌐</span>
-        <span className="hidden sm:inline">Loading...</span>
-      </Button>
-    );
-  }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="flex items-center gap-2">
-          <span>{getFlagEmoji(currentLanguage.code)}</span>
-          <span className="hidden sm:inline">{currentLanguage.name}</span>
+        <Button variant="outline" size="sm" className="flex items-center gap-1.5 px-2 h-9">
+          <Globe className="h-4 w-4" />
+          <span className="hidden sm:inline text-xs font-medium">
+            {currentLangData?.nativeName || 'English'}
+          </span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="max-h-60 overflow-y-auto">
-        {languages.map((language) => (
+      <DropdownMenuContent align="end" className="w-56 max-h-80 overflow-y-auto">
+        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+          Select Language
+        </div>
+        {languages.map((lang) => (
           <DropdownMenuItem
-            key={language.code}
-            onSelect={() => changeLanguage(language.code)}
-            className="flex items-center justify-between"
+            key={lang.code}
+            onSelect={() => changeLanguage(lang.code)}
+            className="flex items-center justify-between gap-2 px-2 py-2"
           >
-            <span>{getFlagEmoji(language.code)} {language.name}</span>
-            {i18n.language === language.code && <Check className="h-4 w-4" />}
+            <div className="flex items-center gap-2">
+              <span className="text-base">{getFlagEmoji(lang.code)}</span>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium leading-tight">{lang.nativeName}</span>
+                <span className="text-xs text-muted-foreground leading-tight">{lang.name}</span>
+              </div>
+            </div>
+            {currentLanguage === lang.code && <Check className="h-4 w-4 text-primary shrink-0" />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
