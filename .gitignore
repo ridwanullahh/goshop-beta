@@ -23,3 +23,12 @@ dist-ssr
 *.sln
 *.sw?
 goshop-beta.code-workspace
+
+# Sandbox infrastructure (do not commit)
+.zscripts/
+skills/
+upload/
+dev.log
+.next/
+*.pid
+worklog.md
