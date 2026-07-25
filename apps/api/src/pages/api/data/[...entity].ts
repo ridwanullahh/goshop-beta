@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { getAll, getOne, getById, insert, update, remove, jsonResponse, errorResponse, requireAuth } from '../../lib/auth.js';
+import { getAll, getOne, getById, insert, update, remove, jsonResponse, errorResponse, requireAuth } from '../../../lib/auth';
 
 // Generic CRUD endpoint for all entities. BismiLLAH Ar-Rahman Ar-Roheem.
 

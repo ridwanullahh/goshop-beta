@@ -3,7 +3,7 @@
 // but this provider implements correct, async helpers without the legacy uid bug.
 
 import type { DataProvider } from './types';
-import { initializeSchema as sqliteInitSchema, getDb } from '../database.js';
+import { initializeSchema as sqliteInitSchema, getDb } from '../database';
 
 const JSON_FIELDS = new Set([
   'images', 'tags', 'variations', 'variants', 'bundles', 'items', 'address',

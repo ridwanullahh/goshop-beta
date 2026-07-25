@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "astro dev --port 3001 --host",
+    "dev": "if [ -f .env ]; then set -a && . ./.env && set +a; fi; astro dev --port 3001 --host",
     "build": "astro build",
     "preview": "node ./dist/server/entry.mjs",
     "start": "node ./dist/server/entry.mjs"
@@ -22,7 +22,11 @@
     "zod": "^3.25.76"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["better-sqlite3", "esbuild", "sharp"]
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild",
+      "sharp"
+    ]
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

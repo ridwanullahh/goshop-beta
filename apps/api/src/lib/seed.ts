@@ -6,7 +6,7 @@
 // inherent referral codes for every user (no standalone referral account required).
 
 import bcrypt from 'bcryptjs';
-import { db } from './provider/index.js';
+import { db } from './provider/index';
 
 const hashSync = (pw: string) => bcrypt.hashSync(pw, 12);
 

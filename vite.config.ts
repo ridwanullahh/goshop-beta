@@ -16,6 +16,14 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
       },
     },
+    fs: {
+      // Restrict served files to the project; block sandbox infrastructure folders.
+      deny: [".zscripts", "skills", "upload", "tool-results"],
+    },
+  },
+  optimizeDeps: {
+    // Only scan the real app entry; avoid scanning sandbox HTML in skills/, docs/, etc.
+    entries: ["index.html"],
   },
   plugins: [
     react(),

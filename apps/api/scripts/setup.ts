@@ -1,7 +1,7 @@
 // Standalone setup script: creates Lightbase collections + seeds data.
 // BismiLLAH Ar-Rahman Ar-Roheem. Run via `bun run db:push` (root) before starting the dev server.
-import { db } from '../src/lib/provider/index.js';
-import { seedDatabase } from '../src/lib/seed.js';
+import { db } from '../src/lib/provider/index';
+import { seedDatabase } from '../src/lib/seed';
 
 (async () => {
   try {

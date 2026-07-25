@@ -1,10 +1,10 @@
 import type { APIContext } from 'astro';
 import { z } from 'zod';
 import {
-  hashPassword, verifyPassword, generateToken,
+  hashPassword, verifyPassword, generateToken, verifyToken,
   getAll, getOne, getById, insert, update,
   jsonResponse, errorResponse
-} from '../../lib/auth.js';
+} from '../../../lib/auth';
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -117,7 +117,6 @@ export async function GET(context: APIContext): Promise<Response> {
       return errorResponse('No token provided', 401);
     }
 
-    const { verifyToken } = await import('../../lib/auth.js');
     const token = authHeader.slice(7);
     const decoded = verifyToken(token);
     if (!decoded) {

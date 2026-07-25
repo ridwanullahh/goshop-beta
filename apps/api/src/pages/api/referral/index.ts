@@ -2,7 +2,7 @@
 // BismiLLAH Ar-Rahman Ar-Roheem. GET returns the authenticated user's referral code + stats + referrals.
 // POST { code } tracks a click on a referral link.
 import type { APIContext } from 'astro';
-import { getOne, getAll, update, jsonResponse, errorResponse, requireAuth } from '../../lib/auth.js';
+import { getOne, getAll, update, jsonResponse, errorResponse, requireAuth } from '../../../lib/auth';
 
 export async function GET(context: APIContext): Promise<Response> {
   try {
