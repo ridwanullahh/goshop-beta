@@ -1,19 +1,11 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import {
-  CommerceSDK,
-  User,
-  Product,
-  Order,
-  Category,
-  CartItem,
-  WishlistItem,
-  Language,
-  Currency
-} from '@/lib';
+import { apiClient } from '@/lib/api-client';
+import type {
+  User, Product, Order, Category, CartItem, WishlistItem, Language, Currency
+} from '@/lib/commerce-sdk';
 import { toast } from 'sonner';
 import i18n from '@/i18n';
 
-// Define the context type
 type CommerceContextType = {
   currentUser: User | null;
   products: Product[];
@@ -23,21 +15,10 @@ type CommerceContextType = {
   wishlistItems: WishlistItem[];
   compareList: string[];
   isLoading: boolean;
-  sdk: CommerceSDK;
+  sdk: typeof apiClient;
   login: (credentials: { email: string; password: string }) => Promise<User>;
   logout: () => Promise<void>;
-  register: (userData: { 
-    email: string; 
-    password: string; 
-    name: string;
-    firstName?: string;
-    lastName?: string;
-    role?: string;
-    roles?: string[];
-    businessName?: string;
-    phone?: string;
-    onboardingCompleted?: boolean;
-  }) => Promise<User>;
+  register: (userData: any) => Promise<User>;
   addToCart: (productId: string, quantity?: number) => Promise<CartItem>;
   removeFromCart: (productId: string) => Promise<void>;
   updateCartQuantity: (productId: string, quantity: number) => Promise<void>;
@@ -56,7 +37,6 @@ type CommerceContextType = {
   convertCurrency: (amount: number) => number;
 };
 
-// Create the context with a default value
 export const CommerceContext = createContext<CommerceContextType>({
   currentUser: null,
   products: [],
@@ -66,29 +46,28 @@ export const CommerceContext = createContext<CommerceContextType>({
   wishlistItems: [],
   compareList: [],
   isLoading: false,
-  sdk: new CommerceSDK(),
-  login: async () => { throw new Error('Login function not implemented'); },
-  logout: async () => { throw new Error('Logout function not implemented'); },
-  register: async () => { throw new Error('Register function not implemented'); },
-  addToCart: async () => { throw new Error('AddToCart function not implemented'); },
-  removeFromCart: async () => { throw new Error('removeFromCart function not implemented'); },
-  updateCartQuantity: async () => { throw new Error('updateCartQuantity function not implemented'); },
-  clearCart: async () => { throw new Error('clearCart function not implemented'); },
-  addToWishlist: async () => { throw new Error('addToWishlist function not implemented'); },
-  searchProducts: async () => { return []; },
-  loadUserData: async () => { throw new Error('loadUserData function not implemented'); },
-  addToCompare: () => { throw new Error('addToCompare function not implemented'); },
-  removeFromCompare: () => { throw new Error('removeFromCompare function not implemented'); },
+  sdk: apiClient,
+  login: async () => { throw new Error('Not implemented'); },
+  logout: async () => {},
+  register: async () => { throw new Error('Not implemented'); },
+  addToCart: async () => { throw new Error('Not implemented'); },
+  removeFromCart: async () => {},
+  updateCartQuantity: async () => {},
+  clearCart: async () => {},
+  addToWishlist: async () => { throw new Error('Not implemented'); },
+  searchProducts: async () => [],
+  loadUserData: async () => {},
+  addToCompare: () => {},
+  removeFromCompare: () => {},
   language: 'en',
   setLanguage: () => {},
-  currency: { code: 'USD', exchangeRate: 1 },
+  currency: { code: 'USD', exchangeRate: 1, id: '', name: '', symbol: '$' },
   setCurrency: () => {},
   languages: [],
   currencies: [],
   convertCurrency: (amount: number) => amount,
 });
 
-// Create a custom hook to use the context
 export const useCommerce = () => useContext(CommerceContext);
 
 export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -101,90 +80,69 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
   const [compareList, setCompareList] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [sdk] = useState(() => new CommerceSDK());
   const [language, setLanguageState] = useState(i18n.language || 'en');
   const [currencies, setCurrencies] = useState<Currency[]>([]);
-  const [currency, setCurrencyState] = useState<Currency>({ code: 'USD', exchangeRate: 1 });
+  const [currency, setCurrencyState] = useState<Currency>({ code: 'USD', exchangeRate: 1, id: '1', name: 'US Dollar', symbol: '$' });
   const [languages, setLanguages] = useState<Language[]>([]);
 
-  useEffect(() => {
-    initializeApp();
-  }, []);
+  useEffect(() => { initializeApp(); }, []);
 
   useEffect(() => {
     const savedCurrency = localStorage.getItem('currency');
     if (savedCurrency && currencies.length) {
-      const foundCurrency = currencies.find(c => c.code === savedCurrency);
-      if (foundCurrency) {
-        setCurrency(foundCurrency);
-      }
+      const found = currencies.find(c => c.code === savedCurrency);
+      if (found) setCurrencyState(found);
     }
   }, [currencies]);
 
-  const convertCurrency = (amount: number) => {
-    return amount * currency.exchangeRate;
-  };
-
   useEffect(() => {
     if (originalProducts.length) {
-      const convertedProducts = originalProducts.map(product => ({
-        ...product,
-        price: product.price * currency.exchangeRate,
-        originalPrice: product.originalPrice ? product.originalPrice * currency.exchangeRate : undefined
+      const converted = originalProducts.map(p => ({
+        ...p,
+        price: p.price * currency.exchangeRate,
+        originalPrice: p.originalPrice ? p.originalPrice * currency.exchangeRate : undefined
       }));
-      setProducts(convertedProducts);
+      setProducts(converted as Product[]);
     }
   }, [currency, originalProducts]);
+
+  const convertCurrency = (amount: number) => amount * currency.exchangeRate;
 
   const initializeApp = async () => {
     try {
       setIsLoading(true);
-      const user = await sdk.getCurrentUser();
-      setCurrentUser(user);
-      
+      const user = await apiClient.getCurrentUser();
       if (user) {
-        await Promise.all([
-          loadUserCart(user.id),
-          loadUserWishlist(user.id)
-        ]);
+        setCurrentUser(user);
+        localStorage.setItem('currentUser', JSON.stringify(user));
+      } else {
+        const cached = localStorage.getItem('currentUser');
+        if (cached) setCurrentUser(JSON.parse(cached));
       }
-      
+
       await Promise.all([
         loadProducts(),
         loadCategories(),
         loadLanguages(),
         loadCurrencies()
       ]);
+
+      if (user) {
+        await loadUserCart();
+        await loadUserWishlist();
+      }
     } catch (error) {
-      console.error('Failed to initialize app:', error);
+      console.error('Init error:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const loadUserCart = async (userId: string) => {
-    try {
-      const cartItems = await sdk.getCart(userId);
-      setCart({ items: cartItems });
-    } catch (error) {
-      console.error('Error loading cart:', error);
-    }
-  };
-
-  const loadUserWishlist = async (userId: string) => {
-    try {
-      const wishlist = await sdk.getWishlist(userId);
-      setWishlistItems(wishlist);
-    } catch (error) {
-      console.error('Error loading wishlist:', error);
-    }
-  };
-
   const loadProducts = async () => {
     try {
-      const productsData = await sdk.getProducts();
-      setOriginalProducts(productsData);
-      setProducts(productsData);
+      const data = await apiClient.getProducts();
+      setOriginalProducts(data as Product[]);
+      setProducts(data as Product[]);
     } catch (error) {
       console.error('Error loading products:', error);
     }
@@ -192,240 +150,17 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const loadCategories = async () => {
     try {
-      const categoriesData = await sdk.getCategories();
-      setCategories(categoriesData);
+      const data = await apiClient.getCategories();
+      setCategories(data as Category[]);
     } catch (error) {
       console.error('Error loading categories:', error);
     }
   };
 
-  const loadUserData = async () => {
-    if (!currentUser) return;
-    
-    try {
-      await Promise.all([
-        loadUserCart(currentUser.id),
-        loadUserWishlist(currentUser.id)
-      ]);
-    } catch (error) {
-      console.error('Error loading user data:', error);
-    }
-  };
-
-  const register = async (userData: { 
-    email: string; 
-    password: string; 
-    name: string;
-    firstName?: string;
-    lastName?: string;
-    role?: string;
-    roles?: string[];
-    businessName?: string;
-    phone?: string;
-    onboardingCompleted?: boolean;
-  }) => {
-    try {
-      const user = await sdk.register(userData);
-      setCurrentUser(user);
-      
-      // Load user-specific data after registration
-      await Promise.all([
-        loadUserCart(user.id),
-        loadUserWishlist(user.id)
-      ]);
-      
-      return user;
-    } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
-    }
-  };
-
-  const login = async (credentials: { email: string; password: string }) => {
-    try {
-      const user = await sdk.login(credentials);
-      setCurrentUser(user);
-      
-      // Load user-specific data after login
-      await Promise.all([
-        loadUserCart(user.id),
-        loadUserWishlist(user.id)
-      ]);
-      
-      return user;
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await sdk.logout();
-      setCurrentUser(null);
-      setCart({ items: [] });
-      setWishlistItems([]);
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
-
-  const addToCart = async (productId: string, quantity: number = 1) => {
-    if (!currentUser) {
-      throw new Error('Please login to add items to cart');
-    }
-
-    try {
-      const cartItem = await sdk.addToCart(currentUser.id, productId, quantity);
-      
-      // Update local cart state immediately for better UX
-      setCart(prevCart => {
-        const existingItemIndex = prevCart.items.findIndex(item => item.productId === productId);
-        
-        if (existingItemIndex >= 0) {
-          // Update existing item
-          const updatedItems = [...prevCart.items];
-          updatedItems[existingItemIndex] = {
-            ...updatedItems[existingItemIndex],
-            quantity: updatedItems[existingItemIndex].quantity + quantity
-          };
-          return { items: updatedItems };
-        } else {
-          // Add new item
-          return { items: [...prevCart.items, cartItem] };
-        }
-      });
-      
-      return cartItem;
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      throw error;
-    }
-  };
-
-  const addToWishlist = async (productId: string): Promise<WishlistItem> => {
-    if (!currentUser) {
-      throw new Error('Please login to add items to wishlist');
-    }
-
-    try {
-      const wishlistItem = await sdk.addToWishlist(currentUser.id, productId);
-      
-      // Update local wishlist state
-      setWishlistItems(prevItems => {
-        const existingItem = prevItems.find(item => item.productId === productId);
-        if (existingItem) {
-          return prevItems;
-        }
-        return [...prevItems, wishlistItem];
-      });
-      
-      return wishlistItem;
-    } catch (error) {
-      console.error('Error adding to wishlist:', error);
-      throw error;
-    }
-  };
-
-  const removeFromCart = async (productId: string) => {
-    if (!currentUser) return;
-
-    try {
-      // Find the cart item to remove
-      const cartItem = cart.items.find(item => item.productId === productId);
-      if (!cartItem) return;
-
-      // Remove from backend
-      await sdk.delete('cart_items', cartItem.id);
-      
-      // Update local state immediately
-      setCart(prevCart => ({
-        items: prevCart.items.filter(item => item.productId !== productId)
-      }));
-    } catch (error) {
-      console.error('Error removing from cart:', error);
-      // Revert local state on error
-      await loadUserCart(currentUser.id);
-      throw error;
-    }
-  };
-
-  const updateCartQuantity = async (productId: string, quantity: number) => {
-    if (!currentUser) return;
-
-    try {
-      if (quantity <= 0) {
-        await removeFromCart(productId);
-        return;
-      }
-
-      // Update in backend
-      await sdk.update('cart_items', productId, { quantity });
-      
-      // Update local state
-      setCart(prevCart => ({
-        items: prevCart.items.map(item =>
-          item.productId === productId
-            ? { ...item, quantity }
-            : item
-        )
-      }));
-    } catch (error) {
-      console.error('Error updating cart quantity:', error);
-      // Revert local state on error
-      await loadUserCart(currentUser.id);
-      throw error;
-    }
-  };
-
-  const clearCart = async () => {
-    if (!currentUser) return;
-
-    try {
-      // Clear all cart items for user
-      const cartItems = await sdk.getCart(currentUser.id);
-      await Promise.all(
-        cartItems.map(item => sdk.delete('cart_items', item.id))
-      );
-      
-      setCart({ items: [] });
-    } catch (error) {
-      console.error('Error clearing cart:', error);
-      throw error;
-    }
-  };
-
-  const searchProducts = async (query: string, filters?: any): Promise<Product[]> => {
-    try {
-      return await sdk.searchProducts(query, filters);
-    } catch (error) {
-      console.error('Error searching products:', error);
-      return [];
-    }
-  };
-
-  const addToCompare = (productId: string) => {
-    if (compareList.includes(productId)) {
-      toast.info('Product already in compare list');
-      return;
-    }
-    if (compareList.length >= 4) {
-      toast.warning('You can only compare up to 4 products');
-      return;
-    }
-    setCompareList([...compareList, productId]);
-    toast.success('Product added to compare list');
-  };
-
-  const removeFromCompare = (productId: string) => {
-    setCompareList(compareList.filter(id => id !== productId));
-    toast.success('Product removed from compare list');
-  };
-
   const loadLanguages = async () => {
     try {
-      const languagesData = await sdk.get<Language>('languages');
-      setLanguages(languagesData);
+      const data = await apiClient.getLanguages();
+      setLanguages(data as Language[]);
     } catch (error) {
       console.error('Error loading languages:', error);
     }
@@ -433,11 +168,136 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const loadCurrencies = async () => {
     try {
-      const currenciesData = await sdk.get<Currency>('currencies');
-      setCurrencies(currenciesData);
+      const data = await apiClient.getCurrencies();
+      setCurrencies(data as Currency[]);
     } catch (error) {
       console.error('Error loading currencies:', error);
     }
+  };
+
+  const loadUserCart = async () => {
+    try {
+      const items = await apiClient.getCart();
+      setCart({ items: items as CartItem[] });
+    } catch (error) {
+      console.error('Error loading cart:', error);
+    }
+  };
+
+  const loadUserWishlist = async () => {
+    try {
+      const items = await apiClient.getWishlist();
+      setWishlistItems(items as WishlistItem[]);
+    } catch (error) {
+      console.error('Error loading wishlist:', error);
+    }
+  };
+
+  const loadUserData = async () => {
+    if (!currentUser) return;
+    await loadUserCart();
+    await loadUserWishlist();
+  };
+
+  const login = async (credentials: { email: string; password: string }) => {
+    const user = await apiClient.login(credentials.email, credentials.password);
+    setCurrentUser(user);
+    localStorage.setItem('currentUser', JSON.stringify(user));
+    await loadUserCart();
+    await loadUserWishlist();
+    return user;
+  };
+
+  const register = async (userData: any) => {
+    const user = await apiClient.register(userData);
+    setCurrentUser(user);
+    localStorage.setItem('currentUser', JSON.stringify(user));
+    await loadUserCart();
+    await loadUserWishlist();
+    return user;
+  };
+
+  const logout = async () => {
+    await apiClient.logout();
+    setCurrentUser(null);
+    setCart({ items: [] });
+    setWishlistItems([]);
+    localStorage.removeItem('currentUser');
+  };
+
+  const addToCart = async (productId: string, quantity: number = 1) => {
+    if (!currentUser) throw new Error('Please login to add items to cart');
+
+    const cartItem = await apiClient.addToCart(productId, quantity);
+
+    setCart(prev => {
+      const existingIdx = prev.items.findIndex(i => i.productId === productId);
+      if (existingIdx >= 0) {
+        const updated = [...prev.items];
+        updated[existingIdx] = { ...updated[existingIdx], quantity: updated[existingIdx].quantity + quantity };
+        return { items: updated };
+      }
+      return { items: [...prev.items, cartItem as CartItem] };
+    });
+
+    return cartItem as CartItem;
+  };
+
+  const removeFromCart = async (productId: string) => {
+    if (!currentUser) return;
+    const item = cart.items.find(i => i.productId === productId);
+    if (item) {
+      await apiClient.removeFromCart(item.id);
+      setCart(prev => ({ items: prev.items.filter(i => i.productId !== productId) }));
+    }
+  };
+
+  const updateCartQuantity = async (productId: string, quantity: number) => {
+    if (!currentUser) return;
+    if (quantity <= 0) { await removeFromCart(productId); return; }
+    const item = cart.items.find(i => i.productId === productId);
+    if (item) {
+      await apiClient.updateCartItem(item.id, quantity);
+      setCart(prev => ({
+        items: prev.items.map(i => i.productId === productId ? { ...i, quantity } : i)
+      }));
+    }
+  };
+
+  const clearCart = async () => {
+    if (!currentUser) return;
+    await apiClient.clearCart();
+    setCart({ items: [] });
+  };
+
+  const addToWishlist = async (productId: string) => {
+    if (!currentUser) throw new Error('Please login to add items to wishlist');
+    const item = await apiClient.addToWishlist(productId);
+    setWishlistItems(prev => {
+      if (prev.find(i => i.productId === productId)) return prev;
+      return [...prev, item as WishlistItem];
+    });
+    return item as WishlistItem;
+  };
+
+  const searchProducts = async (query: string, filters?: any) => {
+    try {
+      return await apiClient.searchProducts(query, filters) as Product[];
+    } catch {
+      return [];
+    }
+  };
+
+  const addToCompare = (productId: string) => {
+    if (compareList.includes(productId)) { toast.info('Already in compare'); return; }
+    if (compareList.length >= 4) { toast.warning('Max 4 products'); return; }
+    setCompareList([...compareList, productId]);
+    toast.success('Added to compare');
+  };
+
+  const removeFromCompare = (productId: string) => {
+    setCompareList(compareList.filter(id => id !== productId));
+    toast.success('Removed from compare');
   };
 
   const setLanguage = (lang: string) => {
@@ -447,49 +307,21 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const setCurrency = (currencyCode: string) => {
-    const selectedCurrency = currencies.find(c => c.code === currencyCode);
-    if (selectedCurrency) {
-      setCurrencyState(selectedCurrency);
+    const selected = currencies.find(c => c.code === currencyCode);
+    if (selected) {
+      setCurrencyState(selected);
       localStorage.setItem('currency', currencyCode);
     }
   };
 
   const value: CommerceContextType = {
-    currentUser,
-    products,
-    categories,
-    orders,
-    cart,
-    wishlistItems,
-    compareList,
-    isLoading,
-    sdk,
-    login,
-    logout,
-    register,
-    addToCart,
-    removeFromCart,
-    updateCartQuantity,
-    clearCart,
-    addToWishlist,
-    searchProducts,
-    loadUserData,
-    addToCompare,
-    removeFromCompare,
-    language,
-    setLanguage,
-    currency,
-    setCurrency,
-    languages,
-    currencies,
-    convertCurrency,
+    currentUser, products, categories, orders, cart, wishlistItems, compareList, isLoading,
+    sdk: apiClient, login, logout, register, addToCart, removeFromCart, updateCartQuantity,
+    clearCart, addToWishlist, searchProducts, loadUserData, addToCompare, removeFromCompare,
+    language, setLanguage, currency, setCurrency, languages, currencies, convertCurrency,
   };
 
-  return (
-    <CommerceContext.Provider value={value}>
-      {children}
-    </CommerceContext.Provider>
-  );
+  return <CommerceContext.Provider value={value}>{children}</CommerceContext.Provider>;
 };
 
 export default CommerceContext;
