@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { getAll, getById, insert, update, remove, searchProducts, jsonResponse, errorResponse, requireAuth, requireRole } from '../../lib/auth.js';
+import { getAll, getById, insert, update, remove, searchProducts, jsonResponse, errorResponse, requireAuth, requireRole } from '../../../lib/auth';
 
 export async function GET(context: APIContext): Promise<Response> {
   try {

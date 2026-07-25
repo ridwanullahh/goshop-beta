@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { jsonResponse, errorResponse } from '../../lib/auth.js';
+import { jsonResponse, errorResponse } from '../../../lib/auth';
 
 let translateModule: any = null;
 

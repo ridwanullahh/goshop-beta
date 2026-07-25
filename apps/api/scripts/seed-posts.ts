@@ -1,6 +1,6 @@
 // One-off: insert the 2 community posts that failed validation on first seed.
 // BismiLLAH Ar-Rahman Ar-Roheem. Idempotent: skips if posts already exist.
-import { db } from '../src/lib/provider/index.js';
+import { db } from '../src/lib/provider/index';
 
 (async () => {
   try {

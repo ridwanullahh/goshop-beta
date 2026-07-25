@@ -3,7 +3,7 @@
 
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { db } from './provider/index.js';
+import { db } from './provider/index';
 import type { APIContext } from 'astro';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'goshop_jwt_secret_change_in_production_2024';

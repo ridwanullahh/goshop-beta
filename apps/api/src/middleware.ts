@@ -1,6 +1,6 @@
 // BismiLLAH Ar-Rahman Ar-Roheem. Astro middleware: lazy schema init + idempotent seed + permissive CORS for the SPA.
-import { db } from './lib/provider/index.js';
-import { seedDatabase } from './lib/seed.js';
+import { db } from './lib/provider/index';
+import { seedDatabase } from './lib/seed';
 
 let initialized = false;
 let initPromise: Promise<void> | null = null;
