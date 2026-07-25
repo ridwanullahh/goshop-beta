@@ -1,4 +1,5 @@
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
+// Relative by default so requests route through the gateway / Vite proxy to the Astro API.
+const API_URL = (import.meta as any).env?.VITE_API_URL || '';
 
 class APIClient {
   private token: string | null = null;

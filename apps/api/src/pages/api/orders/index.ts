@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { getAll, getOne, getById, insert, update, remove, removeWhere, jsonResponse, errorResponse, requireAuth } from '../../lib/auth.js';
+import { getAll, getById, insert, update, removeWhere, jsonResponse, errorResponse, requireAuth } from '../../lib/auth.js';
 
 export async function GET(context: APIContext): Promise<Response> {
   try {
@@ -9,7 +9,7 @@ export async function GET(context: APIContext): Promise<Response> {
     const status = url.searchParams.get('status');
 
     if (id) {
-      const order = getById<any>('orders', id);
+      const order = await getById<any>('orders', id);
       if (!order) return errorResponse('Order not found', 404);
       if (order.userId !== user.id && order.sellerId !== user.id && user.role !== 'admin') {
         return errorResponse('Forbidden', 403);
@@ -17,14 +17,14 @@ export async function GET(context: APIContext): Promise<Response> {
       return jsonResponse(order);
     }
 
-    let orders = getAll<any>('orders');
+    let orders = await getAll<any>('orders');
     if (user.role !== 'admin') {
       orders = orders.filter((o: any) => o.userId === user.id || o.sellerId === user.id);
     }
     if (status) {
       orders = orders.filter((o: any) => o.status === status);
     }
-    return jsonResponse(orders.sort((a: any, b: any) => b.createdAt?.localeCompare(a.createdAt)));
+    return jsonResponse(orders.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || '')));
   } catch (error: any) {
     if (error instanceof Response) return error;
     return errorResponse(error.message || 'Internal server error', 500);
@@ -36,7 +36,7 @@ export async function POST(context: APIContext): Promise<Response> {
     const user = await requireAuth(context);
     const body = await context.request.json();
 
-    const products = getAll<any>('products');
+    const products = await getAll<any>('products');
     let serverTotal = 0;
     const validatedItems = (body.items || []).map((item: any) => {
       const product = products.find((p: any) => p.id === item.productId);
@@ -55,13 +55,13 @@ export async function POST(context: APIContext): Promise<Response> {
         deliveryMethod: item.deliveryMethod || 'shipping',
         platformCommission: product.affiliateCommission || 0,
         affiliateCommission: 0,
-        status: 'pending'
+        status: 'pending',
       };
     });
 
-    const order = insert('orders', {
+    const order = await insert('orders', {
       userId: user.id,
-      items: JSON.stringify(validatedItems),
+      items: validatedItems,
       total: serverTotal + (body.shippingTotal || 0),
       subtotal: serverTotal,
       platformCommission: body.platformCommission || 0,
@@ -72,13 +72,13 @@ export async function POST(context: APIContext): Promise<Response> {
       status: 'pending',
       paymentStatus: 'pending',
       paymentMethod: body.paymentMethod || 'cod',
-      shippingAddress: JSON.stringify(body.shippingAddress || {}),
-      billingAddress: JSON.stringify(body.billingAddress || body.shippingAddress || {}),
+      shippingAddress: body.shippingAddress || {},
+      billingAddress: body.billingAddress || body.shippingAddress || {},
       deliveryMethod: body.deliveryMethod || 'shipping',
-      affiliateId: body.affiliateId
+      affiliateId: body.affiliateId,
     });
 
-    removeWhere('cart_items', { userId: user.id });
+    await removeWhere('cart_items', { userId: user.id });
 
     return jsonResponse(order, 201);
   } catch (error: any) {
@@ -96,14 +96,14 @@ export async function PATCH(context: APIContext): Promise<Response> {
 
     if (!id) return errorResponse('Order ID required', 400);
 
-    const order = getById<any>('orders', id);
+    const order = await getById<any>('orders', id);
     if (!order) return errorResponse('Order not found', 404);
 
     if (order.sellerId !== user.id && order.userId !== user.id && user.role !== 'admin') {
       return errorResponse('Forbidden', 403);
     }
 
-    const updated = update('orders', id, updates);
+    const updated = await update('orders', id, updates);
     return jsonResponse(updated);
   } catch (error: any) {
     if (error instanceof Response) return error;

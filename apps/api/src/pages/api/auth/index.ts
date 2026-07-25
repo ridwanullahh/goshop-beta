@@ -16,7 +16,8 @@ const registerSchema = z.object({
   roles: z.array(z.string()).optional(),
   businessName: z.string().optional(),
   phone: z.string().optional(),
-  onboardingCompleted: z.boolean().optional()
+  onboardingCompleted: z.boolean().optional(),
+  referralCode: z.string().optional(),
 });
 
 const loginSchema = z.object({
@@ -31,24 +32,44 @@ export async function POST(context: APIContext): Promise<Response> {
 
     if (action === 'register') {
       const parsed = registerSchema.parse(data);
-      const existing = getOne('users', { email: parsed.email });
+      const existing = await getOne('users', { email: parsed.email.toLowerCase() });
       if (existing) {
         return errorResponse('User already exists with this email', 409);
       }
 
       const passwordHash = await hashPassword(parsed.password);
-      const user = insert('users', {
-        email: parsed.email,
+      const user = await insert('users', {
+        email: parsed.email.toLowerCase(),
         passwordHash,
         name: parsed.name,
         firstName: parsed.firstName,
         lastName: parsed.lastName,
         role: parsed.role,
-        roles: JSON.stringify(parsed.roles || [parsed.role]),
+        roles: parsed.roles || [parsed.role],
         businessName: parsed.businessName,
         phone: parsed.phone,
-        onboardingCompleted: parsed.onboardingCompleted ? 1 : 0
+        onboardingCompleted: !!parsed.onboardingCompleted,
+        verified: false,
+        referralCode: `${(parsed.name || 'USER').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6)}${Math.floor(1000 + Math.random() * 9000)}`,
       });
+      // Ensure the new user has a wallet and an inherent referral code record.
+      try { await insert('wallets', { userId: user.id, balance: 0 }); } catch {}
+      try { await insert('referral_codes', { userId: user.id, code: user.referralCode, userType: parsed.role, isActive: true }); } catch {}
+
+      // Apply inherent referral: if a referral code was supplied, link the new user to the referrer.
+      if (parsed.referralCode) {
+        try {
+          const referrer = await getOne<any>('users', { referralCode: parsed.referralCode });
+          if (referrer && referrer.id !== user.id) {
+            await update('users', user.id, { referredBy: referrer.id });
+            await update('users', referrer.id, { referralCount: (referrer.referralCount || 0) + 1 });
+            const rc = await getOne<any>('referral_codes', { userId: referrer.id });
+            if (rc) await update('referral_codes', rc.id, { signups: (rc.signups || 0) + 1 });
+          }
+        } catch (err) {
+          console.error('[auth] referral application failed:', err);
+        }
+      }
 
       const token = generateToken(user.id);
       const { passwordHash: _, ...safeUser } = user;
@@ -58,7 +79,7 @@ export async function POST(context: APIContext): Promise<Response> {
 
     if (action === 'login') {
       const parsed = loginSchema.parse(data);
-      const user = getOne<any>('users', { email: parsed.email });
+      const user = await getOne<any>('users', { email: parsed.email.toLowerCase() });
 
       if (!user || !user.passwordHash) {
         return errorResponse('Invalid credentials', 401);
@@ -103,7 +124,7 @@ export async function GET(context: APIContext): Promise<Response> {
       return errorResponse('Invalid token', 401);
     }
 
-    const user = getById<any>('users', decoded.userId);
+    const user = await getById<any>('users', decoded.userId);
     if (!user) {
       return errorResponse('User not found', 404);
     }

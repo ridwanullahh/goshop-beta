@@ -32,3 +32,18 @@ dev.log
 .next/
 *.pid
 worklog.md
+
+# Environment files (never commit secrets)
+.env
+.env.local
+.env.*.local
+apps/api/.env
+apps/api/.env.local
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Tool artifacts
+tool-results/
