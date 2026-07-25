@@ -41,6 +41,7 @@ import SellerDashboardOrders from './pages/seller-dashboard/Orders';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { CommerceProvider } from './context/CommerceContext';
 import { RealTimeProvider } from './context/RealTimeContext';
+import { EnhancedRealTimeProvider } from './context/EnhancedRealTimeContext';
 import { MobileDashboardLayout } from '@/components/MobileDashboardLayout';
 import EnhancedCustomerDashboard from './components/EnhancedCustomerDashboard';
 import EnhancedSellerDashboard from './components/EnhancedSellerDashboard';
@@ -61,6 +62,7 @@ function App() {
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
       <CommerceProvider>
         <RealTimeProvider>
+        <EnhancedRealTimeProvider>
             <BrowserRouter>
               <TranslationProvider>
           <AutoTranslateProvider>
@@ -134,6 +136,7 @@ function App() {
           </AutoTranslateProvider>
               </TranslationProvider>
             </BrowserRouter>
+        </EnhancedRealTimeProvider>
         </RealTimeProvider>
       </CommerceProvider>
     </ThemeProvider>
