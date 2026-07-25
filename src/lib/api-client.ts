@@ -275,6 +275,23 @@ class APIClient {
     return this.request<any[]>(`/api/products?storeId=${storeId}`);
   }
 
+  // Seller analytics — the dashboard computes most metrics from orders/products;
+  // this returns the seller's order/product aggregates so the dashboard has real numbers.
+  async getSellerAnalytics(sellerId: string) {
+    const [products, orders] = await Promise.all([
+      this.request<any[]>(`/api/products?sellerId=${sellerId}`).catch(() => []),
+      this.request<any[]>(`/api/orders`).catch(() => []),
+    ]);
+    const sellerOrders = orders.filter((o: any) => o.sellerId === sellerId);
+    const totalRevenue = sellerOrders.reduce((sum: number, o: any) => sum + (o.total || 0), 0);
+    return {
+      totalRevenue,
+      totalOrders: sellerOrders.length,
+      totalProducts: products.length,
+      averageOrderValue: sellerOrders.length > 0 ? totalRevenue / sellerOrders.length : 0,
+    };
+  }
+
   async getStoreBlogPosts(storeId: string) {
     return this.getAll<any>('blogs', { storeId });
   }
