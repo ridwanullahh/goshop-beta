@@ -408,7 +408,7 @@ export default function EnhancedSellerDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-purple-900">🚀 Enhanced Features Available!</h3>
+                <h3 className="text-lg font-semibold text-purple-900">Enhanced Features Available!</h3>
                 <p className="text-purple-700 mt-1">
                   Access advanced product management, affiliate settings, blog management, and more.
                 </p>

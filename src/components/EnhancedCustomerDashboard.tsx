@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCommerce } from '@/context/CommerceContext';
 import { useRealTime } from '@/context/RealTimeContext';
 import { toast } from 'sonner';
+import { ReferralCard } from '@/components/ReferralCard';
 import { 
   ShoppingBag, 
   Heart, 
@@ -132,7 +133,7 @@ export default function EnhancedCustomerDashboard() {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h1 className="text-lg font-semibold">Hi, {currentUser?.name?.split(' ')[0] || 'Customer'}👋</h1>
+                <h1 className="text-lg font-semibold">Hi, {currentUser?.name?.split(' ')[0] || 'Customer'}</h1>
                 <p className="text-sm text-muted-foreground">Welcome back!</p>
               </div>
             </div>
@@ -156,15 +157,15 @@ export default function EnhancedCustomerDashboard() {
       <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Quick Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200">
+          <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 border-emerald-200">
             <CardContent className="p-4">
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-500 rounded-lg">
+                <div className="p-2 bg-emerald-600 rounded-lg">
                   <DollarSign className="h-4 w-4 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Total Spent</p>
-                  <p className="text-xl font-bold text-blue-900 dark:text-blue-100">
+                  <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Total Spent</p>
+                  <p className="text-xl font-bold text-emerald-900 dark:text-emerald-100">
                     ${customerData?.totalSpent?.toFixed(2) || '0.00'}
                   </p>
                 </div>
@@ -220,6 +221,9 @@ export default function EnhancedCustomerDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Referral */}
+        <ReferralCard />
 
         {/* Quick Actions Grid */}
         <Card>
