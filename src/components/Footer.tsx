@@ -49,10 +49,10 @@ export function Footer() {
             <h3 className="font-semibold">{t('quick_links')}</h3>
             <ul className="space-y-2 text-muted-foreground">
               <li><Link to="/categories" className="hover:text-primary transition-colors">{t('categories')}</Link></li>
-              <li><Link to="/deals" className="hover:text-primary transition-colors">Deals</Link></li>
-              <li><Link to="/new-arrivals" className="hover:text-primary transition-colors">New Arrivals</Link></li>
-              <li><Link to="/trending" className="hover:text-primary transition-colors">Trending</Link></li>
-              <li><Link to="/brands" className="hover:text-primary transition-colors">Brands</Link></li>
+              <li><Link to="/products" className="hover:text-primary transition-colors">Deals</Link></li>
+              <li><Link to="/products" className="hover:text-primary transition-colors">New Arrivals</Link></li>
+              <li><Link to="/products" className="hover:text-primary transition-colors">Trending</Link></li>
+              <li><Link to="/stores" className="hover:text-primary transition-colors">Brands</Link></li>
             </ul>
           </div>
 
@@ -64,7 +64,7 @@ export function Footer() {
               <li><Link to="/returns" className="hover:text-primary transition-colors">Returns & Refunds</Link></li>
               <li><Link to="/shipping" className="hover:text-primary transition-colors">Shipping Info</Link></li>
               <li><Link to="/contact" className="hover:text-primary transition-colors">Contact Us</Link></li>
-              <li><Link to="/track-order" className="hover:text-primary transition-colors">{t('track_order')}</Link></li>
+              <li><Link to="/customer-dashboard/orders" className="hover:text-primary transition-colors">{t('track_order')}</Link></li>
             </ul>
           </div>
 
@@ -102,14 +102,14 @@ export function Footer() {
         {/* Bottom Footer */}
         <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-            <Link to="/privacy" className="hover:text-primary transition-colors">{t('privacy_policy')}</Link>
-            <Link to="/terms" className="hover:text-primary transition-colors">{t('terms_of_service')}</Link>
-            <Link to="/cookies" className="hover:text-primary transition-colors">Cookie Policy</Link>
-            <Link to="/accessibility" className="hover:text-primary transition-colors">Accessibility</Link>
+            <Link to="/help" className="hover:text-primary transition-colors">{t('privacy_policy')}</Link>
+            <Link to="/help" className="hover:text-primary transition-colors">{t('terms_of_service')}</Link>
+            <Link to="/help" className="hover:text-primary transition-colors">Cookie Policy</Link>
+            <Link to="/help" className="hover:text-primary transition-colors">Accessibility</Link>
           </div>
           <div className="flex items-center space-x-4">
             <p className="text-sm text-muted-foreground">
-              © 2024 CommerceOS. All rights reserved.
+              © 2025 GoShop. All rights reserved.
             </p>
           </div>
           <div className="flex items-center space-x-4">
