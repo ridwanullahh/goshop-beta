@@ -17,19 +17,19 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    /* Commerce-focused primary colors */
-    --primary: 211 91% 20%;
+    /* Commerce-focused primary color (emerald = trust, growth, commerce) */
+    --primary: 158 64% 40%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 211 91% 35%;
+    --primary-glow: 158 64% 48%;
 
-    /* Vibrant commerce accent */
-    --secondary: 18 100% 60%;
+    /* Vibrant commerce accent (amber for deals / energy) */
+    --secondary: 32 95% 50%;
     --secondary-foreground: 0 0% 100%;
 
     --muted: 220 13% 96%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 18 100% 60%;
+    --accent: 32 95% 50%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
@@ -37,18 +37,18 @@ All colors MUST be HSL.
 
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 211 91% 20%;
+    --ring: 158 64% 40%;
 
     --radius: 1rem;
 
     /* Commerce gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(211 91% 20%), hsl(211 91% 35%));
-    --gradient-commerce: linear-gradient(135deg, hsl(211 91% 20%), hsl(18 100% 60%));
+    --gradient-primary: linear-gradient(135deg, hsl(158 64% 40%), hsl(158 64% 48%));
+    --gradient-commerce: linear-gradient(135deg, hsl(158 64% 40%), hsl(32 95% 50%));
     --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%), hsl(220 13% 98%));
 
     /* Commerce shadows */
-    --shadow-commerce: 0 10px 40px -10px hsl(211 91% 20% / 0.3);
-    --shadow-glow: 0 0 30px hsl(18 100% 60% / 0.4);
+    --shadow-commerce: 0 10px 40px -10px hsl(158 64% 40% / 0.3);
+    --shadow-glow: 0 0 30px hsl(32 95% 50% / 0.4);
     --shadow-card: 0 4px 20px -4px hsl(220 13% 91% / 0.8);
 
     /* Animations */

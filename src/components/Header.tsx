@@ -110,7 +110,7 @@ export function Header() {
             
             <div className="flex items-center space-x-4">
               <Link to="/help" className="hover:text-foreground">{t('help')}</Link>
-              <Link to="/track-order" className="hover:text-foreground">{t('track_order')}</Link>
+              <Link to="/customer-dashboard/orders" className="hover:text-foreground">{t('track_order')}</Link>
             </div>
           </div>
         </div>
@@ -190,17 +190,17 @@ export function Header() {
                 <div className="absolute top-full left-0 mt-1 w-48 bg-background border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                   <div className="py-1">
                     <Link to="/wallet" className="block px-4 py-2 text-sm hover:bg-muted">
-                      💳 Wallet
+                      Wallet
                     </Link>
                     <Link to="/refunds-disputes" className="block px-4 py-2 text-sm hover:bg-muted">
-                      🔄 Refunds & Disputes
+                      Refunds & Disputes
                     </Link>
                     <Link to="/orders" className="block px-4 py-2 text-sm hover:bg-muted">
-                      📦 My Orders
+                      My Orders
                     </Link>
                     {currentUser.role === 'affiliate' && (
                       <Link to="/affiliate-dashboard" className="block px-4 py-2 text-sm hover:bg-muted">
-                        🤝 Affiliate Dashboard
+                        Affiliate Dashboard
                       </Link>
                     )}
                   </div>
