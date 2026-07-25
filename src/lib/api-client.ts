@@ -270,6 +270,98 @@ class APIClient {
     return this.getAll<any>('currencies');
   }
 
+  // ---- Storefront ----
+  async getStoreProducts(storeId: string) {
+    return this.request<any[]>(`/api/products?storeId=${storeId}`);
+  }
+
+  async getStoreBlogPosts(storeId: string) {
+    return this.getAll<any>('blogs', { storeId });
+  }
+
+  async getStoreReviews(storeId: string) {
+    // Reviews are product-scoped; derive store reviews via products.
+    const products = await this.getStoreProducts(storeId);
+    const ids = products.map((p: any) => p.id);
+    if (ids.length === 0) return [];
+    const all = await this.getAll<any>('reviews');
+    return all.filter((r: any) => ids.includes(r.productId));
+  }
+
+  // ---- Affiliate / Referral (inherent per user) ----
+  async getAffiliateLinks(affiliateId: string) {
+    return this.getAll<any>('affiliate_links', { affiliateId });
+  }
+
+  async getAffiliateCollections(affiliateId: string) {
+    return this.getAll<any>('affiliate_collections', { affiliateId });
+  }
+
+  async getAffiliateProducts() {
+    const products = await this.getProducts();
+    return products.filter((p: any) => p.affiliateEnabled);
+  }
+
+  async createAffiliateLink(data: any) {
+    return this.create<any>('affiliate_links', data);
+  }
+
+  async createAffiliateCollection(data: any) {
+    return this.create<any>('affiliate_collections', data);
+  }
+
+  async getAffiliate(id: string) {
+    return this.getUser(id);
+  }
+
+  async createAffiliate(data: any) {
+    // Inherent referral: no standalone account. Register as an affiliate-role user.
+    return this.register({ ...data, role: 'affiliate', roles: ['affiliate'] });
+  }
+
+  async getUserWallet(userId: string) {
+    return this.getWallet(userId);
+  }
+
+  async getRolePosts(role: string) {
+    return this.getAll<any>('posts', { role });
+  }
+
+  async getPlatformCommissions() {
+    return this.getAll<any>('platform_commissions');
+  }
+
+  async getActiveSellerAgreement() {
+    const all = await this.getAll<any>('seller_agreements');
+    return all.find((a: any) => a.isActive) || all[0];
+  }
+
+  // ---- Referral (inherent, per user) ----
+  async getReferral() {
+    return this.request<any>('/api/referral');
+  }
+
+  async trackReferralClick(code: string) {
+    return this.request<any>('/api/referral', { method: 'POST', body: JSON.stringify({ code }) });
+  }
+
+  // ---- Community posts ----
+  async getPosts() {
+    return this.getAll<any>('posts');
+  }
+
+  async createPost(data: any) {
+    return this.create<any>('posts', data);
+  }
+
+  async getHelpArticles() {
+    return this.getAll<any>('help_articles');
+  }
+
+  async getLivestreams() {
+    return this.getAll<any>('livestreams');
+  }
+
   // Compatibility shims for CommerceSDK interface
   async getData(collection: string) {
     const map: Record<string, string> = {
