@@ -167,19 +167,6 @@ export default function CommunityHub() {
       fetchPosts(); // Refresh to update comment count
     } catch (error) {
       console.error('Error adding comment:', error);
-
-	          {/* Admin Moderation Tab Toggle */}
-	          {currentUser?.role === 'admin' && (
-	            <div className="mb-6 flex gap-2">
-	              <Button variant={activeTab === 'feed' ? 'default' : 'outline'} onClick={() => setActiveTab('feed')}>Feed</Button>
-	              <Button variant={activeTab === 'moderation' ? 'default' : 'outline'} onClick={async () => {
-	                setActiveTab('moderation');
-	                const all = await sdk.getPosts();
-	                setPendingPosts(all.filter(p => p.status !== 'approved'));
-	              }}>Moderation</Button>
-	            </div>
-	          )}
-
       toast({ title: 'Failed to add comment', variant: 'destructive' });
     }
   };
@@ -241,6 +228,17 @@ export default function CommunityHub() {
 
           {/* Create Post Button */}
           {currentUser && (<>
+            {/* Admin Moderation Tab Toggle */}
+            {currentUser?.role === 'admin' && (
+              <div className="mb-6 flex gap-2">
+                <Button variant={activeTab === 'feed' ? 'default' : 'outline'} onClick={() => setActiveTab('feed')}>Feed</Button>
+                <Button variant={activeTab === 'moderation' ? 'default' : 'outline'} onClick={async () => {
+                  setActiveTab('moderation');
+                  const all = await sdk.getPosts();
+                  setPendingPosts(all.filter(p => p.status !== 'approved'));
+                }}>Moderation</Button>
+              </div>
+            )}
             <Card className="mb-6">
               <CardContent className="p-4">
                 <Button
