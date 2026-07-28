@@ -249,7 +249,7 @@ export default function CustomerDashboard() {
                         <div>
                           <p className="font-medium">Order #{order.id}</p>
                           <p className="text-sm text-muted-foreground">
-                            {order.products.length} item(s) • {new Date(order.createdAt).toLocaleDateString()}
+                            {order.items.length} item(s) • {new Date(order.createdAt).toLocaleDateString()}
                           </p>
                           <div className="flex items-center space-x-2 mt-1">
                             <Badge className={getOrderStatusColor(order.status)}>
@@ -319,24 +319,24 @@ export default function CustomerDashboard() {
                         <div className="text-right">
                           <p className="font-semibold text-lg">${order.total.toFixed(2)}</p>
                           <p className="text-sm text-muted-foreground">
-                            {order.products.length} item(s)
+                            {order.items.length} item(s)
                           </p>
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        {order.products.slice(0, 2).map((item: any, index: number) => (
+                        {order.items.slice(0, 2).map((item: any, index: number) => (
                           <div key={index} className="flex items-center space-x-3 text-sm">
                             <div className="w-8 h-8 bg-muted rounded flex items-center justify-center">
                               <Package className="h-4 w-4" />
                             </div>
-                            <span>{item.productName}</span>
+                            <span>{item.name}</span>
                             <span className="text-muted-foreground">x{item.quantity}</span>
                           </div>
                         ))}
-                        {order.products.length > 2 && (
+                        {order.items.length > 2 && (
                           <p className="text-sm text-muted-foreground">
-                            +{order.products.length - 2} more items
+                            +{order.items.length - 2} more items
                           </p>
                         )}
                       </div>
