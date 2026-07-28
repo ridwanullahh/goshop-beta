@@ -61,7 +61,7 @@ export default function EnhancedCheckout() {
   }, [cart, deliveryOptions]);
 
   const calculateOrderSummary = async () => {
-    if (!sdk || !cart || cart.length === 0) return;
+    if (!sdk || !cart || !cart?.items || cart.items.length === 0) return;
 
     try {
       // Get platform commission rate
@@ -74,7 +74,7 @@ export default function EnhancedCheckout() {
       let totalAffiliateCommission = 0;
       const itemsWithCalculations = [];
 
-      for (const item of cart) {
+      for (const item of (cart?.items || [])) {
         const product = await sdk.getProduct(item.productId);
         if (!product) continue;
 
@@ -210,7 +210,7 @@ export default function EnhancedCheckout() {
     }
   };
 
-  if (!cart || cart.length === 0) {
+  if (!cart || !cart?.items || cart.items.length === 0) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
@@ -245,7 +245,7 @@ export default function EnhancedCheckout() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {cart.map((item) => {
+                  {(cart?.items || []).map((item) => {
                     const product = orderSummary?.items.find((i: any) => i.productId === item.productId)?.product;
                     if (!product) return null;
 
