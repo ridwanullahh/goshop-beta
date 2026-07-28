@@ -254,7 +254,7 @@ export default function Wallet() {
                         id="accountName"
                         value={withdrawalForm.accountName}
                         onChange={(e) => setWithdrawalForm(prev => ({ ...prev, accountName: e.target.value }))}
-                        placeholder="John Doe"
+                        placeholder="Bilal Rahman"
                         required
                       />
                     </div>
