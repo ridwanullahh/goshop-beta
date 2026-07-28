@@ -401,6 +401,21 @@ class APIClient {
     return stores[0];
   }
 
+  // ---- Platform commissions ----
+  async getGlobalCommission() {
+    const all = await this.getAll<any>('platform_commissions');
+    const global = all.find((c: any) => c.isGlobal);
+    return global?.percentage ?? all[0]?.percentage ?? 5;
+  }
+
+  async getCategoryCommission(category: string) {
+    const all = await this.getAll<any>('platform_commissions');
+    const cat = all.find((c: any) => c.category === category && !c.isGlobal);
+    if (cat) return cat.percentage;
+    const global = all.find((c: any) => c.isGlobal);
+    return global?.percentage ?? 5;
+  }
+
   // Compatibility shims for CommerceSDK interface
   async getData(collection: string) {
     const map: Record<string, string> = {
