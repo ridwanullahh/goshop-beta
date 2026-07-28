@@ -5,6 +5,8 @@ import {
   getAll, getOne, getById, insert, update,
   jsonResponse, errorResponse
 } from '../../../lib/auth';
+// [Task 25 — email integration] Fire-and-forget email events. Non-breaking.
+import { emitEmailEventSafe } from '../../../lib/email';
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -73,6 +75,39 @@ export async function POST(context: APIContext): Promise<Response> {
 
       const token = generateToken(user.id);
       const { passwordHash: _, ...safeUser } = user;
+
+      // [Task 25 — email integration] Welcome email (+ seller agreement if role=seller).
+      // Fire-and-forget; never blocks the response or breaks registration.
+      try {
+        const appUrl = process.env.APP_URL || '';
+        const dashboardLink = appUrl ? `${appUrl.replace(/\/$/, '')}/dashboard` : '/dashboard';
+        emitEmailEventSafe({
+          event: 'welcome',
+          to: user.email,
+          data: {
+            name: user.name || user.firstName || '',
+            role: parsed.role,
+            dashboardLink,
+          },
+        });
+        if (parsed.role === 'seller') {
+          emitEmailEventSafe({
+            event: 'sellerAgreement',
+            to: user.email,
+            data: {
+              name: user.name || user.firstName || '',
+              commissionRate: 5, // default global commission; admin-configurable.
+              agreementContent:
+                'As a GoShop seller, you agree to: (1) list only authentic products, ' +
+                '(2) ship orders within the stated handling time, (3) honor refunds per our return policy, ' +
+                '(4) pay the platform commission on each completed sale, and (5) maintain honest communication ' +
+                'with buyers. Violations may result in store suspension.',
+            },
+          });
+        }
+      } catch (emailErr) {
+        console.error('[auth/register] welcome email emit failed:', emailErr);
+      }
 
       return jsonResponse({ user: safeUser, token }, 201);
     }

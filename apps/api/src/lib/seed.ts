@@ -69,10 +69,10 @@ export async function seedDatabase(): Promise<void> {
 
   const customer1 = await db.insert('users', {
     email: 'customer@goshop.com', passwordHash: hashSync('Customer@123'),
-    name: 'John Doe', firstName: 'John', lastName: 'Doe',
+    name: 'Bilal Rahman', firstName: 'Bilal', lastName: 'Rahman',
     role: 'customer', roles: ['customer'], phone: '+2348045678901',
     verified: true, onboardingCompleted: true, walletBalance: 250,
-    referralCode: genReferralCode('John Doe'),
+    referralCode: genReferralCode('Bilal Rahman'),
   });
 
   const customer2 = await db.insert('users', {
@@ -85,11 +85,11 @@ export async function seedDatabase(): Promise<void> {
 
   const customer3 = await db.insert('users', {
     email: 'customer3@goshop.com', passwordHash: hashSync('Customer@123'),
-    name: 'David Okafor', firstName: 'David', lastName: 'Okafor',
+    name: 'Idris Suleiman', firstName: 'Idris', lastName: 'Suleiman',
     role: 'customer', roles: ['customer'], phone: '+2348067890123',
     verified: true, onboardingCompleted: true, walletBalance: 75,
     referredBy: customer1.id,
-    referralCode: genReferralCode('David Okafor'),
+    referralCode: genReferralCode('Idris Suleiman'),
   });
 
   const affiliate = await db.insert('users', {
@@ -288,7 +288,7 @@ export async function seedDatabase(): Promise<void> {
         items: [{ productId: p0.id, quantity: 2, price: p0.price, name: p0.name, images: p0.images, sellerId: seller1.id, shippingCost: 5, deliveryMethod: 'shipping', status: 'delivered' }],
         total: 104.98, subtotal: 99.98, shippingTotal: 5, status: 'delivered', paymentStatus: 'completed',
         paymentMethod: 'paystack', sellerId: seller1.id, transactionRef: 'goshop_seed_001',
-        shippingAddress: { street: '123 Main St', city: 'Lagos', state: 'Lagos', zip: '100001', country: 'Nigeria', firstName: 'John', lastName: 'Doe', phone: '+2348045678901' },
+        shippingAddress: { street: '123 Main St', city: 'Lagos', state: 'Lagos', zip: '100001', country: 'Nigeria', firstName: 'Bilal', lastName: 'Rahman', phone: '+2348045678901' },
         billingAddress: { street: '123 Main St', city: 'Lagos', state: 'Lagos', zip: '100001', country: 'Nigeria' },
         deliveredAt: new Date(Date.now() - 86400000 * 3).toISOString(),
       });
@@ -312,7 +312,7 @@ export async function seedDatabase(): Promise<void> {
         items: [{ productId: p5.id, quantity: 1, price: p5.price, name: p5.name, images: p5.images, sellerId: seller3.id, shippingCost: 7, deliveryMethod: 'shipping', status: 'processing' }],
         total: 86.99, subtotal: 79.99, shippingTotal: 7, status: 'processing', paymentStatus: 'completed',
         paymentMethod: 'cod', sellerId: seller3.id, transactionRef: 'goshop_seed_003',
-        shippingAddress: { street: '123 Main St', city: 'Lagos', state: 'Lagos', zip: '100001', country: 'Nigeria', firstName: 'John', lastName: 'Doe', phone: '+2348045678901' },
+        shippingAddress: { street: '123 Main St', city: 'Lagos', state: 'Lagos', zip: '100001', country: 'Nigeria', firstName: 'Bilal', lastName: 'Rahman', phone: '+2348045678901' },
         billingAddress: { street: '123 Main St', city: 'Lagos', state: 'Lagos', zip: '100001', country: 'Nigeria' },
       });
     }
@@ -322,14 +322,14 @@ export async function seedDatabase(): Promise<void> {
   await trySeed('reviews', async () => {
     const p0 = insertedProducts[0], p6 = insertedProducts[6], p5 = insertedProducts[5];
     if (p0) {
-      await db.insert('reviews', { productId: p0.id, userId: customer1.id, userName: 'John Doe', rating: 5, title: 'Excellent earbuds!', content: 'Sound quality is amazing and battery lasts forever. Best purchase I have made.', isVerified: true });
+      await db.insert('reviews', { productId: p0.id, userId: customer1.id, userName: 'Bilal Rahman', rating: 5, title: 'Excellent earbuds!', content: 'Sound quality is amazing and battery lasts forever. Best purchase I have made.', isVerified: true });
       await db.insert('reviews', { productId: p0.id, userId: customer2.id, userName: 'Aisha Mohammed', rating: 4, title: 'Good quality', content: 'Works well, comfortable fit. Delivery was fast.', isVerified: true });
     }
     if (p6) {
       await db.insert('reviews', { productId: p6.id, userId: customer2.id, userName: 'Aisha Mohammed', rating: 5, title: 'Beautiful dress!', content: 'The Ankara print is stunning. Got many compliments at the party.', isVerified: true });
     }
     if (p5) {
-      await db.insert('reviews', { productId: p5.id, userId: customer1.id, userName: 'John Doe', rating: 5, title: 'Perfect for gaming', content: 'Cherry MX switches feel great. RGB lighting is customizable.', isVerified: true });
+      await db.insert('reviews', { productId: p5.id, userId: customer1.id, userName: 'Bilal Rahman', rating: 5, title: 'Perfect for gaming', content: 'Cherry MX switches feel great. RGB lighting is customizable.', isVerified: true });
     }
   });
 

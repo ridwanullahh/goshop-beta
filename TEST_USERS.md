@@ -46,11 +46,11 @@ Sellers can manage their products, view orders, analytics, reviews, payments, bl
 |----------|------------------------------|--------------------------------|--------------------------------|
 | Email    | `customer@goshop.com`        | `customer2@goshop.com`         | `customer3@goshop.com`         |
 | Password | `Customer@123`               | `Customer@123`                 | `Customer@123`                 |
-| Name     | John Doe                     | Aisha Mohammed                 | David Okafor                   |
+| Name     | Bilal Rahman                 | Aisha Mohammed                 | Idris Suleiman                 |
 | Wallet   | $250.00                      | $100.00                        | $75.00                         |
 | Access   | `/customer-dashboard`        | `/customer-dashboard`          | `/customer-dashboard`          |
 
-Customer 3 (David Okafor) was referred by Customer 1 (John Doe) — this demonstrates the inherent per-user referral system.
+Customer 3 (Idris Suleiman) was referred by Customer 1 (Bilal Rahman) — this demonstrates the inherent per-user referral system.
 
 Customers can browse products, manage cart/wishlist, place orders, track orders, manage wallet, view notifications, and use the referral system.
 

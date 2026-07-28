@@ -1,5 +1,7 @@
 import type { APIContext } from 'astro';
 import { jsonResponse, errorResponse, requireAuth, getById, update, getAll, insert } from '../../../lib/auth';
+// [Task 25 — email integration] Fire-and-forget payment emails. Non-breaking.
+import { emitEmailEventSafe } from '../../../lib/email';
 
 export async function POST(context: APIContext): Promise<Response> {
   try {
@@ -41,6 +43,36 @@ export async function POST(context: APIContext): Promise<Response> {
         transactionRef: reference,
       });
 
+      // [Task 25 — email integration] paymentSuccess + walletDebited to customer.
+      try {
+        const appUrl = process.env.APP_URL || '';
+        const base = appUrl.replace(/\/$/, '');
+        const receiptLink = `${base}/order/${order.id}?receipt=1`;
+        emitEmailEventSafe({
+          event: 'paymentSuccess',
+          to: user.email,
+          data: {
+            name: user.name || user.firstName || '',
+            orderId: order.id,
+            amount: order.total,
+            paymentMethod: 'wallet',
+            receiptLink,
+          },
+        });
+        emitEmailEventSafe({
+          event: 'walletDebited',
+          to: user.email,
+          data: {
+            name: user.name || user.firstName || '',
+            amount: order.total,
+            balance: newBalance,
+            description: `Payment for Order #${order.id}`,
+          },
+        });
+      } catch (emailErr) {
+        console.error('[payments POST wallet] email emit failed:', emailErr);
+      }
+
       return jsonResponse({ success: true, transactionId: Date.now().toString() });
     }
 
@@ -51,6 +83,10 @@ export async function POST(context: APIContext): Promise<Response> {
         paymentMethod: 'cod',
         transactionRef: reference,
       });
+
+      // [Task 25 — email integration] COD: order is confirmed but payment is pending
+      // (collected on delivery). We do NOT emit paymentSuccess here; the order
+      // confirmation email already fires from the orders POST endpoint.
       return jsonResponse({ success: true, transactionRef: reference });
     }
 
@@ -177,3 +213,18 @@ export async function POST(context: APIContext): Promise<Response> {
     return errorResponse(error.message || 'Internal server error', 500);
   }
 }
+
+// [Task 25 — email integration note]
+// Gateway flows (paystack/flutterwave/razorpay/paypal) only INITIALIZE a payment here;
+// the order is set to 'pending_payment' and the user is redirected to the gateway.
+// Confirmation arrives asynchronously via the gateway callback handlers
+// (src/pages/api/*-callback.ts in the SPA). The paymentSuccess email should be
+// emitted there once the gateway confirms the transaction. Those callback files
+// are outside the allowed modification scope for this task; the emit call is
+// identical to the wallet flow above:
+//
+//   emitEmailEventSafe({
+//     event: 'paymentSuccess',
+//     to: user.email,
+//     data: { name, orderId, amount, paymentMethod, receiptLink },
+//   });

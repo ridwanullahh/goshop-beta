@@ -312,7 +312,7 @@ export default function EnhancedCheckout() {
                         id="fullName"
                         value={shippingAddress.fullName}
                         onChange={(e) => setShippingAddress(prev => ({ ...prev, fullName: e.target.value }))}
-                        placeholder="John Doe"
+                        placeholder="Bilal Rahman"
                       />
                     </div>
                     <div>

@@ -7,15 +7,18 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "concurrently -n web,api -c green,blue \"vite\" \"cd apps/api && bun run dev\"",
+    "dev": "concurrently -n web,api -c green,blue \"vite\" \"cd apps/api && npm run dev\"",
     "dev:web": "vite",
-    "dev:api": "cd apps/api && bun run dev",
-    "build": "vite build && cd apps/api && bun run build",
+    "dev:api": "cd apps/api && npm run dev",
+    "build": "vite build && cd apps/api && npm run build",
     "build:dev": "vite build --mode development",
+    "start": "node server.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "db:push": "bun apps/api/scripts/setup.ts",
-    "db:seed": "bun apps/api/scripts/setup.ts"
+    "db:push": "cd apps/api && node --import tsx scripts/setup.ts",
+    "db:seed": "cd apps/api && node --import tsx scripts/setup.ts",
+    "migrate:names": "cd apps/api && node --import tsx scripts/migrate-names.ts",
+    "test:email": "cd apps/api && npm run test:email"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -85,14 +88,15 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react-swc": "^3.5.0",
     "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.0",
     "eslint": "^9.9.0",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.9",
     "globals": "^15.9.0",
     "lovable-tagger": "^1.1.7",
-    "concurrently": "^9.1.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.11",
+    "tsx": "^4.23.1",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.1"

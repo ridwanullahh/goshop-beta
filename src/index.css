@@ -8,118 +8,114 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Official GoShop brand palette — Light mode (default) */
+    /* Primary Green #05B34D | Accent Gold #F2B91C | Dark #181F25 | Light BG #E9FBF1 | White #FFFFFF */
+    --background: 140 67% 95%;          /* #E9FBF1 Minted Glow */
+    --foreground: 207 21% 12%;          /* #181F25 Midnight Slate */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;                  /* #FFFFFF Pure White */
+    --card-foreground: 207 21% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 207 21% 12%;
 
-    /* Commerce-focused primary color (emerald = trust, growth, commerce) */
-    --primary: 158 64% 40%;
+    /* Primary Green #05B34D */
+    --primary: 147 96% 36%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 158 64% 48%;
+    --primary-glow: 147 96% 44%;
 
-    /* Vibrant commerce accent (amber for deals / energy) */
-    --secondary: 32 95% 50%;
-    --secondary-foreground: 0 0% 100%;
+    /* Accent Gold #F2B91C */
+    --secondary: 45 89% 53%;
+    --secondary-foreground: 207 21% 12%;
 
-    --muted: 220 13% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 140 40% 90%;
+    --muted-foreground: 207 12% 40%;
 
-    --accent: 32 95% 50%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 45 89% 53%;               /* #F2B91C Digital Gold */
+    --accent-foreground: 207 21% 12%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 158 64% 40%;
+    --border: 140 30% 85%;
+    --input: 140 30% 85%;
+    --ring: 147 96% 36%;
 
-    --radius: 1rem;
+    --radius: 0.75rem;
 
-    /* Commerce gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(158 64% 40%), hsl(158 64% 48%));
-    --gradient-commerce: linear-gradient(135deg, hsl(158 64% 40%), hsl(32 95% 50%));
-    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%), hsl(220 13% 98%));
+    /* Brand gradients — green primary + gold accent */
+    --gradient-primary: linear-gradient(135deg, hsl(147 96% 36%), hsl(147 96% 44%));
+    --gradient-commerce: linear-gradient(135deg, hsl(147 96% 36%), hsl(45 89% 53%));
+    --gradient-subtle: linear-gradient(180deg, hsl(140 67% 95%), hsl(140 40% 92%));
+    --gradient-gold: linear-gradient(135deg, hsl(45 89% 53%), hsl(45 89% 60%));
 
-    /* Commerce shadows */
-    --shadow-commerce: 0 10px 40px -10px hsl(158 64% 40% / 0.3);
-    --shadow-glow: 0 0 30px hsl(32 95% 50% / 0.4);
-    --shadow-card: 0 4px 20px -4px hsl(220 13% 91% / 0.8);
+    /* Brand shadows */
+    --shadow-commerce: 0 10px 40px -10px hsl(147 96% 36% / 0.3);
+    --shadow-glow: 0 0 30px hsl(45 89% 53% / 0.35);
+    --shadow-card: 0 4px 24px -4px hsl(207 21% 12% / 0.08);
 
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-spring: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 207 21% 12%;
+    --sidebar-primary: 147 96% 36%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 140 40% 92%;
+    --sidebar-accent-foreground: 207 21% 12%;
+    --sidebar-border: 140 30% 85%;
+    --sidebar-ring: 147 96% 36%;
   }
 
   .dark {
-    --background: 15 23% 4%;
-    --foreground: 210 40% 98%;
+    /* Official GoShop brand palette — Dark mode */
+    /* Dark #181F25 Midnight Slate as background; green/gold accents preserved */
+    --background: 207 21% 10%;          /* #181F25 Midnight Slate */
+    --foreground: 140 30% 92%;
 
-    --card: 15 25% 6%;
-    --card-foreground: 210 40% 98%;
+    --card: 207 18% 14%;
+    --card-foreground: 140 30% 92%;
 
-    --popover: 15 25% 6%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 207 18% 14%;
+    --popover-foreground: 140 30% 92%;
 
-    /* Dark mode commerce colors */
-    --primary: 211 91% 60%;
-    --primary-foreground: 15 23% 4%;
-    --primary-glow: 211 91% 70%;
+    --primary: 147 96% 42%;             /* slightly brighter green in dark */
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 147 96% 50%;
 
-    --secondary: 18 100% 65%;
-    --secondary-foreground: 15 23% 4%;
+    --secondary: 45 89% 55%;            /* gold */
+    --secondary-foreground: 207 21% 10%;
 
-    --muted: 15 25% 12%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 207 15% 18%;
+    --muted-foreground: 140 15% 65%;
 
-    --accent: 18 100% 65%;
-    --accent-foreground: 15 23% 4%;
+    --accent: 45 89% 55%;
+    --accent-foreground: 207 21% 10%;
 
-    --destructive: 0 62.8% 50.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 15 25% 18%;
-    --input: 15 25% 18%;
-    --ring: 211 91% 60%;
+    --border: 207 15% 22%;
+    --input: 207 15% 22%;
+    --ring: 147 96% 42%;
 
-    /* Dark mode gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(211 91% 25%), hsl(211 91% 45%));
-    --gradient-commerce: linear-gradient(135deg, hsl(211 91% 25%), hsl(18 100% 65%));
-    --gradient-subtle: linear-gradient(180deg, hsl(15 25% 6%), hsl(15 25% 8%));
+    --gradient-primary: linear-gradient(135deg, hsl(147 96% 42%), hsl(147 96% 50%));
+    --gradient-commerce: linear-gradient(135deg, hsl(147 96% 42%), hsl(45 89% 55%));
+    --gradient-subtle: linear-gradient(180deg, hsl(207 21% 10%), hsl(207 18% 13%));
+    --gradient-gold: linear-gradient(135deg, hsl(45 89% 55%), hsl(45 89% 62%));
 
-    /* Dark mode shadows */
-    --shadow-commerce: 0 10px 40px -10px hsl(211 91% 60% / 0.3);
-    --shadow-glow: 0 0 30px hsl(18 100% 65% / 0.4);
-    --shadow-card: 0 4px 20px -4px hsl(15 25% 4% / 0.6);
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --shadow-commerce: 0 10px 40px -10px hsl(147 96% 42% / 0.4);
+    --shadow-glow: 0 0 30px hsl(45 89% 55% / 0.4);
+    --shadow-card: 0 4px 24px -4px hsl(207 21% 4% / 0.6);
+    --sidebar-background: 207 18% 12%;
+    --sidebar-foreground: 140 30% 90%;
+    --sidebar-primary: 147 96% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 207 15% 18%;
+    --sidebar-accent-foreground: 140 30% 90%;
+    --sidebar-border: 207 15% 20%;
+    --sidebar-ring: 147 96% 42%;
   }
 }
 

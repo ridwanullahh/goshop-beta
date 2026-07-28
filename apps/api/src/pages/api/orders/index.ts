@@ -1,5 +1,7 @@
 import type { APIContext } from 'astro';
 import { getAll, getById, insert, update, removeWhere, jsonResponse, errorResponse, requireAuth } from '../../../lib/auth';
+// [Task 25 — email integration] Fire-and-forget order emails. Non-breaking.
+import { emitEmailEventSafe } from '../../../lib/email';
 
 export async function GET(context: APIContext): Promise<Response> {
   try {
@@ -80,6 +82,58 @@ export async function POST(context: APIContext): Promise<Response> {
 
     await removeWhere('cart_items', { userId: user.id });
 
+    // [Task 25 — email integration] Order confirmation to customer + new order to seller.
+    // Fire-and-forget; non-blocking.
+    try {
+      const appUrl = process.env.APP_URL || '';
+      const base = appUrl.replace(/\/$/, '');
+      const trackingLink = order.id ? `${base}/order/${order.id}` : '';
+      // Customer confirmation.
+      emitEmailEventSafe({
+        event: 'orderConfirmation',
+        to: user.email,
+        data: {
+          name: user.name || user.firstName || '',
+          orderId: order.id,
+          items: validatedItems,
+          total: order.total,
+          currency: body.currency || 'USD',
+          estimatedDelivery: body.estimatedDelivery || '3-7 business days',
+          trackingLink,
+        },
+      });
+      // Notify each unique seller.
+      const sellerIds = Array.from(new Set(validatedItems.map((it: any) => it.sellerId).filter(Boolean)));
+      for (const sellerId of sellerIds) {
+        try {
+          const seller = await getById<any>('users', sellerId);
+          if (seller && seller.email) {
+            const sellerItems = validatedItems.filter((it: any) => it.sellerId === sellerId);
+            const sellerTotal = sellerItems.reduce(
+              (sum: number, it: any) => sum + (it.total !== undefined ? Number(it.total) : (it.quantity || 0) * (it.price || 0)),
+              0
+            );
+            emitEmailEventSafe({
+              event: 'newOrder',
+              to: seller.email,
+              data: {
+                orderId: order.id,
+                customerName: user.name || user.firstName || 'Customer',
+                items: sellerItems,
+                total: sellerTotal,
+                currency: body.currency || 'USD',
+                dashboardLink: `${base}/seller/dashboard`,
+              },
+            });
+          }
+        } catch (sellerErr) {
+          console.error('[orders POST] seller lookup/notify failed:', sellerErr);
+        }
+      }
+    } catch (emailErr) {
+      console.error('[orders POST] order email emit failed:', emailErr);
+    }
+
     return jsonResponse(order, 201);
   } catch (error: any) {
     if (error instanceof Response) return error;
@@ -104,9 +158,88 @@ export async function PATCH(context: APIContext): Promise<Response> {
     }
 
     const updated = await update('orders', id, updates);
+
+    // [Task 25 — email integration] Status-change emails to the customer.
+    // - orderStatusUpdate: always (on any status change)
+    // - orderShipped: when status === 'shipped' and trackingNumber present
+    // - orderDelivered: when status === 'delivered'
+    // Fire-and-forget; non-blocking.
+    try {
+      const prevStatus = order.status;
+      const newStatus = updates.status;
+      if (newStatus && newStatus !== prevStatus) {
+        const appUrl = process.env.APP_URL || '';
+        const base = appUrl.replace(/\/$/, '');
+        const trackingLink = `${base}/order/${id}`;
+        const customer = await getById<any>('users', order.userId);
+        const customerEmail = customer?.email;
+        const customerName = customer?.name || customer?.firstName || '';
+        if (customerEmail) {
+          emitEmailEventSafe({
+            event: 'orderStatusUpdate',
+            to: customerEmail,
+            data: {
+              name: customerName,
+              orderId: id,
+              newStatus,
+              trackingLink,
+              message: statusMessage(newStatus),
+            },
+          });
+          if (newStatus === 'shipped') {
+            emitEmailEventSafe({
+              event: 'orderShipped',
+              to: customerEmail,
+              data: {
+                name: customerName,
+                orderId: id,
+                trackingNumber: updates.trackingNumber || order.trackingNumber || '',
+                carrier: updates.carrier || 'Shipping partner',
+                trackingLink,
+              },
+            });
+          }
+          if (newStatus === 'delivered') {
+            emitEmailEventSafe({
+              event: 'orderDelivered',
+              to: customerEmail,
+              data: {
+                name: customerName,
+                orderId: id,
+                reviewLink: `${base}/order/${id}?review=1`,
+              },
+            });
+          }
+        }
+      }
+    } catch (emailErr) {
+      console.error('[orders PATCH] status-change email emit failed:', emailErr);
+    }
+
     return jsonResponse(updated);
   } catch (error: any) {
     if (error instanceof Response) return error;
     return errorResponse(error.message || 'Internal server error', 500);
+  }
+}
+
+function statusMessage(status: string): string {
+  switch (status) {
+    case 'confirmed':
+      return 'Your order has been confirmed and is being prepared.';
+    case 'processing':
+      return 'Your order is now being processed.';
+    case 'shipped':
+      return 'Your order has been shipped. See the tracking details below.';
+    case 'out_for_delivery':
+      return 'Your order is out for delivery and will arrive soon.';
+    case 'delivered':
+      return 'Your order has been delivered. Enjoy your purchase!';
+    case 'cancelled':
+      return 'Your order has been cancelled. If you did not request this, please contact support.';
+    case 'refunded':
+      return 'A refund has been processed for your order.';
+    default:
+      return `Your order status is now: ${status}.`;
   }
 }
