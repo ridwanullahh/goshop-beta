@@ -31,11 +31,20 @@ export default function ContactUs() {
     message: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In production, this would send to your backend
-    toast.success('Message sent successfully! We\'ll get back to you within 24 hours.');
-    setFormData({ name: '', email: '', subject: '', category: '', message: '' });
+    try {
+      const res = await fetch('/api/emails/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      if (!res.ok) throw new Error('Failed to send');
+      toast.success('Message sent successfully! We\'ll get back to you within 24 hours.');
+      setFormData({ name: '', email: '', subject: '', category: '', message: '' });
+    } catch {
+      toast.error('Failed to send message. Please try again or email us directly.');
+    }
   };
 
   const contactMethods = [

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,7 @@ export default function EnhancedCheckout() {
   const { t } = useTranslation();
   const { sdk, currentUser, cart, clearCart } = useCommerce();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [platformCommission, setPlatformCommission] = useState(5);
   const [orderSummary, setOrderSummary] = useState<any>(null);
@@ -185,19 +187,42 @@ export default function EnhancedCheckout() {
 
       const order = await sdk.createOrder(orderData);
 
-      // Process payment for the partial amount (commissions + shipping)
-      // In a real implementation, you would integrate with a payment processor here
-      
-      // Clear cart after successful order
+      // Process payment via the API.
+      try {
+        const paymentResult = await sdk.initiatePayment(order.id, paymentMethod);
+
+        // For gateway payments, redirect to the provider's approval URL.
+        if (paymentResult?.redirectUrl) {
+          window.location.href = paymentResult.redirectUrl;
+          return;
+        }
+        // For Razorpay, the client SDK handles the modal (redirect handled elsewhere).
+        if (paymentResult?.razorpayOrderId) {
+          toast({ title: 'Razorpay order created', description: 'Complete your payment in the Razorpay modal.' });
+          // In a full implementation, load the Razorpay checkout.js and open the modal here.
+        }
+      } catch (paymentError: any) {
+        toast({
+          title: 'Payment processing issue',
+          description: paymentError?.message || 'Your order was placed but payment could not be processed. Please complete payment from your orders page.',
+          variant: 'destructive',
+        });
+      }
+
+      // Clear cart after successful order + payment initiation.
       clearCart();
 
       toast({
-        title: "Order Placed Successfully!",
-        description: `You paid $${orderSummary.paidAtCheckout.toFixed(2)} now. You'll pay the remaining $${orderSummary.remainingAmount.toFixed(2)} upon delivery.`
+        title: 'Order Placed Successfully!',
+        description: paymentMethod === 'cod'
+          ? 'Your order has been placed. Pay on delivery.'
+          : paymentMethod === 'wallet'
+            ? 'Payment completed from your wallet.'
+            : 'Your order has been placed.',
       });
 
-      // Redirect to order confirmation
-      window.location.href = `/orders/${order.id}`;
+      // Redirect to the order detail page (correct route: /order/:id).
+      navigate(`/order/${order.id}`);
     } catch (error) {
       console.error('Error placing order:', error);
       toast({
@@ -372,9 +397,12 @@ export default function EnhancedCheckout() {
                       <SelectValue placeholder={t('select_payment_method')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="card">{t('credit_debit_card')}</SelectItem>
-                      <SelectItem value="paypal">{t('paypal')}</SelectItem>
-                      <SelectItem value="bank">{t('bank_transfer')}</SelectItem>
+                      <SelectItem value="wallet">Wallet</SelectItem>
+                      <SelectItem value="cod">Cash on Delivery</SelectItem>
+                      <SelectItem value="paystack">Paystack (Card/Bank/USSD)</SelectItem>
+                      <SelectItem value="flutterwave">Flutterwave</SelectItem>
+                      <SelectItem value="razorpay">Razorpay</SelectItem>
+                      <SelectItem value="paypal">PayPal</SelectItem>
                     </SelectContent>
                   </Select>
                 </CardContent>
