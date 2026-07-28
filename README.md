@@ -1,73 +1,110 @@
-# Welcome to your Lovable project
+# GoShop Beta
 
-## Project info
+> BismiLLAH Ar-Rahman Ar-Roheem. A world-class, multi-vendor marketplace platform.
 
-**URL**: https://lovable.dev/projects/1015471f-3bbb-4f20-b1f0-f16d05544f97
+GoShop Beta is a production-grade marketplace built with React, TypeScript, Tailwind CSS, shadcn/ui, and an Astro API backend backed by **Lightbase** (a backend-as-a-service). It supports sellers, customers, affiliates, and platform admins with products, orders, payments, wallets, referrals, blogs, community posts, and more.
 
-## How can I edit this code?
+## Tech Stack
 
-There are several ways of editing your application.
+- **Frontend**: Vite + React 18 + TypeScript + Tailwind CSS + shadcn/ui + react-router-dom
+- **Backend**: Astro (Node standalone) API on port 3001
+- **Database**: Lightbase (core `/api/v1`) via an async provider abstraction (SQLite kept as a switchable fallback)
+- **Auth**: JWT (7-day expiry) + bcrypt password hashing
+- **i18n**: 13 languages with runtime translation
+- **Payments**: Wallet, COD, Paystack, Flutterwave, Razorpay, PayPal
 
-**Use Lovable**
+## Prerequisites
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/1015471f-3bbb-4f20-b1f0-f16d05544f97) and start prompting.
+- Node.js 18+ and npm
 
-Changes made via Lovable will be committed automatically to this repo.
+## Getting Started
 
-**Use your preferred IDE**
+```bash
+# 1. Clone the repo
+git clone https://github.com/ridwanullahh/goshop-beta.git
+cd goshop-beta
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+# 2. Install dependencies (npm)
+npm install
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+# 3. Configure environment
+cp .env.example .env
+cp apps/api/.env.example apps/api/.env
+# Edit both .env files with your Lightbase credentials and JWT_SECRET
 
-Follow these steps:
+# 4. Initialize + seed the database (creates Lightbase collections + seeds test data)
+npm run db:push
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# 5. Start the dev server (Vite on :3000 + Astro API on :3001)
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Open `http://localhost:3000` in your browser.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Environment
 
-**Use GitHub Codespaces**
+See [`.env.example`](./.env.example) and [`apps/api/.env.example`](./apps/api/.env.example) for all configuration options. The `.env` files (with real secrets) are gitignored; the `.env.example` templates are committed.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Key variables:
+- `DB_PROVIDER` — `lightbase` (default) or `sqlite`
+- `LIGHTBASE_BASE_URL`, `LIGHTBASE_API_KEY`, `LIGHTBASE_PROJECT_ID` — Lightbase credentials
+- `JWT_SECRET` — JWT signing secret (change in production)
 
-## What technologies are used for this project?
+## Test Accounts
 
-This project is built with:
+See [`TEST_USERS.md`](./TEST_USERS.md) for all seeded test credentials (admin, sellers, customers, affiliate).
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Scripts
 
-## How can I deploy this project?
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start Vite (frontend) + Astro (API) concurrently |
+| `npm run dev:web` | Start only the Vite frontend |
+| `npm run dev:api` | Start only the Astro API |
+| `npm run build` | Build the frontend + API |
+| `npm run lint` | Run ESLint |
+| `npm run db:push` | Initialize Lightbase collections + seed data |
+| `npm run db:seed` | Alias for db:push |
 
-Simply open [Lovable](https://lovable.dev/projects/1015471f-3bbb-4f20-b1f0-f16d05544f97) and click on Share -> Publish.
+## Project Structure
 
-## Can I connect a custom domain to my Lovable project?
+```
+goshop-beta/
+├── apps/api/                 # Astro API backend (port 3001)
+│   ├── src/
+│   │   ├── lib/
+│   │   │   ├── provider/     # DataProvider abstraction (Lightbase + SQLite)
+│   │   │   ├── lightbase-client.ts  # Lightbase /api/v1 HTTP client
+│   │   │   ├── schema.ts     # Collection schema definitions
+│   │   │   ├── auth.ts       # JWT + bcrypt + async DB helpers
+│   │   │   ├── seed.ts       # Comprehensive async seed
+│   │   │   └── database.ts   # Legacy better-sqlite3 (kept for switch-back)
+│   │   ├── pages/api/        # API endpoints
+│   │   └── middleware.ts     # Init + seed + CORS
+│   └── scripts/              # Setup/seed scripts
+├── src/                      # Vite + React SPA (port 3000)
+│   ├── components/           # Reusable components (ProductCard, home/*, etc.)
+│   ├── pages/                # Route pages
+│   ├── context/              # CommerceContext, RealTimeContext, etc.
+│   ├── lib/                  # api-client, utils
+│   └── i18n.ts               # i18next config
+├── public/                   # Static assets + locale translations
+├── Core_Working_Protocol.md  # Authoritative working protocol
+├── TEST_USERS.md             # Test credentials
+└── .env.example              # Environment template
+```
 
-Yes, you can!
+## Database Provider
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+The backend uses an async `DataProvider` interface with two implementations:
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+- **LightbaseProvider** (default) — uses the Lightbase core `/api/v1` documents/collections/query API.
+- **SqliteProvider** — wraps better-sqlite3 directly (kept intact for manual switch-back).
+
+Switch via the `DB_PROVIDER` env var. The SQLite provider is lazy-loaded so the Lightbase path never requires the native better-sqlite3 module.
+
+## License
+
+Private. All rights reserved.
+
+BaarakaLLAHu Feek.

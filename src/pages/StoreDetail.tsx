@@ -1,417 +1,1104 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Star,
-  MapPin,
-  Users,
-  ShoppingBag,
-  Search,
-  ArrowLeft,
-  Heart,
-  Share2,
-  Filter,
-  BookOpen,
-  Clock,
-  User,
-  Calendar
-} from 'lucide-react';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  ProductCard,
+  ProductCardSkeleton,
+} from '@/components/ProductCard';
+import { StoreHero, StoreHeroSkeleton } from '@/components/store/StoreHero';
+import { StoreCard } from '@/components/store/StoreCard';
+import { StoreRating } from '@/components/store/StoreRating';
 import { useCommerce } from '@/context/CommerceContext';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
-import { ProductCard } from '@/components/ProductCard';
+import type { Store, Product, Blog } from '@/lib/commerce-sdk';
+import {
+  Search,
+  Package,
+  BookOpen,
+  Star,
+  Mail,
+  Phone,
+  Globe,
+  MapPin,
+  Truck,
+  RefreshCw,
+  ShieldCheck,
+  Calendar,
+  Briefcase,
+  MessageSquare,
+  ShoppingBag,
+  ArrowLeft,
+  Store as StoreIcon,
+  X,
+  ChevronRight,
+  Facebook,
+  Twitter,
+  Instagram,
+  Quote,
+} from 'lucide-react';
+
+type SortKey = 'newest' | 'price-asc' | 'price-desc' | 'rating';
+type TabKey = 'products' | 'blog' | 'about' | 'reviews';
+
+const PAGE_SIZE = 8;
+
+interface StoreReview {
+  id: string;
+  rating?: number;
+  comment?: string;
+  reviewerName?: string;
+  reviewer?: string;
+  user?: { name?: string };
+  createdAt?: string;
+  productId?: string;
+}
 
 export default function StoreDetail() {
-  const { storeSlug } = useParams();
-  const { sdk } = useCommerce();
-  const [store, setStore] = useState<any>(null);
-  const [storeProducts, setStoreProducts] = useState<any[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
-  const [storeBlogPosts, setStoreBlogPosts] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  // The /stores/:slug route exposes `slug`, while the catch-all /:storeSlug
+  // route exposes `storeSlug`. Read both so the storefront works either way
+  // without touching App.tsx (which is owned by the orchestrator).
+  const params = useParams<{ slug?: string; storeSlug?: string }>();
+  const storeSlug = params.slug || params.storeSlug;
+  const { sdk, convertCurrency, currency } = useCommerce();
+
+  const [store, setStore] = useState<Store | null>(null);
+  const [otherStores, setOtherStores] = useState<Store[]>([]);
+  const [rawProducts, setRawProducts] = useState<Product[]>([]);
+  const [blogPosts, setBlogPosts] = useState<Blog[]>([]);
+  const [reviews, setReviews] = useState<StoreReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('products');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
+  const [activeTab, setActiveTab] = useState<TabKey>('products');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<SortKey>('newest');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  // ---- Load store + related data ----
   useEffect(() => {
-    async function loadStore() {
-      if (!sdk || !storeSlug) return;
+    let alive = true;
+    if (!sdk || !storeSlug) return;
 
+    (async () => {
       try {
-        // Check if storeSlug is actually a direct store slug (baseurl/storeslug)
-        let storeData;
-
-        // First try to get store by slug
-        storeData = await sdk.getStoreBySlug(storeSlug);
-
-        if (!storeData) {
-          // If not found by slug, try by ID for backward compatibility
-          storeData = await sdk.getStore(storeSlug);
-        }
-
-        if (storeData && storeData.isApproved && storeData.isActive) {
-          setStore(storeData);
-
-          // Load store-specific products and blog posts
-          const [productsData, blogPostsData] = await Promise.all([
-            sdk.getStoreProducts(storeData.sellerId),
-            sdk.getStoreBlogPosts(storeData.id)
-          ]);
-
-          setStoreProducts(productsData);
-          setFilteredProducts(productsData);
-          setStoreBlogPosts(blogPostsData);
-        } else {
-          setStore(null);
-          setStoreProducts([]);
-          setFilteredProducts([]);
-          setStoreBlogPosts([]);
-        }
-      } catch (error) {
-        console.error('Failed to load store:', error);
+        setIsLoading(true);
+        setLoadError(null);
         setStore(null);
-        setStoreProducts([]);
-        setFilteredProducts([]);
-        setStoreBlogPosts([]);
-      } finally {
-        setIsLoading(false);
-      }
-    }
+        setRawProducts([]);
+        setBlogPosts([]);
+        setReviews([]);
+        setVisibleCount(PAGE_SIZE);
 
-    loadStore();
+        let storeData: Store | undefined = await sdk.getStoreBySlug(storeSlug);
+        if (!storeData) {
+          // Fallback: try by ID for backward compatibility.
+          try {
+            storeData = (await sdk.getStore(storeSlug)) as Store;
+          } catch {
+            storeData = undefined;
+          }
+        }
+
+        if (!alive) return;
+
+        if (!storeData || !(storeData.isApproved && storeData.isActive)) {
+          setStore(null);
+          return;
+        }
+        setStore(storeData);
+
+        // Load products, blog posts, reviews, and other stores in parallel.
+        const [productsData, blogData, reviewData, allStores] = await Promise.all([
+          sdk.getStoreProducts(storeData.id).catch(() => [] as Product[]),
+          sdk.getStoreBlogPosts(storeData.id).catch(() => [] as Blog[]),
+          sdk.getStoreReviews(storeData.id).catch(() => [] as StoreReview[]),
+          sdk.getStores().catch(() => [] as Store[]),
+        ]);
+
+        if (!alive) return;
+
+        // Only show active products.
+        setRawProducts((productsData as Product[]).filter((p) => p && p.isActive !== false));
+        setBlogPosts((blogData as Blog[]).filter((b) => b && b.isPublished));
+        setReviews((reviewData as StoreReview[]) || []);
+
+        const others = (allStores as Store[])
+          .filter(
+            (s) =>
+              s &&
+              s.id !== storeData!.id &&
+              s.isApproved &&
+              s.isActive,
+          )
+          .sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0))
+          .slice(0, 4);
+        setOtherStores(others);
+      } catch (err: unknown) {
+        if (!alive) return;
+        const message =
+          err instanceof Error ? err.message : 'Failed to load this store.';
+        setLoadError(message);
+        setStore(null);
+      } finally {
+        if (alive) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
   }, [sdk, storeSlug]);
 
+  // Reset pagination when filters change.
   useEffect(() => {
-    const filtered = storeProducts.filter(product =>
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    setFilteredProducts(filtered);
-  }, [searchQuery, storeProducts]);
+    setVisibleCount(PAGE_SIZE);
+  }, [searchQuery, categoryFilter, sortBy, storeSlug]);
+
+  // ---- Currency-convert product prices for display ----
+  // `convertCurrency` is recreated by context whenever currency changes, so
+  // depending on it keeps prices in sync with the active currency.
+  const products = useMemo<Product[]>(() => {
+    return rawProducts.map((p) => ({
+      ...p,
+      price: convertCurrency(Number(p.price) || 0),
+      originalPrice: p.originalPrice
+        ? convertCurrency(Number(p.originalPrice) || 0)
+        : undefined,
+      shippingCost: p.shippingCost
+        ? convertCurrency(Number(p.shippingCost) || 0)
+        : undefined,
+    }));
+  }, [rawProducts, convertCurrency]);
+
+  // ---- All categories in this store's catalog ----
+  const catalogCategories = useMemo(() => {
+    const set = new Set<string>();
+    products.forEach((p) => {
+      if (p.category) set.add(p.category);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [products]);
+
+  // ---- Apply search, filter, sort ----
+  const filteredProducts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const list = products.filter((p) => {
+      if (
+        categoryFilter !== 'all' &&
+        p.category &&
+        p.category !== categoryFilter
+      )
+        return false;
+      if (q) {
+        // `brand` exists on the runtime product shape but is not on the TS
+        // Product interface; read it defensively so the build stays clean.
+        const brand = readBrand(p);
+        const haystack = [p.name, p.description, brand, ...(p.tags || [])]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+
+    list.sort((a, b) => {
+      switch (sortBy) {
+        case 'price-asc':
+          return Number(a.price || 0) - Number(b.price || 0);
+        case 'price-desc':
+          return Number(b.price || 0) - Number(a.price || 0);
+        case 'rating':
+          return Number(b.rating || 0) - Number(a.rating || 0);
+        case 'newest':
+        default:
+          return (
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime()
+          );
+      }
+    });
+    return list;
+  }, [products, searchQuery, categoryFilter, sortBy]);
+
+  const visibleProducts = filteredProducts.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredProducts.length;
+
+  // ---- Reviews aggregation ----
+  const reviewSummary = useMemo(() => {
+    const validReviews = reviews.filter((r) => Number(r.rating || 0) > 0);
+    const total = validReviews.length;
+    const avg =
+      total > 0
+        ? validReviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) / total
+        : Number(store?.rating || 0);
+    const distribution = [5, 4, 3, 2, 1].map((star) => {
+      const count = validReviews.filter((r) => Math.round(Number(r.rating || 0)) === star).length;
+      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+      return { star, count, pct };
+    });
+    const totalReviewCount =
+      Number(store?.reviewCount || 0) > 0
+        ? Number(store?.reviewCount || 0)
+        : total;
+    return { avg, total, distribution, totalReviewCount };
+  }, [reviews, store]);
+
+  // ---- Render ----
 
   if (isLoading) {
     return (
-      <div className="min-h-screen">
-        <Header />
+      <Shell>
+        <StoreHeroSkeleton />
         <div className="container mx-auto px-4 py-8">
-          <div className="animate-pulse">
-            <div className="h-48 bg-muted rounded-lg mb-8"></div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-6">
-                <div className="bg-muted h-8 w-1/2 rounded"></div>
-                <div className="bg-muted h-20 rounded"></div>
-              </div>
-              <div className="bg-muted h-64 rounded-lg"></div>
-            </div>
+          <Skeleton className="mb-6 h-10 w-full max-w-md" />
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <ProductCardSkeleton key={i} />
+            ))}
           </div>
         </div>
-        <Footer />
-      </div>
+      </Shell>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Shell>
+        <div className="container mx-auto px-4 py-16">
+          <div
+            role="alert"
+            className="mx-auto flex max-w-md flex-col items-center rounded-2xl border border-destructive/30 bg-destructive/5 px-6 py-12 text-center"
+          >
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+              <StoreIcon className="h-8 w-8 text-destructive" aria-hidden />
+            </div>
+            <h2 className="mt-4 text-lg font-bold text-foreground">
+              Could not load this store
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">{loadError}</p>
+            <Button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-5"
+            >
+              Try again
+            </Button>
+          </div>
+        </div>
+      </Shell>
     );
   }
 
   if (!store) {
     return (
-      <div className="min-h-screen">
-        <Header />
-        <div className="container mx-auto px-4 py-8 text-center">
-          <h1 className="text-2xl font-bold mb-4">Store Not Found</h1>
-          <p className="text-muted-foreground">The store you're looking for doesn't exist.</p>
+      <Shell>
+        <div className="container mx-auto px-4 py-16">
+          <div className="mx-auto flex max-w-md flex-col items-center rounded-2xl border border-dashed border-border/70 bg-muted/30 px-6 py-12 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+              <ShoppingBag className="h-8 w-8 text-muted-foreground" aria-hidden />
+            </div>
+            <h2 className="mt-4 text-lg font-bold text-foreground">
+              Store not found
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              The store you&rsquo;re looking for doesn&rsquo;t exist, may have been
+              removed, or isn&rsquo;t approved yet.
+            </p>
+            <Link to="/stores">
+              <Button type="button" className="mt-5 gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Browse all stores
+              </Button>
+            </Link>
+          </div>
         </div>
-        <Footer />
-      </div>
+      </Shell>
     );
   }
 
   return (
-    <div className="min-h-screen">
-      <Header />
-      
-      <div className="container mx-auto px-4 py-6">
-        {/* Back Button */}
-        <Button variant="ghost" size="sm" onClick={() => history.back()} className="mb-6">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Stores
-        </Button>
+    <Shell>
+      <StoreHero store={store} productCount={products.length} />
 
-        {/* Store Header */}
-        <div className="relative mb-8">
-          <div className="h-48 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-lg overflow-hidden">
-            {store.banner && (
-              <img
-                src={store.banner}
-                alt={store.name}
-                className="w-full h-full object-cover"
-              />
-            )}
-            <div className="absolute inset-0 bg-black/20"></div>
-          </div>
-          
-          <div className="absolute -bottom-6 left-6">
-            <Avatar className="w-24 h-24 border-4 border-background">
-              <AvatarImage src={store.logo} alt={store.name} />
-              <AvatarFallback className="text-2xl">
-                {store.name.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-        </div>
+      <div className="container mx-auto px-4 py-8 sm:py-10">
+        {/* ---- Quick info chips bar ---- */}
+        <section
+          aria-label="Store quick facts"
+          className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6"
+        >
+          <InfoChip
+            icon={<Package className="h-4 w-4" />}
+            label="Products"
+            value={products.length.toLocaleString()}
+          />
+          <InfoChip
+            icon={<Star className="h-4 w-4" />}
+            label="Rating"
+            value={
+              Number(store.rating || 0) > 0
+                ? `${Number(store.rating).toFixed(1)} / 5`
+                : '—'
+            }
+          />
+          <InfoChip
+            icon={<MessageSquare className="h-4 w-4" />}
+            label="Reviews"
+            value={Number(store.reviewCount || reviewSummary.total).toLocaleString()}
+          />
+          {store.location && (
+            <InfoChip
+              icon={<MapPin className="h-4 w-4" />}
+              label="Location"
+              value={store.location}
+            />
+          )}
+          {store.established && (
+            <InfoChip
+              icon={<Calendar className="h-4 w-4" />}
+              label="Established"
+              value={store.established}
+            />
+          )}
+          {store.businessType && (
+            <InfoChip
+              icon={<Briefcase className="h-4 w-4" />}
+              label="Business"
+              value={store.businessType}
+            />
+          )}
+        </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-          {/* Store Info */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-3xl font-bold">{store.name}</h1>
-                  {store.isVerified && (
-                    <Badge className="bg-primary text-primary-foreground">
-                      Verified
-                    </Badge>
-                  )}
-                </div>
-                
-                <div className="flex items-center gap-4 text-muted-foreground mb-4">
-                  {store.location && (
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      {store.location}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-1">
-                    <Star className="h-4 w-4 fill-secondary text-secondary" />
-                    <span>{store.rating}</span>
-                    <span>({store.reviewCount} reviews)</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <Button variant="outline" size="icon">
-                  <Heart className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon">
-                  <Share2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            <p className="text-muted-foreground leading-relaxed">
-              {store.description}
-            </p>
-          </div>
-
-          {/* Store Stats */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="font-semibold mb-4">Store Stats</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">Products</span>
-                  </div>
-                  <span className="font-medium">{store.productCount}</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">Followers</span>
-                  </div>
-                  <span className="font-medium">2.5K</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Star className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">Rating</span>
-                  </div>
-                  <span className="font-medium">{store.rating}/5</span>
-                </div>
-                
-                {store.established && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Est.</span>
-                    <span className="font-medium">{store.established}</span>
-                  </div>
-                )}
-              </div>
-              
-              <Button className="w-full mt-6">Follow Store</Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Store Products */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="products">
-              <ShoppingBag className="h-4 w-4 mr-2" />
-              Products ({storeProducts.length})
+        {/* ---- Tabs ---- */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as TabKey)}
+          className="w-full"
+        >
+          <TabsList
+            className="grid h-auto w-full grid-cols-2 sm:grid-cols-4"
+            aria-label="Store sections"
+          >
+            <TabsTrigger value="products" className="gap-1.5 py-2.5">
+              <Package className="h-4 w-4" />
+              Products
+              <Badge
+                variant="secondary"
+                className="ml-1 bg-primary/10 text-primary"
+              >
+                {products.length}
+              </Badge>
             </TabsTrigger>
-            <TabsTrigger value="blog">
-              <BookOpen className="h-4 w-4 mr-2" />
-              Blog ({storeBlogPosts.length})
+            <TabsTrigger value="blog" className="gap-1.5 py-2.5">
+              <BookOpen className="h-4 w-4" />
+              Blog
+              <Badge
+                variant="secondary"
+                className="ml-1 bg-primary/10 text-primary"
+              >
+                {blogPosts.length}
+              </Badge>
             </TabsTrigger>
-            <TabsTrigger value="reviews">Reviews</TabsTrigger>
-            <TabsTrigger value="about">About</TabsTrigger>
+            <TabsTrigger value="about" className="gap-1.5 py-2.5">
+              About
+            </TabsTrigger>
+            <TabsTrigger value="reviews" className="gap-1.5 py-2.5">
+              Reviews
+              <Badge
+                variant="secondary"
+                className="ml-1 bg-primary/10 text-primary"
+              >
+                {reviewSummary.totalReviewCount}
+              </Badge>
+            </TabsTrigger>
           </TabsList>
-          
+
+          {/* ---------- PRODUCTS ---------- */}
           <TabsContent value="products" className="mt-6">
-            {/* Search & Filter */}
-            <div className="flex gap-4 mb-6">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            {/* Filter / search / sort row */}
+            <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="relative flex-1 lg:max-w-md">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden
+                />
                 <Input
                   type="search"
-                  placeholder="Search products in this store..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  placeholder="Search products in this store..."
+                  aria-label="Search products in this store"
+                  className="h-11 rounded-xl pl-9 pr-9"
                 />
+                {searchQuery && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Clear search"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
-              <Button variant="outline">
-                <Filter className="h-4 w-4 mr-2" />
-                Filter
-              </Button>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {catalogCategories.length > 0 && (
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="h-11 w-[170px] rounded-xl" aria-label="Filter by category">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All categories</SelectItem>
+                      {catalogCategories.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortKey)}>
+                  <SelectTrigger className="h-11 w-[170px] rounded-xl" aria-label="Sort products">
+                    <SelectValue placeholder="Sort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Newest</SelectItem>
+                    <SelectItem value="price-asc">Price: low to high</SelectItem>
+                    <SelectItem value="price-desc">Price: high to low</SelectItem>
+                    <SelectItem value="rating">Top rated</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            {/* Products Grid */}
-            {filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
+            {products.length === 0 ? (
+              <EmptyProducts />
+            ) : filteredProducts.length === 0 ? (
+              <EmptyProducts
+                title="No products match your search"
+                description="Try adjusting your search terms or category filter."
+                onReset={() => {
+                  setSearchQuery('');
+                  setCategoryFilter('all');
+                }}
+              />
             ) : (
-              <div className="text-center py-12">
-                <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <h3 className="text-xl font-semibold mb-2">No products found</h3>
-                <p className="text-muted-foreground">
-                  {searchQuery ? 'Try adjusting your search terms' : 'This store hasn\'t added any products yet'}
+              <>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Showing {visibleProducts.length} of {filteredProducts.length}{' '}
+                  product{filteredProducts.length === 1 ? '' : 's'}
                 </p>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                  {visibleProducts.map((p) => (
+                    <ProductCard key={p.id} product={p} />
+                  ))}
+                </div>
+                {hasMore && (
+                  <div className="mt-8 flex justify-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="lg"
+                      onClick={() =>
+                        setVisibleCount((c) => c + PAGE_SIZE)
+                      }
+                      className="gap-2"
+                    >
+                      Show more products
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </TabsContent>
+
+          {/* ---------- BLOG ---------- */}
+          <TabsContent value="blog" className="mt-6">
+            {blogPosts.length === 0 ? (
+              <EmptyState
+                icon={<BookOpen className="h-8 w-8" />}
+                title="No blog posts yet"
+                description="This store hasn't published any blog posts. Check back later for updates, stories, and product news."
+              />
+            ) : (
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                {blogPosts.map((post) => (
+                  <BlogCard key={post.id} post={post} />
+                ))}
               </div>
             )}
           </TabsContent>
 
-          <TabsContent value="blog" className="mt-6">
-            {storeBlogPosts.length > 0 ? (
+          {/* ---------- ABOUT ---------- */}
+          <TabsContent value="about" className="mt-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              {/* About text */}
+              <Card className="lg:col-span-2">
+                <CardContent className="p-6 sm:p-8">
+                  <h2 className="text-lg font-bold text-foreground sm:text-xl">
+                    About {store.name}
+                  </h2>
+                  {store.description ? (
+                    <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-muted-foreground sm:text-base">
+                      {store.description}
+                    </p>
+                  ) : (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      This store hasn&rsquo;t added a description yet.
+                    </p>
+                  )}
+
+                  {/* Categories */}
+                  {store.categories && store.categories.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                        Categories
+                      </h3>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {store.categories.map((c) => (
+                          <Badge
+                            key={c}
+                            variant="outline"
+                            className="border-primary/20 bg-primary/5 text-primary"
+                          >
+                            {c}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tags */}
+                  {store.tags && store.tags.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                        Tags
+                      </h3>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {store.tags.map((t) => (
+                          <Badge key={t} variant="secondary">
+                            {t}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Contact + social */}
               <div className="space-y-6">
-                {storeBlogPosts.map((post) => (
-                  <Card key={post.id} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex gap-4">
-                        {post.featuredImage && (
-                          <div className="w-32 h-24 rounded-lg overflow-hidden flex-shrink-0">
-                            <img
-                              src={post.featuredImage}
-                              alt={post.title}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between mb-2">
-                            <h3 className="font-semibold text-lg line-clamp-2">
-                              <Link
-                                to={`/blog/${post.slug}`}
-                                className="hover:text-primary transition-colors"
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="text-base font-bold text-foreground">Contact</h3>
+                    <ul className="mt-3 space-y-3 text-sm">
+                      {store.email && (
+                        <li>
+                          <a
+                            href={`mailto:${store.email}`}
+                            className="inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-primary"
+                          >
+                            <Mail className="h-4 w-4" />
+                            <span className="truncate">{store.email}</span>
+                          </a>
+                        </li>
+                      )}
+                      {store.phone && (
+                        <li>
+                          <a
+                            href={`tel:${store.phone}`}
+                            className="inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-primary"
+                          >
+                            <Phone className="h-4 w-4" />
+                            <span>{store.phone}</span>
+                          </a>
+                        </li>
+                      )}
+                      {store.website && (
+                        <li>
+                          <a
+                            href={store.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-primary"
+                          >
+                            <Globe className="h-4 w-4" />
+                            <span className="truncate">
+                              {normalizeWebsiteLabel(store.website)}
+                            </span>
+                          </a>
+                        </li>
+                      )}
+                      {store.location && (
+                        <li className="inline-flex items-center gap-2 text-muted-foreground">
+                          <MapPin className="h-4 w-4" />
+                          <span>{store.location}</span>
+                        </li>
+                      )}
+                      {!store.email && !store.phone && !store.website && !store.location && (
+                        <li className="text-muted-foreground">
+                          No contact details provided.
+                        </li>
+                      )}
+                    </ul>
+
+                    {/* Social media */}
+                    {store.socialMedia &&
+                      Object.values(store.socialMedia).some(Boolean) && (
+                        <div className="mt-5">
+                          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Follow
+                          </h4>
+                          <div className="mt-2 flex gap-2">
+                            {store.socialMedia.facebook && (
+                              <SocialButton
+                                href={store.socialMedia.facebook}
+                                label="Facebook"
                               >
-                                {post.title}
-                              </Link>
-                            </h3>
-                            {post.category && (
-                              <Badge variant="secondary" className="ml-2 flex-shrink-0">
-                                {post.category}
-                              </Badge>
+                                <Facebook className="h-4 w-4" />
+                              </SocialButton>
+                            )}
+                            {store.socialMedia.twitter && (
+                              <SocialButton
+                                href={store.socialMedia.twitter}
+                                label="Twitter / X"
+                              >
+                                <Twitter className="h-4 w-4" />
+                              </SocialButton>
+                            )}
+                            {store.socialMedia.instagram && (
+                              <SocialButton
+                                href={store.socialMedia.instagram}
+                                label="Instagram"
+                              >
+                                <Instagram className="h-4 w-4" />
+                              </SocialButton>
                             )}
                           </div>
-
-                          <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
-                            {post.excerpt || post.content.substring(0, 150) + '...'}
-                          </p>
-
-                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              {post.author}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {new Date(post.createdAt).toLocaleDateString()}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {Math.ceil(post.content.split(' ').length / 200)} min read
-                            </div>
-                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      )}
+                  </CardContent>
+                </Card>
+
+                {/* Policies */}
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="text-base font-bold text-foreground">Policies</h3>
+                    <ul className="mt-3 space-y-4 text-sm">
+                      <PolicyRow
+                        icon={<Truck className="h-4 w-4" />}
+                        label="Shipping"
+                        text={store.policies?.shipping}
+                      />
+                      <PolicyRow
+                        icon={<RefreshCw className="h-4 w-4" />}
+                        label="Returns"
+                        text={store.policies?.returns}
+                      />
+                      <PolicyRow
+                        icon={<ShieldCheck className="h-4 w-4" />}
+                        label="Privacy"
+                        text={store.policies?.privacy}
+                      />
+                    </ul>
+                  </CardContent>
+                </Card>
               </div>
-            ) : (
-              <div className="text-center py-12">
-                <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <h3 className="text-xl font-semibold mb-2">No blog posts yet</h3>
-                <p className="text-muted-foreground">
-                  This store hasn't published any blog posts yet. Check back later!
-                </p>
-              </div>
-            )}
+            </div>
           </TabsContent>
 
+          {/* ---------- REVIEWS ---------- */}
           <TabsContent value="reviews" className="mt-6">
-            <Card>
-              <CardContent className="p-6 text-center">
-                <p className="text-muted-foreground">Store reviews coming soon!</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="about" className="mt-6">
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-semibold mb-4">About {store.name}</h3>
-                <p className="text-muted-foreground leading-relaxed mb-6">
-                  {store.description}
-                </p>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="font-medium mb-2">Store Information</h4>
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      {store.location && <p>📍 {store.location}</p>}
-                      {store.established && <p>📅 Established {store.established}</p>}
-                      <p>⭐ {store.rating}/5 rating</p>
-                      <p>🛍️ {store.productCount} products</p>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-medium mb-2">Policies</h4>
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      <p>🚚 Free shipping on orders over $50</p>
-                      <p>↩️ 30-day return policy</p>
-                      <p>💬 24/7 customer support</p>
-                      <p>🔒 Secure payments guaranteed</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <ReviewsSection summary={reviewSummary} reviews={reviews} />
           </TabsContent>
         </Tabs>
-      </div>
 
+        {/* ---- Related stores ---- */}
+        {otherStores.length > 0 && (
+          <section
+            aria-labelledby="related-stores-heading"
+            className="mt-16 border-t border-border/60 pt-12"
+          >
+            <div className="mb-6 flex items-end justify-between gap-4">
+              <div>
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-primary">
+                  <StoreIcon className="h-3.5 w-3.5" />
+                  Keep exploring
+                </div>
+                <h2
+                  id="related-stores-heading"
+                  className="text-xl font-bold tracking-tight text-foreground sm:text-2xl"
+                >
+                  Explore more stores
+                </h2>
+              </div>
+              <Link
+                to="/stores"
+                className="hidden items-center gap-1 text-sm font-semibold text-primary hover:underline sm:inline-flex"
+              >
+                View all stores <ChevronRight className="h-4 w-4" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {otherStores.map((s) => (
+                <StoreCard key={s.id} store={s} hideCta />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+      </Shell>
+    );
+}
+
+// ----- Layout shell with header/footer -----
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-screen flex-col bg-background">
+      <Header />
+      <main className="flex-1">{children}</main>
       <Footer />
     </div>
   );
+}
+
+// ----- Local presentational helpers -----
+
+function InfoChip({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-card px-3 py-2.5 shadow-sm">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
+        <p className="truncate text-sm font-semibold text-foreground">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function PolicyRow({
+  icon,
+  label,
+  text,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  text?: string;
+}) {
+  return (
+    <li>
+      <div className="inline-flex items-center gap-2 text-foreground">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          {icon}
+        </span>
+        <span className="font-medium">{label}</span>
+      </div>
+      <p className="mt-1 pl-9 text-muted-foreground">
+        {text || 'This store has not published a policy yet.'}
+      </p>
+    </li>
+  );
+}
+
+function SocialButton({
+  href,
+  label,
+  children,
+}: {
+  href: string;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`${label} (opens in new tab)`}
+      title={label}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
+    >
+      {children}
+    </a>
+  );
+}
+
+function BlogCard({ post }: { post: Blog }) {
+  const [imgError, setImgError] = useState(false);
+  const wordCount = post.content ? post.content.split(/\s+/).length : 0;
+  const readMinutes = Math.max(1, Math.ceil(wordCount / 200));
+  const excerpt =
+    post.excerpt || (post.content ? post.content.slice(0, 160) + '...' : '');
+
+  return (
+    <Card className="group h-full overflow-hidden border-border/70 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
+      <Link to={`/blog/${encodeURIComponent(post.slug)}`} className="flex h-full flex-col sm:flex-row">
+        {post.featuredImage && (
+          <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted sm:h-auto sm:w-44 sm:shrink-0">
+            {!imgError ? (
+              <img
+                src={post.featuredImage}
+                alt=""
+                aria-hidden
+                loading="lazy"
+                onError={() => setImgError(true)}
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            ) : (
+              <div
+                className="h-full w-full"
+                style={{
+                  background:
+                    'linear-gradient(135deg, hsl(158 64% 40% / 0.5), hsl(32 95% 50% / 0.5))',
+                }}
+              />
+            )}
+          </div>
+        )}
+        <CardContent className="flex flex-1 flex-col p-5">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            {post.category && (
+              <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">
+                {post.category}
+              </Badge>
+            )}
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <Calendar className="h-3 w-3" />
+              {post.createdAt ? new Date(post.createdAt).toLocaleDateString() : ''}
+            </span>
+          </div>
+          <h3 className="line-clamp-2 text-base font-bold leading-snug text-foreground transition-colors group-hover:text-primary">
+            {post.title}
+          </h3>
+          <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{excerpt}</p>
+          <div className="mt-auto flex items-center justify-between pt-4 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              {post.author || 'Unknown author'}
+            </span>
+            <span>{readMinutes} min read</span>
+          </div>
+        </CardContent>
+      </Link>
+    </Card>
+  );
+}
+
+function ReviewsSection({
+  summary,
+  reviews,
+}: {
+  summary: {
+    avg: number;
+    total: number;
+    distribution: { star: number; count: number; pct: number }[];
+    totalReviewCount: number;
+  };
+  reviews: StoreReview[];
+}) {
+  const shown = reviews.slice(0, 12);
+  const avg = summary.avg;
+
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* Summary */}
+      <Card className="lg:col-span-1">
+        <CardContent className="p-6 text-center">
+          <p className="text-5xl font-extrabold leading-none text-foreground">
+            {avg.toFixed(1)}
+          </p>
+          <div className="mt-2 flex justify-center">
+            <StoreRating
+              rating={avg}
+              showCount={false}
+              size={18}
+            />
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Based on {summary.totalReviewCount.toLocaleString()} review
+            {summary.totalReviewCount === 1 ? '' : 's'}
+          </p>
+
+          <div className="mt-5 space-y-2 text-left">
+            {summary.distribution.map((row) => (
+              <div
+                key={row.star}
+                className="flex items-center gap-2 text-xs text-muted-foreground"
+              >
+                <span className="inline-flex w-8 items-center gap-1">
+                  {row.star}
+                  <Star className="h-3 w-3 fill-accent text-accent" />
+                </span>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${row.pct}%` }}
+                  />
+                </div>
+                <span className="w-8 text-right tabular-nums">{row.count}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Review list */}
+      <Card className="lg:col-span-2">
+        <CardContent className="p-6">
+          <h3 className="text-base font-bold text-foreground">
+            What customers say
+          </h3>
+          {shown.length === 0 ? (
+            <div className="mt-4 rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-10 text-center">
+              <Quote className="mx-auto h-8 w-8 text-muted-foreground/60" />
+              <p className="mt-2 text-sm font-medium text-foreground">
+                No reviews yet
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Reviews from this store&rsquo;s customers will appear here once
+                they are submitted.
+              </p>
+            </div>
+          ) : (
+            <ul className="mt-4 divide-y divide-border/60">
+              {shown.map((r) => (
+                <li key={r.id} className="py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                        {(r.reviewerName ||
+                          r.reviewer ||
+                          r.user?.name ||
+                          'A'
+                        ).charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          {r.reviewerName ||
+                            r.reviewer ||
+                            r.user?.name ||
+                            'Anonymous'}
+                        </p>
+                        {r.createdAt && (
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(r.createdAt).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {Number(r.rating || 0) > 0 && (
+                      <StoreRating
+                        rating={Number(r.rating)}
+                        showCount={false}
+                        size={14}
+                      />
+                    )}
+                  </div>
+                  {r.comment && (
+                    <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                      {r.comment}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function EmptyProducts({
+  title = 'No products yet',
+  description = "This store hasn't added any products yet. Check back soon or browse other stores.",
+  onReset,
+}: {
+  title?: string;
+  description?: string;
+  onReset?: () => void;
+}) {
+  return (
+    <EmptyState
+      icon={<Package className="h-8 w-8" />}
+      title={title}
+      description={description}
+      action={
+        onReset ? (
+          <Button type="button" variant="outline" onClick={onReset} className="mt-5 gap-2">
+            <X className="h-4 w-4" />
+            Reset filters
+          </Button>
+        ) : undefined
+      }
+    />
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/30 px-6 py-14 text-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+        <span className="text-muted-foreground">{icon}</span>
+      </div>
+      <h3 className="mt-4 text-lg font-bold text-foreground">{title}</h3>
+      <p className="mt-1 max-w-md text-sm text-muted-foreground">{description}</p>
+      {action}
+    </div>
+  );
+}
+
+function normalizeWebsiteLabel(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
+
+/** `brand` is present on the runtime Product shape but not on the TS type. */
+function readBrand(product: Product): string | undefined {
+  const value = (product as unknown as Record<string, unknown>).brand;
+  return typeof value === 'string' ? value : undefined;
 }

@@ -11,8 +11,6 @@
   },
   "dependencies": {
     "@astrojs/node": "^8.3.4",
-    "@esbuild/linux-arm64": "^0.28.1",
-    "@rollup/rollup-linux-arm64-gnu": "^4.62.0",
     "astro": "^4.16.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.7.0",

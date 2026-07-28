@@ -61,7 +61,7 @@ export default function EnhancedCustomerDashboard() {
 
       const unsubscribeProducts = subscribe('products', (data) => {
         console.log('Products updated:', data);
-        setRecentProducts(data.slice(0, 8));
+        if (Array.isArray(data)) setRecentProducts(data.slice(0, 8));
       });
 
       await fetchCustomerData();
