@@ -387,6 +387,20 @@ class APIClient {
     return this.getAll<any>('livestreams');
   }
 
+  // ---- Withdrawals / Store (seller) ----
+  async getWithdrawalRequests(userId?: string) {
+    return this.getAll<any>('withdrawal_requests', userId ? { userId } : undefined);
+  }
+
+  async createWithdrawalRequest(data: any) {
+    return this.create<any>('withdrawal_requests', data);
+  }
+
+  async getSellerStore(sellerId: string) {
+    const stores = await this.getAll<any>('stores', { sellerId });
+    return stores[0];
+  }
+
   // Compatibility shims for CommerceSDK interface
   async getData(collection: string) {
     const map: Record<string, string> = {
