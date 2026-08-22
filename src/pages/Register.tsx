@@ -128,7 +128,7 @@ const Register = () => {
           </div>
           <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
           <CardDescription>
-            Join CommerceOS - Shariah-Compliant Commerce Platform
+            Join GoShop - Shariah-Compliant Commerce Platform
           </CardDescription>
         </CardHeader>
         <CardContent>

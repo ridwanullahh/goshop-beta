@@ -581,7 +581,7 @@ const SellerOnboarding = () => {
                 </li>
                 <li className="flex items-center space-x-3">
                   <CheckCircle className="h-5 w-5 text-green-500" />
-                  <span>Start selling on CommerceOS!</span>
+                  <span>Start selling on GoShop!</span>
                 </li>
               </ul>
             </div>

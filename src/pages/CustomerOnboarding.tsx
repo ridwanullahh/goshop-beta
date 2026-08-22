@@ -81,7 +81,7 @@ const CustomerOnboarding = () => {
     console.log('Onboarding completed:', onboardingData);
     
     toast({
-      title: "Welcome to CommerceOS!",
+      title: "Welcome to GoShop!",
       description: "Your account has been set up successfully."
     });
 
@@ -95,7 +95,7 @@ const CustomerOnboarding = () => {
           <div className="space-y-6">
             <div className="text-center">
               <ShoppingBag className="h-16 w-16 mx-auto mb-4 text-primary" />
-              <h2 className="text-2xl font-bold">Welcome to CommerceOS!</h2>
+              <h2 className="text-2xl font-bold">Welcome to GoShop!</h2>
               <p className="text-muted-foreground mt-2">
                 Let's personalize your shopping experience
               </p>
@@ -265,7 +265,7 @@ const CustomerOnboarding = () => {
               <CheckCircle className="h-16 w-16 mx-auto mb-4 text-green-500" />
               <h2 className="text-2xl font-bold">You're All Set!</h2>
               <p className="text-muted-foreground mt-2">
-                Your CommerceOS account is ready to use
+                Your GoShop account is ready to use
               </p>
             </div>
             

@@ -1,4 +1,4 @@
-// Enhanced Chutes AI Integration for CommerceOS
+// Enhanced Chutes AI Integration for GoShop
 interface ChutesAIMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -64,7 +64,7 @@ class ChutesAI {
     const messages: ChutesAIMessage[] = [
       {
         role: 'system',
-        content: 'You are an intelligent shopping assistant for CommerceOS. Help users find products, compare options, and make informed purchasing decisions. Be conversational, helpful, and focus on user needs.'
+        content: 'You are an intelligent shopping assistant for GoShop. Help users find products, compare options, and make informed purchasing decisions. Be conversational, helpful, and focus on user needs.'
       },
       {
         role: 'user',
@@ -80,7 +80,7 @@ class ChutesAI {
     const messages: ChutesAIMessage[] = [
       {
         role: 'system',
-        content: 'You are an AI business consultant for CommerceOS sellers. Help optimize pricing, inventory, marketing strategies, and business growth. Provide actionable insights and recommendations.'
+        content: 'You are an AI business consultant for GoShop sellers. Help optimize pricing, inventory, marketing strategies, and business growth. Provide actionable insights and recommendations.'
       },
       {
         role: 'user',
@@ -163,7 +163,7 @@ class ChutesAI {
     const messages: ChutesAIMessage[] = [
       {
         role: 'system',
-        content: 'You are a helpful customer service assistant for CommerceOS. Provide friendly, accurate, and helpful responses to user queries.'
+        content: 'You are a helpful customer service assistant for GoShop. Provide friendly, accurate, and helpful responses to user queries.'
       },
       {
         role: 'user',
@@ -270,7 +270,7 @@ class ChutesAI {
     const messages: ChutesAIMessage[] = [
       {
         role: 'system',
-        content: `You are an advanced content moderation system for CommerceOS. Analyze ${contentType} content for safety, appropriateness, and policy compliance. Consider context, intent, and cultural sensitivity.`
+        content: `You are an advanced content moderation system for GoShop. Analyze ${contentType} content for safety, appropriateness, and policy compliance. Consider context, intent, and cultural sensitivity.`
       },
       {
         role: 'user',
@@ -376,7 +376,7 @@ class ChutesAI {
     const messages: ChutesAIMessage[] = [
       {
         role: 'system',
-        content: `You are a community content creator for CommerceOS. Generate engaging ${type} content that builds community, showcases products, and encourages interaction.`
+        content: `You are a community content creator for GoShop. Generate engaging ${type} content that builds community, showcases products, and encourages interaction.`
       },
       {
         role: 'user',

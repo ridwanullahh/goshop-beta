@@ -22,7 +22,7 @@ export function Footer() {
                 <span className="text-white font-bold text-sm">C</span>
               </div>
               <span className="font-bold text-xl bg-gradient-commerce bg-clip-text text-transparent">
-                CommerceOS
+                GoShop
               </span>
             </div>
             <p className="text-muted-foreground">

@@ -99,7 +99,8 @@
     "tsx": "^4.23.1",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
-    "vite": "^5.4.1"
+    "vite": "^5.4.1",
+    "wrangler": "^4.125.0"
   },
   "trustedDependencies": [
     "@swc/core"
@@ -107,6 +108,7 @@
   "allowScripts": {
     "@swc/core@1.7.39": true,
     "esbuild@0.21.5": true,
-    "esbuild@0.25.0": true
+    "esbuild@0.25.0": true,
+    "workerd@1.20260820.1": true
   }
 }
