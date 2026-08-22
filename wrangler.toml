@@ -1,0 +1,22 @@
+# BismiLLAH Ar-Rahman Ar-Roheem. Cloudflare Pages configuration for GoShop Beta.
+#
+# - pages_build_output_dir = "dist"  → CF Pages serves the Vite-built SPA from dist/.
+# - functions/ directory is picked up automatically by CF Pages. The catch-all
+#   at functions/api/[[path]].ts serves /api/* via the Workers runtime.
+# - compatibility_flags = ["nodejs_compat"] → enables Node.js builtins (Buffer,
+#   crypto, stream) used by bcryptjs + jsonwebtoken. Required for the API to run.
+# - Lightbase credentials, JWT secret, payment gateway keys, APP_URL, etc. are
+#   set via the Cloudflare dashboard (Settings → Environment variables) — never
+#   committed.
+
+name = "goshop-beta"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "dist"
+
+# Optional: enable `wrangler pages dev` to serve dist/ + functions/ locally.
+# Run with:  npx wrangler pages dev dist --port 3000
+# (Requires `npm install -D wrangler` if wrangler is not yet installed.)
+[dev]
+port = 3000
+local_protocol = "http"

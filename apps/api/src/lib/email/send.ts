@@ -5,6 +5,7 @@
 
 import { getTransport } from './transport';
 import { renderTemplate, getTemplateDef } from './templates';
+import { getEnv } from '../env';
 
 export interface SendEmailInput {
   to: string | string[];
@@ -35,7 +36,7 @@ export interface SendEmailResult {
 }
 
 function env(name: string, fallback = ''): string {
-  return process.env[name] || fallback;
+  return getEnv(name) || fallback;
 }
 
 function fromHeader(fromName?: string): string {
@@ -58,7 +59,7 @@ function listUnsubscribeHeader(url?: string): string {
 
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
   try {
-    const transport = getTransport();
+    const transport = await getTransport();
     if (!transport) {
       // Best-effort: never crash the caller. Log once via transport.ts.
       return { success: false, skipped: true, error: 'Email transport not configured.' };

@@ -1,5 +1,11 @@
 // Lightbase core /api/v1 HTTP client.
 // BismiLLAH Ar-Rahman Ar-Roheem. Production-grade, no secrets in code.
+// Platform-agnostic: reads env vars via getEnv() so the same client runs on
+// Node/Astro (process.env) and Cloudflare Workers (env binding via setEnv()).
+// Callers may also inject an explicit config via setLightbaseConfig() — used
+// by the CF Pages Function to pass the `env` binding straight through.
+
+import { getEnv } from './env';
 
 export interface LightbaseConfig {
   baseUrl: string;
@@ -8,9 +14,9 @@ export interface LightbaseConfig {
 }
 
 function readConfig(): LightbaseConfig {
-  const baseUrl = (process.env.LIGHTBASE_BASE_URL || '').replace(/\/$/, '');
-  const apiKey = process.env.LIGHTBASE_API_KEY || '';
-  const projectId = process.env.LIGHTBASE_PROJECT_ID || '';
+  const baseUrl = (getEnv('LIGHTBASE_BASE_URL') || '').replace(/\/$/, '');
+  const apiKey = getEnv('LIGHTBASE_API_KEY') || '';
+  const projectId = getEnv('LIGHTBASE_PROJECT_ID') || '';
   if (!baseUrl || !apiKey || !projectId) {
     throw new Error(
       'Lightbase is not configured. Set LIGHTBASE_BASE_URL, LIGHTBASE_API_KEY and LIGHTBASE_PROJECT_ID.'
@@ -27,6 +33,15 @@ function config(): LightbaseConfig {
 
 export function getLightbaseConfig(): LightbaseConfig {
   return config();
+}
+
+/**
+ * Inject an explicit Lightbase config that overrides env-derived config.
+ * Used by the CF Pages Function to forward the Workers `env` binding.
+ * Pass null to clear the cache (forces re-read from env on next call).
+ */
+export function setLightbaseConfig(cfg: LightbaseConfig | null): void {
+  cachedConfig = cfg;
 }
 
 function headers(): Record<string, string> {

@@ -58,27 +58,31 @@ export interface EmitEmailEventResult {
 /**
  * Fire-and-forget: schedules the email send without blocking the caller.
  * Returns a promise that the caller MAY await, but is not required to.
- * Internally: if no transport is configured, returns immediately (no-op).
+ * Internally: if no transport is configured (or nodemailer cannot load on
+ * Cloudflare Workers), returns immediately (no-op).
  */
 export function emitEmailEvent(input: EmitEmailEventInput): Promise<EmitEmailEventResult> {
-  const transport = getTransport();
-  if (!transport) {
-    // Best-effort: no-op silently. Log nothing here (transport.ts already warned once).
-    return Promise.resolve({
+  return getTransport()
+    .then((transport) => {
+      if (!transport) {
+        // Best-effort: no-op silently. Log nothing here (transport.ts already warned once).
+        return {
+          event: input.event,
+          to: input.to,
+          success: false,
+          skipped: true,
+          error: 'Email transport not configured.',
+        } as EmitEmailEventResult;
+      }
+      // Defer the actual send so the caller's request path is not blocked.
+      return sendEmailInternal(input);
+    })
+    .catch((err: any) => ({
       event: input.event,
       to: input.to,
       success: false,
-      skipped: true,
-      error: 'Email transport not configured.',
-    });
-  }
-  // Defer the actual send so the caller's request path is not blocked.
-  return sendEmailInternal(input).catch((err: any) => ({
-    event: input.event,
-    to: input.to,
-    success: false,
-    error: err?.message || String(err),
-  }));
+      error: err?.message || String(err),
+    }));
 }
 
 async function sendEmailInternal(input: EmitEmailEventInput): Promise<EmitEmailEventResult> {

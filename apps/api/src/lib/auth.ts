@@ -1,12 +1,17 @@
 // Auth + shared response helpers + async DB helper re-exports.
-// BismiLLAH Ar-Rahman Ar-Roheem. Uses the provider abstraction (Lightbase by default, SQLite via DB_PROVIDER).
+// BismiLLAH Ar-Rahman Ar-Roheem. Platform-agnostic: getCurrentUser/requireAuth
+// accept a standard Request (Astro passes context.request, CF Pages Function
+// passes the Workers request). Uses getEnv() for JWT_SECRET so the same code
+// runs on Node/Astro (process.env) and Cloudflare Workers (env binding).
 
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { db } from './provider/index';
-import type { APIContext } from 'astro';
+import { getEnv } from './env';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'goshop_jwt_secret_change_in_production_2024';
+function jwtSecret(): string {
+  return getEnv('JWT_SECRET') || 'goshop_jwt_secret_change_in_production_2024';
+}
 const TOKEN_EXPIRY = '7d';
 
 export async function hashPassword(password: string): Promise<string> {
@@ -18,19 +23,24 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 }
 
 export function generateToken(userId: string): string {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+  return jwt.sign({ userId }, jwtSecret(), { expiresIn: TOKEN_EXPIRY });
 }
 
 export function verifyToken(token: string): { userId: string } | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: string };
+    return jwt.verify(token, jwtSecret()) as { userId: string };
   } catch {
     return null;
   }
 }
 
-export async function getCurrentUser(context: APIContext): Promise<any | null> {
-  const authHeader = context.request.headers.get('authorization');
+/**
+ * Resolve the authenticated user from the Authorization: Bearer <token> header
+ * on a standard Request. Works on both Astro (pass context.request) and the
+ * Cloudflare Workers runtime (pass the Workers request).
+ */
+export async function getCurrentUser(request: Request): Promise<any | null> {
+  const authHeader = request.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) return null;
 
   const token = authHeader.slice(7);
@@ -44,10 +54,17 @@ export async function getCurrentUser(context: APIContext): Promise<any | null> {
   return safeUser;
 }
 
-export async function requireAuth(context: APIContext): Promise<any> {
-  const user = await getCurrentUser(context);
+/**
+ * Require a valid Bearer token; throws a 401 Response if absent/invalid.
+ * Callers should catch `Response` throws and return them directly.
+ */
+export async function requireAuth(request: Request): Promise<any> {
+  const user = await getCurrentUser(request);
   if (!user) {
-    throw new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    throw new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
   return user;
 }
@@ -56,7 +73,10 @@ export function requireRole(user: any, roles: string[]): void {
   const userRoles = user.roles || [user.role];
   const arr = Array.isArray(userRoles) ? userRoles : [userRoles];
   if (!roles.some((r) => arr.includes(r))) {
-    throw new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+    throw new Response(JSON.stringify({ error: 'Forbidden' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
 
