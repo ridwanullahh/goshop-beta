@@ -149,6 +149,42 @@ export async function paymentsHandler(request: Request): Promise<Response> {
       return jsonResponse({ redirectUrl: data.data.link });
     }
 
+    if (paymentMethod === 'birrpay') {
+      // BirrPay — PRIMARY gateway: one integration for Flutterwave/Paystack/
+      // KoraPay/PayPal via BirrPay's hosted checkout. Legacy direct methods
+      // below remain fully available (reversible via PAYMENTS_PROVIDER).
+      const birrpayKey = getEnv('BIRRPAY_SECRET_KEY');
+      const birrpayBase = (getEnv('BIRRPAY_BASE_URL') || 'https://birrpay-beta1b.pages.dev').replace(/\/+$/, '');
+      if (!birrpayKey) return errorResponse('BirrPay not configured', 503);
+
+      const response = await fetch(`${birrpayBase}/api/v1/checkout/sessions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${birrpayKey}`,
+          'Content-Type': 'application/json',
+          'Idempotency-Key': `goshop:${reference}`,
+        },
+        body: JSON.stringify({
+          amount: Math.round(order.total * 100),
+          currency: getEnv('BIRRPAY_CURRENCY') || 'NGN',
+          customer: { email: user.email, name: user.name || user.firstName || undefined },
+          reference,
+          callback_url: `${(getEnv('APP_URL') || '').replace(/\/$/, '')}/order/${order.id}`,
+          metadata: { orderId: order.id, userId: user.id },
+        }),
+      });
+
+      if (!response.ok) {
+        const errTxt = await response.text();
+        console.error('[payments POST birrpay] session create failed:', response.status, errTxt);
+        return errorResponse('BirrPay error', 500);
+      }
+      const data = await response.json();
+
+      await update('orders', order.id, { status: 'pending_payment', transactionRef: reference, paymentMethod: 'birrpay' });
+      return jsonResponse({ redirectUrl: data.data?.checkout_url, reference });
+    }
+
     if (paymentMethod === 'razorpay') {
       const rzKeyId = getEnv('RAZORPAY_KEY_ID');
       const rzSecret = getEnv('RAZORPAY_KEY_SECRET');

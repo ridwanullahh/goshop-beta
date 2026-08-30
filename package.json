@@ -18,7 +18,8 @@
     "db:push": "cd apps/api && node --import tsx scripts/setup.ts",
     "db:seed": "cd apps/api && node --import tsx scripts/setup.ts",
     "migrate:names": "cd apps/api && node --import tsx scripts/migrate-names.ts",
-    "test:email": "cd apps/api && npm run test:email"
+    "test:email": "cd apps/api && npm run test:email",
+    "deploy:gcp": "bash scripts/deploy-appengine.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

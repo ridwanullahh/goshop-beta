@@ -17,6 +17,7 @@ import { authHandler } from './handlers/auth';
 import { productsHandler } from './handlers/products';
 import { ordersHandler } from './handlers/orders';
 import { paymentsHandler } from './handlers/payments';
+import { birrpayWebhookHandler } from './handlers/birrpay-webhook';
 import { dataHandler } from './handlers/data';
 import { translateHandler } from './handlers/translate';
 import { referralHandler } from './handlers/referral';
@@ -109,6 +110,15 @@ export async function handleApiRequest(
         break;
       case 'payments':
         response = await paymentsHandler(request);
+        break;
+      case 'webhooks':
+        // /api/webhooks/birrpay — BirrPay payment events.
+        if ((segments[1] || '') === 'birrpay') {
+          response = await birrpayWebhookHandler(request);
+        } else {
+          response = notFound();
+          return response;
+        }
         break;
       case 'translate':
         response = await translateHandler(request);

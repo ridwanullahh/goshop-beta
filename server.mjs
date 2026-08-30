@@ -15,7 +15,16 @@ const HOST = process.env.HOST || '0.0.0.0';
 const SPA_DIR = join(process.cwd(), 'dist');
 const API_ENTRY = join(process.cwd(), 'apps/api/dist/server/entry.mjs');
 
-const MIME: Record<string, string> = {
+// The Astro standalone entry AUTO-LISTENS on $PORT the moment it is imported
+// (which previously collided with THIS server's listener on the same port —
+// EADDRINUSE at boot). Point the inner server at a dedicated internal port
+// before importing; the exported handler still serves requests in-process.
+const OUTER_PORT = PORT;
+const API_INTERNAL_PORT = Number(process.env.API_PORT) || PORT + 1;
+process.env.PORT = String(API_INTERNAL_PORT);
+process.env.HOST = HOST;
+
+const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
   '.mjs': 'application/javascript; charset=utf-8',
@@ -103,8 +112,8 @@ const server = createServer(async (req, res) => {
   res.end('Not found');
 });
 
-server.listen(PORT, HOST, () => {
-  console.log(`[server] GoShop Beta listening on http://${HOST}:${PORT}`);
+server.listen(OUTER_PORT, HOST, () => {
+  console.log(`[server] GoShop Beta listening on http://${HOST}:${OUTER_PORT}`);
   console.log(`[server] SPA dir: ${SPA_DIR}`);
   console.log(`[server] API: ${apiHandler ? 'active' : 'NOT loaded (build the API first)'}`);
 });
