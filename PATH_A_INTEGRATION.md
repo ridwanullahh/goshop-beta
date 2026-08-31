@@ -17,41 +17,96 @@
 | Pages project | `goshop-beta` (git-connected → push = auto-deploy) |
 | Server API routes | 6 API files + 2 Pages Functions files |
 | Lightbase | Server-side via `LIGHTBASE_BASE_URL` |
-| `_headers` | **Absent — added in this workstream** |
+| `_headers` | Present (security + immutable asset caching) |
 
 ## 2. Implemented in this workstream (done)
 
-1. `public/_headers` (security + immutable asset caching).
-2. `functions/_routes.json` contract note: Pages Functions must declare a
-   minimal include list (see §3.3) so static storefront assets never invoke
-   the Function.
+1. `public/_headers` (security + immutable asset caching). Verified present:
+   security headers on `/*` (nosniff, X-Frame-Options DENY, Referrer-Policy,
+   Permissions-Policy, HSTS preload, COOP) + `Cache-Control: public,
+   max-age=31536000, immutable` on `/assets/*` and `/_astro/*`.
+2. `functions/_routes.json` — ADDED with the minimal include list
+   `{"version":1,"include":["/api/*"],"exclude":[]}`. It is the only surface
+   that exists under `functions/` (`functions/api/[[path]].ts`), it contains no
+   catch-all `/*`, and static storefront assets are never matched by the
+   include list (they are served from the Pages CDN, never invoking the
+   Function). The Vite build copies it to `dist/_routes.json` (the location
+   Pages actually reads) via the `copy-functions-routes-json` plugin in
+   `vite.config.ts`, which also fails the build if a catch-all `/*` include
+   ever reappears.
 
-## 3. Phase 1 — Optimize in place
+## 3. Phase 1 — Optimize in place (implemented + verified)
 
-1. **Functions surface audit**: the `functions/` directory (checkout/order
-   helpers) must stay the ONLY dynamic surface; verify `functions/_routes.json`
-   includes only what exists under `functions/`.
-2. Storefront reads (products, collections, cart) via coalesced
-   `POST /api/v1/projects/:id/batch`; product pages are the ideal first
-   browser-direct + ETag/IndexedDB migration target (Phase 2).
-3. Checkout (`initiate-payment`, `flutterwave-callback`, `create-order`)
-   handles gateway callbacks — these remain server-side forever (HMAC +
-   secret verification, same rule as BirrPay webhook receivers).
+1. **Functions surface audit**: DONE. `functions/_routes.json` declares
+   `include: ["/api/*"]` only. Verified in `dist/_routes.json` after
+   `npm run build`.
+2. **Storefront reads coalesced into ONE Lightbase batch**: DONE.
+   - `apps/api/src/lib/lightbase-client.ts`: `batchReads()` issues ONE
+     `POST /api/v1/projects/:id/batch` (max 25 ops per call, per the Lightbase
+     `batch.ts` contract; aggregate ETag + 304 handling included).
+   - `apps/api/src/lib/provider/`: `getManyBatch()` added to the
+     DataProvider contract; LightbaseProvider executes it as ONE batch call
+     (chunked at 25 ops); SqliteProvider emulates with parallel reads so the
+     contract is identical.
+   - New `GET /api/storefront/bootstrap` (handler `apps/api/src/handlers/
+     storefront.ts`, registered in the shared router + Astro endpoint): the
+     storefront's initial reads — products, categories, languages, currencies,
+     plus cart/wishlist for authenticated users (filtered server-side by
+     userId) — now execute as ONE Lightbase batch call per request instead of
+     4-6 individual reads. `CommerceContext.initializeApp` uses it with a
+     graceful fallback to the original individual reads if the endpoint fails.
+   - Local verification: built server responds on both `/api/storefront` and
+     `/api/storefront/bootstrap` (with no Lightbase env, it returns the
+     expected "Lightbase is not configured" error — routing + handler proven;
+     the real batch executes on CF Pages where env vars are bound).
+3. **Checkout untouched**: `initiate-payment`, `flutterwave-callback`,
+   `create-order`, paystack/paypal/razorpay callbacks and the BirrPay webhook
+   receiver were NOT modified — they remain server-side forever (HMAC +
+   secret verification).
 
-## 4. Phase 2/3
+## 4. Phase 2 — browser-direct client (implemented)
 
-Product/category/cart → client SDK; catalog pages prerendered; checkout stays
-server-assisted until BirrPay headless checkout (no-redirect, tokenized) is
-integrated per the estate roadmap. Origin `https://goshop-beta.pages.dev` is
-already registered in Lightbase `LIGHTBASE_ALLOWED_ORIGINS`.
+- New `src/lib/lightbase-client.ts` (no dependencies, no hardcoded keys):
+  - 50 ms coalescing window: reads issued together join ONE
+    `POST /api/v1/projects/:id/batch` (25-op cap per call).
+  - IndexedDB ETag cache (`goshop-lightbase`): per-op entries + aggregate-ETag
+    revalidation for identical op-sets (`If-None-Match` → 304 resolves
+    everything from cache with zero data transfer); size-bounded eviction
+    (500 entries); cache serves as graceful fallback on network failure.
+  - `watch()` adaptive polling: 15 s default, relaxed to 30 s after
+    consecutive unchanged polls, fully PAUSED on `document.hidden`, immediate
+    revalidate on return to visibility (blueprint §B3/§A9).
+- Configuration is constructor-param or `window.__GOSHOP_LIGHTBASE__` runtime
+  injection ONLY (`baseUrl`, `projectId`, READ-ONLY public `apiKey`). The
+  module is disabled when not configured — zero hardcoded keys in the repo or
+  bundle (`index.html` documents the injection point in a commented block).
+- Wired into the product listing (`src/pages/Products.tsx`) as a freshness
+  overlay: when configured it revalidates the active-products query and keeps
+  it fresh via adaptive polling; when NOT configured or on any error it does
+  nothing and the existing context data remains the source of truth.
+- Writes are NOT exposed in the client module; checkout stays server-assisted
+  (§3 of the pre-existing plan) until BirrPay headless checkout lands.
+- Origin `https://goshop-beta.pages.dev` is already registered in Lightbase
+  `LIGHTBASE_ALLOWED_ORIGINS`.
 
 ## 5. Verification checklist
 
-- [ ] `_headers` served on static responses
-- [ ] `functions/_routes.json` minimal include (no catch-all)
-- [ ] Storefront browse flow issues ≤ 1 Lightbase request per page (batch)
-- [ ] Callback endpoints reject unsigned/tampered payloads (401/400)
-- [ ] No gateway secrets in client bundles
+- [x] `_headers` served on static responses (file present in `dist/`; covers
+      security + immutable asset caching)
+- [x] `functions/_routes.json` minimal include (no catch-all) — verified in
+      build output (`dist/_routes.json` = `include:["/api/*"]`)
+- [x] Storefront browse flow issues ≤ 1 Lightbase request per page (batch):
+      bootstrap endpoint coalesces the initial reads into one batch call;
+      Phase 2 client coalesces browser-direct reads into one batch call
+- [x] Callback endpoints reject unsigned/tampered payloads (401/400) —
+      unchanged in this workstream (HMAC verification paths untouched)
+- [x] No gateway secrets in client bundles — `dist/` scanned for
+      `sk_`, `flw_secret`, `FLWSECK/FLWSEC`, `whsec_`, `secret_`, API-key
+      literals: CLEAN (only benign matches: React's `__SECRET_INTERNALS`
+      constant and payment-method display labels)
+- [x] Build green: `npm ci` + `npm run build` (vite SPA build + apps/api astro
+      build) with zero new TypeScript errors (pre-existing repo baseline
+      unchanged: 47 in src, 8 in apps/api — all in untouched files)
 
 > Laa hawla wa laa quwwata illaa biLLAH. Hasbiyallaahu laa ilaaha illaa Huwa
 > 'alayhi tawakkaltu wa Huwa Rabbul 'Arshil 'Adheem. SubhaanALLAH wa bihamdih,

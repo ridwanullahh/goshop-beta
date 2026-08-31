@@ -15,6 +15,22 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@goshop" />
     <meta name="twitter:image" content="/logo.svg" />
+
+    <!--
+      Path A Phase 2 (browser-direct Lightbase reads): to enable the coalescing
+      client (50 ms batch window, IndexedDB ETag cache, adaptive polling),
+      inject a READ-ONLY public key at runtime BEFORE the module bundle loads.
+      NO key is hardcoded in this repository — this block stays commented out
+      and is populated by the deploy pipeline / edge worker when desired:
+
+      <script>
+        window.__GOSHOP_LIGHTBASE__ = {
+          baseUrl: "https://lightbase.pages.dev",   // engine origin
+          projectId: "<PROJECT_ID>",               // identifier, not a secret
+          apiKey: "<READ_ONLY_PUBLIC_KEY>"          // minted for this origin
+        };
+      </script>
+    -->
   </head>
 
   <body>

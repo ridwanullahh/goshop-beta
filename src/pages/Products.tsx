@@ -9,6 +9,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ProductGrid } from '@/components/ProductGrid';
 import { AIChatAssistant } from '@/components/AIChatAssistant';
 import { useCommerce } from '@/context/CommerceContext';
+import { getLightbaseClient } from '@/lib/lightbase-client';
+import type { Product } from '@/lib/commerce-sdk';
 import { Filter, Grid, List, Sparkles, TrendingUp } from 'lucide-react';
 
 const Products = () => {
@@ -21,7 +23,44 @@ const Products = () => {
   const [showAssistant, setShowAssistant] = useState(false);
   const [isAssistantMinimized, setIsAssistantMinimized] = useState(true);
 
-  const categories = ['all', ...Array.from(new Set(products.map(p => p.category)))];
+  // Path A Phase 2 (blueprint §B3): browser-direct freshness overlay for the
+  // product listing. When ops inject window.__GOSHOP_LIGHTBASE__ (read-only
+  // public key), the listing revalidates through the coalescing client —
+  // one batch request, IndexedDB ETag cache, adaptive polling paused on
+  // document.hidden. When NOT configured (or on any error) this silently
+  // does nothing and the context data below remains the source of truth.
+  const [liveProducts, setLiveProducts] = useState<Product[] | null>(null);
+  useEffect(() => {
+    const client = getLightbaseClient();
+    if (!client) return; // not configured -> graceful fallback (context data)
+    let stop: (() => void) | undefined;
+    const opFactory = () => ({
+      kind: 'query' as const,
+      collection: 'products',
+      filter: { field: 'isActive', op: 'eq', value: true },
+      limit: 1000,
+      tag: 'products-listing',
+    });
+    client
+      .query<any>('products', opFactory().filter, 1000, 'products-listing')
+      .then((rows) => {
+        if (Array.isArray(rows) && rows.length > 0) setLiveProducts(rows as Product[]);
+      })
+      .catch(() => {
+        /* keep context data */
+      });
+    stop = client.watch<any>(
+      opFactory,
+      (rows) => {
+        if (Array.isArray(rows) && rows.length > 0) setLiveProducts(rows as Product[]);
+      },
+      { intervalMs: 15000, relaxedIntervalMs: 30000 }
+    );
+    return () => stop?.();
+  }, []);
+  const sourceProducts = liveProducts ?? products;
+
+  const categories = ['all', ...Array.from(new Set(sourceProducts.map(p => p.category)))];
   const priceRanges = [
     { value: 'all', label: 'All Prices' },
     { value: '0-50', label: 'Under $50' },
@@ -31,7 +70,7 @@ const Products = () => {
   ];
 
   useEffect(() => {
-    let filtered = [...products];
+    let filtered = [...sourceProducts];
 
     // Apply category filter
     if (category !== 'all') {
@@ -69,13 +108,13 @@ const Products = () => {
     }
 
     setFilteredProducts(filtered);
-  }, [products, category, priceRange, sortBy]);
+  }, [sourceProducts, category, priceRange, sortBy]);
 
   const clearFilters = () => {
     setCategory('all');
     setPriceRange('all');
     setSortBy('newest');
-    setFilteredProducts(products);
+    setFilteredProducts(sourceProducts);
   };
 
   const activeFilters = [
@@ -192,7 +231,7 @@ const Products = () => {
           {/* Results Summary */}
           <div className="flex justify-between items-center mb-6">
             <p className="text-muted-foreground">
-              Showing {filteredProducts.length} of {products.length} products
+              Showing {filteredProducts.length} of {sourceProducts.length} products
             </p>
             {sortBy === 'trending' && (
               <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
