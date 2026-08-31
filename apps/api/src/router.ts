@@ -19,6 +19,7 @@ import { ordersHandler } from './handlers/orders';
 import { paymentsHandler } from './handlers/payments';
 import { birrpayWebhookHandler } from './handlers/birrpay-webhook';
 import { dataHandler } from './handlers/data';
+import { storefrontHandler } from './handlers/storefront';
 import { translateHandler } from './handlers/translate';
 import { referralHandler } from './handlers/referral';
 import { emailsHandler } from './handlers/emails';
@@ -131,6 +132,11 @@ export async function handleApiRequest(
         break;
       case 'data':
         response = await dataHandler(request);
+        break;
+      case 'storefront':
+        // GET /api/storefront[/bootstrap] — coalesced storefront bootstrap
+        // reads (ONE Lightbase batch per request; Path A Phase 1).
+        response = await storefrontHandler(request);
         break;
       case '':
         // /api with no path — health check.

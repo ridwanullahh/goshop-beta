@@ -190,6 +190,89 @@ export interface QueryResult<T> {
   count?: number;
 }
 
+// ---- Batch coalescing (Path A blueprint §A3) ----
+// Read-only ops accepted by POST /api/v1/projects/:id/batch. N reads coalesce
+// into ONE Lightbase request (one auth resolution, one audit entry, aggregate
+// ETag when every op is a read).
+export type BatchReadOp =
+  | { kind: 'get'; collection: string; id: string; tag?: string }
+  | {
+      kind: 'query';
+      collection: string;
+      filter?: any;
+      sort?: any;
+      limit?: number;
+      cursor?: any;
+      includeDeleted?: boolean;
+      tag?: string;
+    };
+
+export interface BatchResult {
+  index: number;
+  tag?: string;
+  kind: string;
+  data?: any;
+  total?: number;
+  hasMore?: boolean;
+  nextCursor?: any;
+  error?: string;
+}
+
+export interface BatchReadsResult {
+  results: BatchResult[];
+  etag?: string;
+  notModified: boolean;
+}
+
+export const MAX_BATCH_OPS = 25;
+
+export async function batchReads(
+  ops: BatchReadOp[],
+  ifNoneMatch?: string
+): Promise<BatchReadsResult> {
+  if (ops.length === 0) return { results: [], notModified: false };
+  if (ops.length > MAX_BATCH_OPS) {
+    throw new LightbaseError(
+      `Batch supports up to ${MAX_BATCH_OPS} ops per call (got ${ops.length}).`,
+      400,
+      null
+    );
+  }
+  const c = config();
+  const url = `${c.baseUrl}/api/v1/projects/${c.projectId}/batch`;
+  const extra = ifNoneMatch ? { 'If-None-Match': ifNoneMatch } : undefined;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { ...headers(), ...(extra || {}) },
+      body: JSON.stringify({ ops }),
+    });
+    // Aggregate 304: every op in the batch is unchanged — zero data transfer.
+    if (res.status === 304) {
+      return { results: [], etag: res.headers.get('etag') || undefined, notModified: true };
+    }
+    const data = await parseJson(res);
+    if (!res.ok) {
+      const msg =
+        (data && (data.error?.message || data.message || data.error)) ||
+        `Lightbase batch request failed (${res.status})`;
+      throw new LightbaseError(
+        typeof msg === 'string' ? msg : JSON.stringify(msg),
+        res.status,
+        data
+      );
+    }
+    return {
+      results: (data?.results || []) as BatchResult[],
+      etag: res.headers.get('etag') || undefined,
+      notModified: false,
+    };
+  } catch (err: any) {
+    if (err instanceof LightbaseError) throw err;
+    throw new LightbaseError(err?.message || 'Lightbase batch request failed', 0, null);
+  }
+}
+
 export async function queryDocuments<T = any>(collection: string, opts: QueryOptions = {}): Promise<QueryResult<T>> {
   const params = new URLSearchParams();
   if (opts.filter) params.set('filter', JSON.stringify(opts.filter));

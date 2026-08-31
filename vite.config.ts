@@ -1,7 +1,34 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import fs from "fs";
 import { componentTagger } from "lovable-tagger";
+
+// Path A (functions surface audit): copy functions/_routes.json into dist/ so
+// Cloudflare Pages uses our MINIMAL include list (only /api/* — the one surface
+// the functions/ directory actually serves) instead of auto-generating one.
+// Static storefront assets are never matched by the include list, so they are
+// always served from the Pages CDN and never invoke the Function.
+function copyFunctionsRoutes() {
+  return {
+    name: "copy-functions-routes-json",
+    closeBundle() {
+      try {
+        const src = path.resolve(__dirname, "functions/_routes.json");
+        const outDir = path.resolve(__dirname, "dist");
+        if (!fs.existsSync(src) || !fs.existsSync(outDir)) return;
+        const parsed = JSON.parse(fs.readFileSync(src, "utf-8"));
+        if (Array.isArray(parsed.include) && parsed.include.includes("/*")) {
+          throw new Error("functions/_routes.json must not contain a catch-all /* include");
+        }
+        fs.writeFileSync(path.join(outDir, "_routes.json"), JSON.stringify(parsed, null, 2));
+      } catch (err) {
+        // Fail the build loudly: a wrong _routes.json burns the free-tier quota.
+        throw err;
+      }
+    },
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -27,6 +54,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    copyFunctionsRoutes(),
     mode === 'development' &&
     componentTagger(),
   ].filter(Boolean),

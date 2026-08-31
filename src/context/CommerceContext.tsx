@@ -120,16 +120,34 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (cached) setCurrentUser(JSON.parse(cached));
       }
 
-      await Promise.all([
-        loadProducts(),
-        loadCategories(),
-        loadLanguages(),
-        loadCurrencies()
-      ]);
+      // Path A Phase 1: ONE coalesced bootstrap request. The server merges the
+      // underlying Lightbase reads (products/categories/languages/currencies,
+      // + cart/wishlist for authenticated users) into a single /batch call.
+      // Graceful fallback: if the bootstrap endpoint is unavailable, keep the
+      // original individual reads.
+      const bootstrap = await apiClient.getStorefrontBootstrap();
+      if (bootstrap) {
+        setOriginalProducts(bootstrap.products as Product[]);
+        setProducts(bootstrap.products as Product[]);
+        setCategories(bootstrap.categories as Category[]);
+        setLanguages(bootstrap.languages as Language[]);
+        setCurrencies(bootstrap.currencies as Currency[]);
+        if (user) {
+          if (Array.isArray(bootstrap.cart)) setCart({ items: bootstrap.cart as CartItem[] });
+          if (Array.isArray(bootstrap.wishlist)) setWishlistItems(bootstrap.wishlist as WishlistItem[]);
+        }
+      } else {
+        await Promise.all([
+          loadProducts(),
+          loadCategories(),
+          loadLanguages(),
+          loadCurrencies()
+        ]);
 
-      if (user) {
-        await loadUserCart();
-        await loadUserWishlist();
+        if (user) {
+          await loadUserCart();
+          await loadUserWishlist();
+        }
       }
     } catch (error) {
       console.error('Init error:', error);

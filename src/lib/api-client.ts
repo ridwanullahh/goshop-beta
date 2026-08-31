@@ -270,6 +270,27 @@ class APIClient {
     return this.getAll<any>('currencies');
   }
 
+  // ---- Storefront bootstrap (Path A Phase 1) ----
+  // ONE request for everything the storefront shell needs; the server
+  // coalesces the underlying Lightbase reads into a single /batch call.
+  // Returns null on failure so callers fall back to individual reads.
+  async getStorefrontBootstrap(): Promise<{
+    products: any[];
+    categories: any[];
+    languages: any[];
+    currencies: any[];
+    cart?: any[];
+    wishlist?: any[];
+    user?: { id: string };
+    batched?: boolean;
+  } | null> {
+    try {
+      return await this.request<any>('/api/storefront/bootstrap');
+    } catch {
+      return null;
+    }
+  }
+
   // ---- Storefront ----
   async getStoreProducts(storeId: string) {
     return this.request<any[]>(`/api/products?storeId=${storeId}`);

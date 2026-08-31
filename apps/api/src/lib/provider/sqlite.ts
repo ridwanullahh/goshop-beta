@@ -2,7 +2,7 @@
 // BismiLLAH Ar-Rahman Ar-Roheem. Keeps the original database.ts intact for reference / manual switch-back,
 // but this provider implements correct, async helpers without the legacy uid bug.
 
-import type { DataProvider } from './types';
+import type { DataProvider, BatchReadQuery, BatchReadQueryResult } from './types';
 import { initializeSchema as sqliteInitSchema, getDb } from '../database';
 
 const JSON_FIELDS = new Set([
@@ -148,6 +148,30 @@ export class SqliteProvider implements DataProvider {
     }
     const res = db.prepare(sql).get(...params) as any;
     return res.count;
+  }
+
+  /**
+   * Emulated coalesced multi-read for the SQLite provider: no network batch is
+   * possible locally, so the reads run in parallel (keeps the DataProvider
+   * contract identical for handlers).
+   */
+  async getManyBatch<T = any>(queries: BatchReadQuery[]): Promise<BatchReadQueryResult<T>[]> {
+    if (queries.length === 0) return [];
+    this.initializeSchema();
+    return Promise.all(
+      queries.map(async (q, i) => {
+        const tag = q.tag || `op${i}`;
+        try {
+          if (q.id !== undefined) {
+            return { tag, item: (await this.getById<T>(q.collection, q.id)) ?? null };
+          }
+          const items = await this.getAll<T>(q.collection, q.where);
+          return { tag, items: q.limit ? items.slice(0, q.limit) : items };
+        } catch (err: any) {
+          return { tag, error: err?.message || 'read failed' };
+        }
+      })
+    );
   }
 
   async searchProducts(searchQuery: string, filters: Record<string, any> = {}): Promise<any[]> {

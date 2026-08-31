@@ -1,7 +1,7 @@
 // Lightbase DataProvider — uses the core /api/v1 documents CRUD + querying API.
 // BismiLLAH Ar-Rahman Ar-Roheem. Stores camelCase native values; no snake_case conversion.
 
-import type { DataProvider } from './types';
+import type { DataProvider, BatchReadQuery, BatchReadQueryResult } from './types';
 import {
   listCollections,
   createCollection,
@@ -11,6 +11,9 @@ import {
   deleteDocument,
   queryDocuments,
   countDocuments,
+  batchReads,
+  MAX_BATCH_OPS,
+  type BatchReadOp,
 } from '../lightbase-client';
 import { SCHEMA } from '../schema';
 
@@ -120,6 +123,51 @@ export class LightbaseProvider implements DataProvider {
     await this.initializeSchema();
     const filter = buildFilter(where);
     return countDocuments(table, filter);
+  }
+
+  /**
+   * Coalesced multi-read (Path A blueprint §A3): N reads => ONE
+   * POST /api/v1/projects/:id/batch call (chunked at MAX_BATCH_OPS).
+   * A failed op reports { error } without aborting its siblings.
+   */
+  async getManyBatch<T = any>(queries: BatchReadQuery[]): Promise<BatchReadQueryResult<T>[]> {
+    if (queries.length === 0) return [];
+    await this.initializeSchema();
+    const ops: BatchReadOp[] = queries.map((q, i) => {
+      const tag = q.tag || `op${i}`;
+      if (q.id !== undefined) {
+        return { kind: 'get', collection: q.collection, id: q.id, tag };
+      }
+      return {
+        kind: 'query',
+        collection: q.collection,
+        filter: q.filter ?? buildFilter(q.where),
+        limit: q.limit ?? 1000,
+        tag,
+      };
+    });
+
+    const mapped: BatchReadQueryResult<T>[] = [];
+    for (let start = 0; start < ops.length; start += MAX_BATCH_OPS) {
+      const chunk = ops.slice(start, start + MAX_BATCH_OPS);
+      const res = await batchReads(chunk);
+      for (const r of res.results) {
+        if (r.error) {
+          mapped.push({ tag: r.tag, error: r.error });
+          continue;
+        }
+        if (r.kind === 'get') {
+          mapped.push({ tag: r.tag, item: r.data ? (mapDoc(r.data) as T) : null });
+        } else {
+          mapped.push({
+            tag: r.tag,
+            items: ((r.data ?? []) as any[]).map((d) => mapDoc(d)) as T[],
+            total: r.total,
+          });
+        }
+      }
+    }
+    return mapped;
   }
 
   async searchProducts(searchQuery: string, filters: Record<string, any> = {}): Promise<any[]> {
