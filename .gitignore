@@ -47,3 +47,4 @@ data/
 
 # Tool artifacts
 tool-results/
+.catalyst.env

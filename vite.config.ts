@@ -5,7 +5,8 @@ import fs from "fs";
 import { componentTagger } from "lovable-tagger";
 
 // Path A (functions surface audit): copy functions/_routes.json into dist/ so
-// Cloudflare Pages uses our MINIMAL include list (only /api/* — the one surface
+// Cloudflare Pages uses our MINIMAL include list — LEGACY PATH, opt-in via
+// DEPLOY_TARGET=cloudflare. Slate (default) must NOT receive _routes.json. (only /api/* — the one surface
 // the functions/ directory actually serves) instead of auto-generating one.
 // Static storefront assets are never matched by the include list, so they are
 // always served from the Pages CDN and never invoke the Function.
@@ -13,6 +14,7 @@ function copyFunctionsRoutes() {
   return {
     name: "copy-functions-routes-json",
     closeBundle() {
+      if (process.env.DEPLOY_TARGET !== "cloudflare") return; // Slate path: skip CF artifact
       try {
         const src = path.resolve(__dirname, "functions/_routes.json");
         const outDir = path.resolve(__dirname, "dist");
