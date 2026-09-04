@@ -16,6 +16,66 @@
     <meta name="twitter:site" content="@goshop" />
     <meta name="twitter:image" content="/logo.svg" />
 
+    <!-- BismiLLAH — global preloader (BirrPay-style bar + splash). Paints before the bundle CSS. -->
+    <style>
+      #gs-bar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 2147483646; pointer-events: none; opacity: 1; transition: opacity 0.35s ease 0.15s; }
+      #gs-bar i { display: block; height: 100%; width: 0%; border-radius: 0 999px 999px 0;
+        background: linear-gradient(90deg, #05B34D, #F2B91C);
+        box-shadow: 0 0 10px rgba(5, 179, 77, 0.55); transition: width 0.2s ease-out; }
+      #gs-bar.gs-done i { width: 100% !important; }
+      #gs-bar.gs-off { opacity: 0; }
+      #gs-splash { position: fixed; inset: 0; z-index: 2147483647; display: grid; place-items: center; background: #ffffff; transition: opacity 0.3s ease; }
+      @media (prefers-color-scheme: dark) { #gs-splash { background: #181F25; } }
+      #gs-splash.gs-hide { opacity: 0; pointer-events: none; }
+      #gs-splash .gs-mark { animation: gs-pulse 1.15s ease-in-out infinite; }
+      @keyframes gs-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.88); opacity: 0.65; } }
+      @media (prefers-reduced-motion: reduce) { #gs-splash .gs-mark { animation: none; } }
+    </style>
+    <script>
+      // Bismillah — GoShop preloader engine (same contract as BirrPay's):
+      // 1) Bar eases toward 72% while loading, completes on window load.
+      // 2) Splash hides on load; failsafes: 2.5s splash / 8s bar.
+      // 3) Internal link clicks + form submits restart the bar.
+      // 4) bfcache restores finish instantly.
+      (function () {
+        function boot() {
+          var bar = document.createElement('div'); bar.id = 'gs-bar'; bar.setAttribute('aria-hidden', 'true'); bar.innerHTML = '<i></i>';
+          var splash = document.createElement('div'); splash.id = 'gs-splash'; splash.setAttribute('aria-hidden', 'true');
+          splash.innerHTML = '<svg class="gs-mark" width="52" height="52" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="gs-g" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#05B34D"/><stop offset="1" stop-color="#F2B91C"/></linearGradient></defs><rect x="1.5" y="1.5" width="29" height="29" rx="9" stroke="url(#gs-g)" stroke-width="2.5"/><path d="M9.5 12.5h13M11.5 12.5c0 5 1.6 8 4.5 10 2.9-2 4.5-5 4.5-10" stroke="url(#gs-g)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+          var fill = bar.firstElementChild; var p = 0, target = 0.72, done = false, rafId = 0, submitAt = 0;
+          function paint() { if (fill) fill.style.width = (p * 100).toFixed(2) + '%'; }
+          function tick() { p += (target - p) * 0.11; paint(); rafId = requestAnimationFrame(tick); }
+          function completeBar() { if (done) return; done = true; cancelAnimationFrame(rafId); p = 1; target = 1; paint(); bar.classList.add('gs-done'); setTimeout(function () { bar.classList.add('gs-off'); }, 550); }
+          function hideSplash() { splash.classList.add('gs-hide'); setTimeout(function () { if (splash && splash.parentNode) splash.parentNode.removeChild(splash); }, 400); }
+          function startForNavigation() { submitAt = Date.now(); if (!done) return; done = false; p = 0.04; target = 0.72; bar.classList.remove('gs-off', 'gs-done'); cancelAnimationFrame(rafId); rafId = requestAnimationFrame(tick); }
+          document.documentElement.insertBefore(bar, document.documentElement.firstChild);
+          document.body.appendChild(splash);
+          paint(); rafId = requestAnimationFrame(tick);
+          if (document.readyState === 'complete') { setTimeout(function () { completeBar(); hideSplash(); }, 120); }
+          else {
+            window.addEventListener('load', function () { completeBar(); hideSplash(); });
+            setTimeout(hideSplash, 2500); setTimeout(completeBar, 8000);
+          }
+          window.addEventListener('pageshow', function (e) { if (e.persisted) { completeBar(); hideSplash(); } });
+          document.addEventListener('click', function (e) {
+            if (e.defaultPrevented || e.button !== 0) return;
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+            var a = e.target && e.target.closest ? e.target.closest('a') : null;
+            if (!a) return;
+            var href = a.getAttribute('href') || '';
+            if (!href || href.charAt(0) === '#' || a.hasAttribute('download')) return;
+            if (a.target && a.target !== '_self') return;
+            if (a.origin && a.origin !== location.origin) return;
+            if (/^(mailto|tel|javascript|blob|data):/i.test(href)) return;
+            startForNavigation();
+          }, true);
+          document.addEventListener('submit', function () { startForNavigation(); setTimeout(function () { if (!done && submitAt && Date.now() - submitAt > 3500) completeBar(); }, 3600); }, true);
+        }
+        if (document.body) boot();
+        else document.addEventListener('DOMContentLoaded', boot);
+      })();
+    </script>
+
     <!--
       Path A Phase 2 (browser-direct Lightbase reads): to enable the coalescing
       client (50 ms batch window, IndexedDB ETag cache, adaptive polling),
