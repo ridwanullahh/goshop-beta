@@ -7,7 +7,8 @@ import { useCommerce } from '@/context/CommerceContext';
 import { Gift, Copy, Share2, Users, MousePointerClick, Wallet, TrendingUp } from 'lucide-react';
 
 // Inherent referral card — every user type has a referral code (no standalone referral account).
-// BismiLLAH Ar-Rahman Ar-Roheem. Uses GET /api/referral.
+// BismiLLAH Ar-Rahman Ar-Roheem. Uses the lightbase `referral` Edge Function
+// (static architecture — see edge-functions/functions/referral.js).
 export function ReferralCard() {
   const { sdk, currentUser } = useCommerce();
   const { toast } = useToast();

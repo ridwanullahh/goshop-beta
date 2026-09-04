@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { apiClient } from '@/lib/api-client';
 import { 
   Phone, 
   Mail, 
@@ -34,12 +35,12 @@ export default function ContactUs() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/emails/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+      // Static architecture: recorded server-side via the emails Edge Function.
+      await apiClient.sendContactEmail({
+        name: formData.name,
+        email: formData.email,
+        message: formData.message,
       });
-      if (!res.ok) throw new Error('Failed to send');
       toast.success('Message sent successfully! We\'ll get back to you within 24 hours.');
       setFormData({ name: '', email: '', subject: '', category: '', message: '' });
     } catch {

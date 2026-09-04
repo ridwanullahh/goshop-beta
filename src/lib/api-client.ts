@@ -1,5 +1,19 @@
-// Relative by default so requests route through the gateway / Vite proxy to the Astro API.
-const API_URL = (import.meta as any).env?.VITE_API_URL || '';
+// BismiLLAH Ar-Rahman Ar-Raheem.
+// GoShop SPA API client — static architecture edition.
+//
+// The CF Pages deployment carries ZERO Workers/Functions: every dynamic call
+// below targets lightbase directly —
+//   - Edge Functions (auth, orders, payments, CRUD, referral, translate,
+//     emails, webhooks) via invokeFunction();
+//   - browser-direct REST catalog reads (products/categories/etc.) through
+//     the coalescing LightbaseBrowserClient when a read-only key is baked
+//     into the build (VITE_LIGHTBASE_BROWSER_KEY), with the public
+//     `products-list` function as the always-available fallback.
+// Response shapes match the pre-migration /api/* endpoints so page
+// components needed no rewiring. See edge-functions/ for the server side.
+
+import { invokeFunction } from './lightbase-config';
+import { getLightbaseClient, type LightbaseBrowserClient } from './lightbase-client';
 
 class APIClient {
   private token: string | null = null;
@@ -21,44 +35,39 @@ class APIClient {
     return this.token;
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${API_URL}${endpoint}`;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+  private authHeaders(): Record<string, string> | undefined {
+    return this.token ? { authorization: `Bearer ${this.token}` } : undefined;
+  }
 
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+  // Catalog reads prefer the browser-direct client (ONE coalesced /batch call,
+  // IndexedDB ETag cache) and fall back to the public products-list function.
+  private async readCatalog(
+    fnFallback: () => Promise<any[]>,
+    browserRead?: (client: LightbaseBrowserClient) => Promise<any[]>
+  ): Promise<any[]> {
+    if (browserRead) {
+      const client = getLightbaseClient();
+      if (client) {
+        try {
+          const rows = await browserRead(client);
+          if (Array.isArray(rows)) return rows;
+        } catch {
+          /* fall through to the function */
+        }
+      }
     }
-
-    const response = await fetch(url, {
-      ...options,
-      headers: { ...headers, ...(options.headers as Record<string, string> || {}) },
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
-      throw new Error(error.error || error.message || `HTTP ${response.status}`);
-    }
-
-    return response.json();
+    return fnFallback();
   }
 
   // Auth
   async login(email: string, password: string) {
-    const data = await this.request<{ user: any; token: string }>('/api/auth', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'login', email, password }),
-    });
+    const data = await invokeFunction<{ user: any; token: string }>('auth-login', { email, password });
     this.setToken(data.token);
     return data.user;
   }
 
   async register(userData: any) {
-    const data = await this.request<{ user: any; token: string }>('/api/auth', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'register', ...userData }),
-    });
+    const data = await invokeFunction<{ user: any; token: string }>('auth-register', userData);
     this.setToken(data.token);
     return data.user;
   }
@@ -71,7 +80,7 @@ class APIClient {
   async getCurrentUser() {
     if (!this.token) return null;
     try {
-      return await this.request<any>('/api/auth');
+      return await invokeFunction<any>('auth-me', {}, this.authHeaders());
     } catch {
       this.setToken(null);
       return null;
@@ -80,74 +89,80 @@ class APIClient {
 
   // Products
   async getProducts(filters?: any) {
-    const params = new URLSearchParams();
-    if (filters) {
-      Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') params.set(k, String(v)); });
-    }
-    const qs = params.toString();
-    return this.request<any[]>(`/api/products${qs ? `?${qs}` : ''}`);
+    const hasFilter = filters && Object.values(filters).some((v) => v !== undefined && v !== null && v !== '');
+    return this.readCatalog(
+      () => invokeFunction<any[]>('products-list', filters || {}),
+      hasFilter
+        ? undefined
+        : (client) => client.query<any>('products', { field: 'isActive', op: 'eq', value: true }, 1000, 'products')
+    );
   }
 
   async getProduct(id: string) {
-    return this.request<any>(`/api/products?id=${id}`);
+    const client = getLightbaseClient();
+    if (client) {
+      try {
+        const doc = await client.get<any>('products', id, `get:products:${id}`);
+        if (doc) return doc;
+      } catch {
+        /* fall through to the function */
+      }
+    }
+    return invokeFunction<any>('products-list', { id });
   }
 
   async searchProducts(query: string, filters: any = {}) {
-    const params = new URLSearchParams({ search: query, ...filters });
-    return this.request<any[]>(`/api/products?${params.toString()}`);
+    return invokeFunction<any[]>('products-list', { search: query, ...filters });
   }
 
   async createProduct(data: any) {
-    return this.request<any>('/api/products', { method: 'POST', body: JSON.stringify(data) });
+    return invokeFunction<any>('products-create', data, this.authHeaders());
   }
 
   async updateProduct(id: string, data: any) {
-    return this.request<any>('/api/products', { method: 'PATCH', body: JSON.stringify({ id, ...data }) });
+    return invokeFunction<any>('products-update', { id, ...data }, this.authHeaders());
   }
 
   async deleteProduct(id: string) {
-    return this.request<any>(`/api/products?id=${id}`, { method: 'DELETE' });
+    return invokeFunction<any>('products-delete', { id }, this.authHeaders());
   }
 
   async getSellerProducts(sellerId: string) {
-    return this.request<any[]>(`/api/products?sellerId=${sellerId}`);
+    return invokeFunction<any[]>('products-list', { sellerId });
   }
 
   // Orders
   async getOrders(filters?: any) {
-    const params = new URLSearchParams();
-    if (filters) Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, String(v)); });
-    const qs = params.toString();
-    return this.request<any[]>(`/api/orders${qs ? `?${qs}` : ''}`);
+    return invokeFunction<any[]>('orders-list', filters || {}, this.authHeaders());
   }
 
   async getOrder(id: string) {
-    return this.request<any>(`/api/orders?id=${id}`);
+    return invokeFunction<any>('orders-list', { id }, this.authHeaders());
   }
 
   async createOrder(data: any) {
-    return this.request<any>('/api/orders', { method: 'POST', body: JSON.stringify(data) });
+    return invokeFunction<any>('orders-create', data, this.authHeaders());
   }
 
   async updateOrderStatus(id: string, status: string, extra?: any) {
-    return this.request<any>('/api/orders', { method: 'PATCH', body: JSON.stringify({ id, status, ...extra }) });
+    return invokeFunction<any>('orders-update', { id, status, ...extra }, this.authHeaders());
   }
 
   // Cart
   async getCart() {
-    return this.request<any[]>('/api/data/cart');
+    return this.getAll<any>('cart');
   }
 
   async addToCart(productId: string, quantity = 1) {
-    return this.request<any>('/api/data/cart', { method: 'POST', body: JSON.stringify({ productId, quantity }) });
+    return invokeFunction<any>('data-crud', { entity: 'cart', op: 'create', data: { productId, quantity } }, this.authHeaders());
   }
 
   async updateCartItem(id: string, quantity: number) {
-    return this.request<any>('/api/data/cart', { method: 'PATCH', body: JSON.stringify({ id, quantity }) });
+    return invokeFunction<any>('data-crud', { entity: 'cart', op: 'update', id, data: { quantity } }, this.authHeaders());
   }
 
   async removeFromCart(id: string) {
-    return this.request<any>(`/api/data/cart?id=${id}`, { method: 'DELETE' });
+    return invokeFunction<any>('data-crud', { entity: 'cart', op: 'delete', id }, this.authHeaders());
   }
 
   async clearCart() {
@@ -157,42 +172,51 @@ class APIClient {
 
   // Wishlist
   async getWishlist() {
-    return this.request<any[]>('/api/data/wishlist');
+    return this.getAll<any>('wishlist');
   }
 
   async addToWishlist(productId: string) {
-    return this.request<any>('/api/data/wishlist', { method: 'POST', body: JSON.stringify({ productId }) });
+    return invokeFunction<any>('data-crud', { entity: 'wishlist', op: 'create', data: { productId } }, this.authHeaders());
   }
 
   async removeFromWishlist(id: string) {
-    return this.request<any>(`/api/data/wishlist?id=${id}`, { method: 'DELETE' });
+    return invokeFunction<any>('data-crud', { entity: 'wishlist', op: 'delete', id }, this.authHeaders());
   }
 
-  // Generic data operations
+  // Generic data operations (data-crud function; public entities read without
+  // a token, the rest are scoped server-side to the caller).
   async getAll<T = any>(entity: string, params?: Record<string, any>): Promise<T[]> {
-    const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([,v]) => v != null).map(([k, v]) => [k, String(v)])).toString() : '';
-    return this.request<T[]>(`/api/data/${entity}${qs}`);
+    const where: Record<string, any> = {};
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== null && v !== undefined) where[k] = v;
+      }
+    }
+    return invokeFunction<T[]>('data-crud', { entity, op: 'list', where }, this.authHeaders());
   }
 
   async getOne<T = any>(entity: string, id: string): Promise<T> {
-    return this.request<T>(`/api/data/${entity}?id=${id}`);
+    return invokeFunction<T>('data-crud', { entity, op: 'get', id }, this.authHeaders());
   }
 
   async create<T = any>(entity: string, data: any): Promise<T> {
-    return this.request<T>(`/api/data/${entity}`, { method: 'POST', body: JSON.stringify(data) });
+    return invokeFunction<T>('data-crud', { entity, op: 'create', data }, this.authHeaders());
   }
 
   async updateOne<T = any>(entity: string, id: string, data: any): Promise<T> {
-    return this.request<T>(`/api/data/${entity}`, { method: 'PATCH', body: JSON.stringify({ id, ...data }) });
+    return invokeFunction<T>('data-crud', { entity, op: 'update', id, data }, this.authHeaders());
   }
 
   async deleteOne(entity: string, id: string): Promise<any> {
-    return this.request<any>(`/api/data/${entity}?id=${id}`, { method: 'DELETE' });
+    return invokeFunction<any>('data-crud', { entity, op: 'delete', id }, this.authHeaders());
   }
 
   // Categories
   async getCategories() {
-    return this.getAll<any>('categories');
+    return this.readCatalog(
+      () => this.getAll<any>('categories'),
+      (client) => client.query<any>('categories', undefined, 1000, 'categories')
+    );
   }
 
   async getCategory(slug: string) {
@@ -202,7 +226,10 @@ class APIClient {
 
   // Stores
   async getStores() {
-    return this.getAll<any>('stores');
+    return this.readCatalog(
+      () => this.getAll<any>('stores'),
+      (client) => client.query<any>('stores', undefined, 1000, 'stores')
+    );
   }
 
   async getStore(id: string) {
@@ -216,15 +243,12 @@ class APIClient {
 
   // Payments
   async initiatePayment(orderId: string, paymentMethod: string) {
-    return this.request<any>('/api/payments', { method: 'POST', body: JSON.stringify({ orderId, paymentMethod }) });
+    return invokeFunction<any>('payments-initiate', { orderId, paymentMethod }, this.authHeaders());
   }
 
   // Translate
   async translate(text: string, targetLang: string, sourceLang = 'en') {
-    return this.request<{ translatedText: string }>('/api/translate', {
-      method: 'POST',
-      body: JSON.stringify({ text, targetLang, sourceLang }),
-    });
+    return invokeFunction<{ translatedText: string }>('translate', { text, targetLang, sourceLang });
   }
 
   // Wallet
@@ -263,17 +287,26 @@ class APIClient {
 
   // Languages & Currencies
   async getLanguages() {
-    return this.getAll<any>('languages');
+    return this.readCatalog(
+      () => this.getAll<any>('languages'),
+      (client) => client.query<any>('languages', undefined, 100, 'languages')
+    );
   }
 
   async getCurrencies() {
-    return this.getAll<any>('currencies');
+    return this.readCatalog(
+      () => this.getAll<any>('currencies'),
+      (client) => client.query<any>('currencies', undefined, 100, 'currencies')
+    );
   }
 
-  // ---- Storefront bootstrap (Path A Phase 1) ----
-  // ONE request for everything the storefront shell needs; the server
-  // coalesces the underlying Lightbase reads into a single /batch call.
-  // Returns null on failure so callers fall back to individual reads.
+  // ---- Storefront bootstrap (browser-direct first) ----
+  // The storefront shell needs products/categories/languages/currencies (+
+  // cart/wishlist for signed-in users). Browser-direct path: four reads fired
+  // together coalesce into ONE lightbase /batch call through the coalescing
+  // client. Authenticated extras ride the data-crud function (scoped
+  // server-side to the caller). Returns null on failure so callers fall back
+  // to the individual reads below.
   async getStorefrontBootstrap(): Promise<{
     products: any[];
     categories: any[];
@@ -284,24 +317,57 @@ class APIClient {
     user?: { id: string };
     batched?: boolean;
   } | null> {
-    try {
-      return await this.request<any>('/api/storefront/bootstrap');
-    } catch {
-      return null;
+    const client = getLightbaseClient();
+    if (client) {
+      try {
+        const [products, categories, languages, currencies] = await Promise.all([
+          client.query<any>('products', { field: 'isActive', op: 'eq', value: true }, 1000, 'bootstrap-products'),
+          client.query<any>('categories', undefined, 1000, 'bootstrap-categories'),
+          client.query<any>('languages', undefined, 100, 'bootstrap-languages'),
+          client.query<any>('currencies', undefined, 100, 'bootstrap-currencies'),
+        ]);
+        const body: any = {
+          products: Array.isArray(products) ? products : [],
+          categories: Array.isArray(categories) ? categories : [],
+          languages: Array.isArray(languages) ? languages : [],
+          currencies: Array.isArray(currencies) ? currencies : [],
+          batched: true,
+        };
+        if (this.token) {
+          try {
+            const headers = this.authHeaders();
+            const [cart, wishlist] = await Promise.all([
+              invokeFunction<any[]>('data-crud', { entity: 'cart', op: 'list' }, headers),
+              invokeFunction<any[]>('data-crud', { entity: 'wishlist', op: 'list' }, headers),
+            ]);
+            body.cart = cart;
+            body.wishlist = wishlist;
+            try {
+              body.user = { id: (JSON.parse(atob(this.token!.split('.')[1] || '')) as any).userId };
+            } catch { /* user id is optional */ }
+          } catch {
+            /* cart/wishlist stay unset — context falls back to its loaders */
+          }
+        }
+        return body;
+      } catch {
+        return null;
+      }
     }
+    return null;
   }
 
   // ---- Storefront ----
   async getStoreProducts(storeId: string) {
-    return this.request<any[]>(`/api/products?storeId=${storeId}`);
+    return invokeFunction<any[]>('products-list', { storeId });
   }
 
   // Seller analytics — the dashboard computes most metrics from orders/products;
   // this returns the seller's order/product aggregates so the dashboard has real numbers.
   async getSellerAnalytics(sellerId: string) {
     const [products, orders] = await Promise.all([
-      this.request<any[]>(`/api/products?sellerId=${sellerId}`).catch(() => []),
-      this.request<any[]>(`/api/orders`).catch(() => []),
+      this.request(`products-list`, { sellerId }).catch(() => []),
+      invokeFunction<any[]>('orders-list', {}, this.authHeaders()).catch(() => []),
     ]);
     const sellerOrders = orders.filter((o: any) => o.sellerId === sellerId);
     const totalRevenue = sellerOrders.reduce((sum: number, o: any) => sum + (o.total || 0), 0);
@@ -311,6 +377,11 @@ class APIClient {
       totalProducts: products.length,
       averageOrderValue: sellerOrders.length > 0 ? totalRevenue / sellerOrders.length : 0,
     };
+  }
+
+  // Thin wrapper kept for the analytics path above (public function invoke).
+  private async request(name: string, body?: any) {
+    return invokeFunction<any>(name, body);
   }
 
   async getStoreBlogPosts(storeId: string) {
@@ -376,11 +447,11 @@ class APIClient {
 
   // ---- Referral (inherent, per user) ----
   async getReferral() {
-    return this.request<any>('/api/referral');
+    return invokeFunction<any>('referral', {}, this.authHeaders());
   }
 
   async trackReferralClick(code: string) {
-    return this.request<any>('/api/referral', { method: 'POST', body: JSON.stringify({ code }) });
+    return invokeFunction<any>('referral', { op: 'track', code });
   }
 
   // ---- Community posts ----
@@ -424,17 +495,30 @@ class APIClient {
 
   // ---- Platform commissions ----
   async getGlobalCommission() {
-    const all = await this.getAll<any>('platform_commissions');
+    const all = await this.getAll<any>('platform_commissions').catch(() => [] as any[]);
     const global = all.find((c: any) => c.isGlobal);
     return global?.percentage ?? all[0]?.percentage ?? 5;
   }
 
   async getCategoryCommission(category: string) {
-    const all = await this.getAll<any>('platform_commissions');
+    const all = await this.getAll<any>('platform_commissions').catch(() => [] as any[]);
     const cat = all.find((c: any) => c.category === category && !c.isGlobal);
     if (cat) return cat.percentage;
     const global = all.find((c: any) => c.isGlobal);
     return global?.percentage ?? 5;
+  }
+
+  // ---- Emails (recorded as queued email_events server-side) ----
+  async sendContactEmail(payload: { name: string; email: string; message: string }) {
+    return invokeFunction<any>('emails', { op: 'contact', ...payload });
+  }
+
+  async subscribeNewsletter(payload: { email: string; name?: string }) {
+    return invokeFunction<any>('emails', { op: 'newsletter', ...payload });
+  }
+
+  async sendReferralInvite(payload: { toEmail: string; rewardDescription?: string }) {
+    return invokeFunction<any>('emails', { op: 'referral-invite', ...payload }, this.authHeaders());
   }
 
   // Compatibility shims for CommerceSDK interface
@@ -483,8 +567,9 @@ class APIClient {
   };
 
   uploadToCloudinary = async (file: File): Promise<string> => {
-    const cloudName = (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = (import.meta as any).env?.VITE_CLOUDINARY_UPLOAD_PRESET;
+    const env = (import.meta as any).env || {};
+    const cloudName = env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = env.VITE_CLOUDINARY_UPLOAD_PRESET;
     if (!cloudName || !uploadPreset) throw new Error('Cloudinary not configured');
     const formData = new FormData();
     formData.append('file', file);

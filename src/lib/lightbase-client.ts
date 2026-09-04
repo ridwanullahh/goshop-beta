@@ -83,7 +83,11 @@ function resolveConfig(explicit?: Partial<LightbaseBrowserConfig>): LightbaseBro
   const projectId = raw.projectId || '';
   const apiKey = raw.apiKey || '';
   if (!baseUrl || !projectId || !apiKey) return null;
-  if (!/^https:\/\//i.test(baseUrl)) return null; // never leak keys over plaintext
+  // Never leak keys over plaintext — EXCEPT loopback origins, so the local
+  // dev battle test (Vite/static server -> http://localhost:4400) behaves
+  // exactly like production (https Pages origin -> https lightbase host).
+  const isLoopback = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(baseUrl);
+  if (!/^https:\/\//i.test(baseUrl) && !isLoopback) return null;
   return { baseUrl, projectId, apiKey };
 }
 

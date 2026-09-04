@@ -940,10 +940,9 @@ async uploadToCloudinary(file: File): Promise<string> {
   }
 
   async createOrder(orderData: Partial<Order>): Promise<Order> {
-    // SECURITY: This function should only be called from a trusted server-side environment.
-    // The `orderData` should be built on the server after verifying product prices
-    // and calculating the total, as done in the `/api/create-order.ts` endpoint.
-    // Never trust pricing data sent from the client.
+    // SECURITY: Real orders must be created server-side by the lightbase
+    // `orders-create` Edge Function, which verifies product prices and totals
+    // before persisting. Never trust pricing data sent from the client.
     try {
       const newOrder: Order = {
         id: Date.now().toString(),
@@ -1652,8 +1651,8 @@ async uploadToCloudinary(file: File): Promise<string> {
     // SECURITY: In a real application, this function should NOT directly credit the wallet.
     // 1. It should initialize a payment with the specified gateway.
     // 2. The actual crediting of the wallet should happen in a separate, secure webhook
-    //    handler (like `/api/paystack-callback.ts`) after the payment gateway
-    //    confirms the transaction was successful.
+    //    handler (the lightbase `webhook-birrpay` Edge Function) after the payment
+    //    gateway confirms the transaction was successful.
     // 3. This prevents a user from calling this function to get free money.
 
     // This mock implementation credits the wallet directly for demonstration purposes.

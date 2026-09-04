@@ -68,6 +68,47 @@
     for cross-origin browser tests). Sandbox kills detached processes between
     tool calls, so tests run in single calls (start-if-down pattern).
 
+- **Milestone B — SPA rewired to lightbase (zero `/api/*` runtime calls), committed:**
+  - `src/lib/lightbase-config.ts` (new): the single wiring point —
+    `VITE_LIGHTBASE_URL` / `VITE_LIGHTBASE_PROJECT` / `VITE_LIGHTBASE_BROWSER_KEY`
+    (production default `https://lightbase-10133292663.development.catalystappsail.com`
+    baked in; runtime `window.__GOSHOP_LIGHTBASE__` override still wins) and
+    `invokeFunction()`, which POSTs the `{body, headers}` envelope to
+    `/api/v1/projects/goshop-beta/functions/<name>/invoke`.
+  - `src/lib/api-client.ts`: every method (auth, products, orders, cart,
+    wishlist, generic data, categories, stores, payments, translate, referral,
+    emails, storefront bootstrap) now targets Edge Functions; catalog reads
+    prefer the browser-direct coalescing client (read-only key) with the
+    `products-list`/`data-crud` functions as fallback; response handling pinned
+    to the engine contract (GoShop handlers use `{ __response }` raw takeover,
+    so the HTTP body IS the handler payload with real status codes).
+  - `src/lib/i18n/translation-service.ts` + `src/pages/ContactUs.tsx` rewired
+    (translate + emails functions).
+  - `src/lib/lightbase-client.ts`: loopback http allowed for local battle tests
+    so the dev origin behaves exactly like the https Pages origin.
+  - Deleted server-only code from the SPA tree: `src/pages/api/*` (6 CF-style
+    handlers), `src/lib/auth.ts` (jsonwebtoken verify), `src/lib/paypal-client.ts`
+    (PayPal server SDK) — nothing in the SPA imported them; no cross-imports
+    from `apps/`.
+  - Engine fix needed by this milestone (committed in the lightbase repo): the
+    CSRF middleware only accepted same-site origins, so every browser-origin
+    POST (function invoke and /batch — the entire Path A surface) was rejected
+    `403 CSRF_ORIGIN_MISMATCH` even from CORS-allowlisted origins. It now also
+    accepts the global `LIGHTBASE_ALLOWED_ORIGINS` allowlist (exact match).
+    Engine rebuilt and the local instance restarted; CSRF probe from the served
+    origin returns 200 + ACAO.
+  - Battle tests (against the real local lightbase, from the served origin):
+    `scripts/lightbase-e2e.mjs` **52/52** and a new static-surface replay
+    (`/home/z/my-project/battle/goshop-static-test.mjs`, outside the repo)
+    **12/12**: static index + hashed asset serving, baked local engine URL,
+    auth-login/register with CORS headers, browser-direct products/categories/
+    currencies batch, read-only key write rejection (403), orders-create with
+    server-side total validation, BirrPay webhook v2 HMAC-SHA512 (computed
+    signature) accepted + bad signature 401, authed platform_commissions read.
+  - Typecheck: `tsc -b tsconfig.app.json --noEmit` error count unchanged from
+    the pre-migration baseline (47; no new errors introduced; pre-existing
+    type debt untouched).
+
 ### Stage Summary
 
 - Stage: survey complete; migration plan fixed (16 consolidated Edge Functions,
@@ -78,3 +119,7 @@
   update/delete routes for functions (immutable once created) and no raw
   webhook passthrough on the invoke route (senders must use the `{body,headers}`
   envelope) — both documented for the lightbase team.
+- Milestone B DONE: the SPA makes zero `/api/*` calls — everything goes through
+  `lightbase-config.ts` to Edge Functions or browser-direct REST; server-only
+  code removed from the SPA tree; browser-origin POSTs unblocked by the engine
+  CSRF fix; battle-tested end-to-end against the local lightbase (52/52 + 12/12).

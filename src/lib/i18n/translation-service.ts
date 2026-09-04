@@ -1,4 +1,4 @@
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
+import { invokeFunction } from '@/lib/lightbase-config';
 
 export class TranslationService {
   private cache: Map<string, Map<string, string>> = new Map();
@@ -47,15 +47,14 @@ export class TranslationService {
     if (langCache.has(text)) return langCache.get(text)!;
 
     try {
-      const response = await fetch(`${API_URL}/api/translate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, targetLang, sourceLang })
+      // Static architecture: translate runs as a lightbase Edge Function
+      // (graceful passthrough fallback inside the function itself).
+      const data = await invokeFunction<{ translatedText: string }>('translate', {
+        text,
+        targetLang,
+        sourceLang,
       });
-
-      if (!response.ok) return text;
-      const data = await response.json();
-      const translation = data.translatedText || text;
+      const translation = data?.translatedText || text;
       langCache.set(text, translation);
       return translation;
     } catch {

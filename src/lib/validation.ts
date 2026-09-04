@@ -19,7 +19,7 @@ const shippingInfoSchema = z.object({
   country: z.string().min(1, "Country is required."),
 });
 
-// Schema for the `/api/create-order` endpoint
+// Schema for order creation (mirrored by the lightbase `orders-create` Edge Function)
 export const createOrderSchema = z.object({
   cartItems: z.array(cartItemSchema).min(1, "Cart cannot be empty."),
   shippingInfo: shippingInfoSchema,
@@ -27,7 +27,7 @@ export const createOrderSchema = z.object({
   userId: z.string().optional(),
 });
 
-// Schema for the `/api/initiate-payment` endpoint
+// Schema for payment initiation (mirrored by the lightbase `payments-initiate` Edge Function)
 export const initiatePaymentSchema = z.object({
   orderId: z.string().min(1, "Order ID is required."),
   paymentMethod: z.string().min(1, "Payment method is required."),
