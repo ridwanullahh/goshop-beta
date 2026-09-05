@@ -123,3 +123,34 @@
   `lightbase-config.ts` to Edge Functions or browser-direct REST; server-only
   code removed from the SPA tree; browser-origin POSTs unblocked by the engine
   CSRF fix; battle-tested end-to-end against the local lightbase (52/52 + 12/12).
+
+
+---
+Task ID: fleet-zero-workers-1
+Agent: Super Z (main agent)
+Date: 2026-09-05
+Task: Push previously-unpushed Milestone B; re-battle-test on the upgraded engine
+
+Work Log:
+- Found the prior session's Milestone B work (functions/ + apps/api deletion,
+  slate/AppEngine artifact removal, config updates) committed locally but
+  NEVER PUSHED. Validated: npm run build green; dist/ contains zero
+  functions dir / zero _worker.js / no _routes.json (pure static SPA).
+- Engine now has the gaps this worklog requested: PUT/DELETE function
+  routes (lightbase 8bda10c) + public/user function auth modes + __response
+  passthrough + WebCrypto/fetch sandbox (17345bb).
+- Re-deployed the 16 edge functions to the upgraded local engine
+  (hot-mirror hydrated the previous session's dev-partition from R2 across
+  sessions - the mirror already pays off). Updated webhook-birrpay env via
+  the new PUT route; minted catalog-scoped browser key.
+- Re-ran scripts/lightbase-e2e.mjs against the upgraded engine: 52/52 PASS
+  (auth, catalog browser-direct batch, order create w/ server-side totals,
+  BirrPay webhook HMAC-SHA512 accept + reject, referrals, emails,
+  translate, read-only key denials).
+
+Stage Summary:
+- Milestone B pushed to origin/main (protocol commit). goshop-beta is
+  fully zero-Workers: static SPA + 16 lightbase Edge Functions, 52/52 e2e
+  green on the upgraded engine.
+- Production deploy (after lightbase AppSail redeploy + live function
+  registration): npx wrangler pages deploy dist/ --project-name=goshop-beta.

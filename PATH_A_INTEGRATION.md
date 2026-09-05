@@ -114,21 +114,28 @@
 > atoobu ilayh.
 
 ---
+## Current state (2026-09-05): 100% static Cloudflare Pages + lightbase
 
-## Slate pivot (2026-09-02) — hosting moved to Zoho Catalyst
+> Bismillah Ar-Rahman Ar-Raheem. Ash-hadu an laa ilaaha illa-Llah wahdaHu lasharikalaHu,
+> wa ash-hadu anna Muhammadan Abduhu wa Rasooluh. Laa hawla wa laa quwwata illaa biLLAH.
+> Hasbiyallaahu laa ilaaha illaa Huwa, 'alayhi tawakkaltu wa Huwa Rabbul-'Arshil-'Azeem.
+> SubhaanALLAH wa bihamdih, SubhaanALLAHil-'azeem, AlhamduliLLAH, Laa ilaaha illa-ALLAH,
+> wa ALLAHU AKBAR, walaa hawla walaa quwwata illaa biLLAH. Astaghfirullaaha wa atoobu ilayh.
 
-> Bismillah Ar-Rahman Ar-Raheem. Ash-hadu an laa ilaaha illa-Llah, wa ash-hadu anna Muhammadan RasuuluLLAH. Laa hawla wa laa quwwata illaa biLLAH. Hasbiyallaahu laa ilaaha illaa Huwa 'alayhi tawakkaltu wa Huwa Rabbul 'Arshil 'Adheem. SubhaanALLAH wa bihamdih, SubhaanALLAHil 'Adheem, AlhamduliLLAH, "Laailaaha-illa-ALLAH", ALLAHU AKBAR, Astaghfirullaaha wa atoobu ilayh.
+The Path A end state this document described is now implemented in this app:
 
-**Master plan:** `lightbase/docs/CATALYST_SLATE_HOSTING_PLAN.md` (binding — billing
-math, programmatic deployment, 404 diagnosis, guardrails). Cloudflare is demoted
-to **R2-only**; Pages/Workers paths are LEGACY (explicit env opt-in, dormant).
+- The deployment is 100% static Cloudflare Pages (dist/ only — zero CF
+  Workers / Pages Functions; the former `functions/api/[[path]].ts` bridge and
+  the `apps/api` server were removed in the Task 3 migration).
+- Every dynamic need lives in lightbase: 16 Edge Functions (source of truth in
+  `edge-functions/`, deployed by `scripts/lightbase-deploy-functions.mjs`) +
+  browser-direct REST reads with a collections-restricted read-only key.
+- The SPA wiring is centralized in `src/lib/lightbase-config.ts`
+  (VITE_LIGHTBASE_URL / VITE_LIGHTBASE_PROJECT / VITE_LIGHTBASE_BROWSER_KEY).
+- Authoritative deployment guide: `DEPLOYMENT.md`. Fleet policy:
+  `lightbase/docs/ZERO_WORKERS_AUDIT.md`.
 
-**This app's state:** Slate static READY — `npm run build:slate` green (Vite SPA dist; `_routes.json` writer now gated to DEPLOY_TARGET=cloudflare legacy only; storefront API stays on apps/api → AppSail).
-
-Wiring added: `scripts/build-slate.mjs` / `slate-postbuild.mjs` (stamps
-`.catalyst/slate-config.toml` + `_redirects`), `catalyst.json`,
-`scripts/deploy-catalyst.sh`, `scripts/deploy-catalyst-appsail.sh` (SSR),
-`build:slate` / `deploy:catalyst` package scripts. Credentials needed:
-`CATALYST_TOKEN` (`catalyst token:generate`), `CATALYST_PROJECT`, `CATALYST_ORG`
-→ `.catalyst.env` (git-ignored). CSP `connect-src` must pin the AppSail engine
-origin (`PUBLIC_LIGHTBASE_BASE_URL`), never `lightbase.pages.dev`.
+The former hosting detour via third-party static/SSR platforms (Slate/Catalyst
+build stamps, `build:slate`, `deploy:catalyst`, GAE/AppEngine scripts) has been
+removed from the repo entirely; this section replaced it so the history stays
+honest without leaving runnable instructions for removed paths.

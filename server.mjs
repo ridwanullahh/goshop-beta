@@ -1,8 +1,12 @@
-// GoShop Beta — Unified production server.
-// BismiLLAH Ar-Rahman Ar-Roheem. Serves the Vite SPA (static) + proxies /api/* to the Astro API.
-// Single process, single port — ideal for PaaS (BirrPass / systemd).
+// GoShop Beta — plain Node static server (fallback host tier).
+// BismiLLAH Ar-Rahman Ar-Roheem. Serves the built SPA (dist/) with SPA
+// fallback routing. ZERO API surface lives here: the app is 100% static and
+// every dynamic call goes to lightbase directly (see src/lib/lightbase-config.ts
+// and edge-functions/). This server exists only to keep the app portable to a
+// plain Node host (VPS / Docker / AppSail) if the static CDN tier is ever
+// unavailable — it is NOT part of the Cloudflare Pages deployment.
 //
-// Usage: node server.mjs  (after `npm run build`)
+// Usage: npm run build && node server.mjs
 // Env: PORT (default 3000), HOST (default 0.0.0.0)
 
 import { createServer } from 'node:http';
@@ -13,16 +17,6 @@ import { join, extname, normalize } from 'node:path';
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 const SPA_DIR = join(process.cwd(), 'dist');
-const API_ENTRY = join(process.cwd(), 'apps/api/dist/server/entry.mjs');
-
-// The Astro standalone entry AUTO-LISTENS on $PORT the moment it is imported
-// (which previously collided with THIS server's listener on the same port —
-// EADDRINUSE at boot). Point the inner server at a dedicated internal port
-// before importing; the exported handler still serves requests in-process.
-const OUTER_PORT = PORT;
-const API_INTERNAL_PORT = Number(process.env.API_PORT) || PORT + 1;
-process.env.PORT = String(API_INTERNAL_PORT);
-process.env.HOST = HOST;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -43,20 +37,6 @@ const MIME = {
   '.map': 'application/json',
 };
 
-// Load the Astro API handler (built standalone server).
-let apiHandler = null;
-try {
-  if (existsSync(API_ENTRY)) {
-    const api = await import(API_ENTRY);
-    apiHandler = api.handler || api.default?.handler || api.default;
-    console.log(`[server] Astro API handler loaded from ${API_ENTRY}`);
-  } else {
-    console.warn(`[server] WARNING: Astro API entry not found at ${API_ENTRY}. API routes will 404. Run "npm run build" first.`);
-  }
-} catch (err) {
-  console.error(`[server] Failed to load Astro API handler:`, err?.message || err);
-}
-
 async function serveStatic(req, res, filePath) {
   try {
     const data = await readFile(filePath);
@@ -73,16 +53,7 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const pathname = decodeURIComponent(url.pathname);
 
-  // 1. API requests -> forward to the Astro handler.
-  if (pathname.startsWith('/api')) {
-    if (apiHandler) {
-      return apiHandler(req, res);
-    }
-    res.writeHead(502, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ error: 'API server not available' }));
-  }
-
-  // 2. Static assets (with cache-busting hashes).
+  // Static assets (with cache-busting hashes).
   const staticPath = normalize(join(SPA_DIR, pathname));
   if (staticPath.startsWith(SPA_DIR)) {
     // Try the exact file.
@@ -101,7 +72,7 @@ const server = createServer(async (req, res) => {
     }
   }
 
-  // 3. SPA fallback — serve index.html for all other routes (client-side routing).
+  // SPA fallback — serve index.html for all other routes (client-side routing).
   const indexFile = join(SPA_DIR, 'index.html');
   if (existsSync(indexFile)) {
     const ok = await serveStatic(req, res, indexFile);
@@ -112,10 +83,10 @@ const server = createServer(async (req, res) => {
   res.end('Not found');
 });
 
-server.listen(OUTER_PORT, HOST, () => {
-  console.log(`[server] GoShop Beta listening on http://${HOST}:${OUTER_PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`[server] GoShop Beta (static) listening on http://${HOST}:${PORT}`);
   console.log(`[server] SPA dir: ${SPA_DIR}`);
-  console.log(`[server] API: ${apiHandler ? 'active' : 'NOT loaded (build the API first)'}`);
+  console.log('[server] API: none (static tier) — dynamic work lives in lightbase');
 });
 
 // Graceful shutdown.

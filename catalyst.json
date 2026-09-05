@@ -1,5 +1,0 @@
-{
-  "slate": [
-    { "name": "goshop", "source": "dist", "framework": "react-vite" }
-  ]
-}
