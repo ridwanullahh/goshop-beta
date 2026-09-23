@@ -52,7 +52,10 @@ export async function invokeFunction<T = any>(
   const envelope: InvokeEnvelope = { body: body ?? {} };
   if (headers && Object.keys(headers).length > 0) envelope.headers = headers;
 
-  const res = await fetch(`${LIGHTBASE_FUNCTION_BASE}/${name}/invoke`, {
+  // BismiLLAH (2026-09-23): the functions now run INSIDE the AppSail Node
+  // server (no lightbase edge functions — full-Node mandate). Same envelope,
+  // same { __response } parity, same-origin single origin.
+  const res = await fetch(`/api/fn/${name}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(envelope),

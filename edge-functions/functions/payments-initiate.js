@@ -115,7 +115,7 @@ return handleSafe(async function () {
     // BirrPay — PRIMARY gateway: one hosted checkout for the fleet. The old
     // handler called the same endpoint with the same payload.
     var birrpayKey = ctx.env && ctx.env.BIRRPAY_SECRET_KEY;
-    var birrpayBase = ((ctx.env && ctx.env.BIRRPAY_BASE_URL) || 'https://birrpay-beta1b.pages.dev').replace(/\/+$/, '');
+    var birrpayBase = ((ctx.env && ctx.env.BIRRPAY_BASE_URL) || 'https://birrpay-10133349281.development.catalystappsail.com').replace(/\/+$/, '');
     if (!birrpayKey) return jerr('BirrPay not configured', 503);
     var res3 = await fetch(birrpayBase + '/api/v1/checkout/sessions', {
       method: 'POST',
@@ -140,7 +140,18 @@ return handleSafe(async function () {
     }
     var d3 = await res3.json();
     await qUpdate('orders', order.id, { status: 'pending_payment', transactionRef: reference, paymentMethod: 'birrpay' });
-    return json({ redirectUrl: d3.data && d3.data.checkout_url, reference: reference }, 200);
+    // BismiLLAH (2026-09-23): INLINE checkout mandate — return the one-time
+    // client_token + publishable key + inline SDK url so the browser opens
+    // BirrPay's IFRAME widget. The hosted checkout_url is NEVER returned:
+    // users are NEVER redirected to BirrPay's hosted checkout page.
+    return json({
+      clientToken: d3.data && d3.data.client_token,
+      publicKey: (ctx.env && ctx.env.BIRRPAY_PUBLIC_KEY) || '',
+      sdkUrl: ((ctx.env && ctx.env.BIRRPAY_BASE_URL) || 'https://birrpay-10133349281.development.catalystappsail.com').replace(/\/+$/, '') + '/embed/birrpay.js',
+      reference: reference,
+      bpReference: d3.data && d3.data.reference,
+      inline: true,
+    }, 200);
   }
 
   if (paymentMethod === 'razorpay') {

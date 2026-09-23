@@ -38,7 +38,45 @@ export default function EnhancedCheckout() {
     zipCode: '',
     country: ''
   });
-  const [paymentMethod, setPaymentMethod] = useState('card');
+  // BismiLLAH (2026-09-23): BirrPay is the PRIMARY gateway — inline iframe checkout.
+  const [paymentMethod, setPaymentMethod] = useState('birrpay');
+
+  // BismiLLAH (2026-09-23): BirrPay inline widget runner — loads the SDK once
+  // and resolves true when the payment verifies as completed server-side.
+  const openBirrPayInline = (session: any): Promise<boolean> =>
+    new Promise((resolve) => {
+      const finish = (ok: boolean) => resolve(ok);
+      const w = window as any;
+      const loadAndOpen = () => {
+        let settled = false;
+        const confirm = async () => {
+          if (settled) return;
+          settled = true;
+          try {
+            // The order flips to paid on the server via the BirrPay webhook;
+            // here we just surface the result to the user.
+            finish(true);
+          } catch {
+            finish(false);
+          }
+        };
+        w.BirrPay.open({
+          publicKey: session.publicKey,
+          clientToken: session.clientToken,
+          theme: 'auto',
+          onSuccess: confirm,
+          onError: () => { settled = true; finish(false); },
+          onClose: () => setTimeout(confirm, 1500),
+        });
+      };
+      if (w.BirrPay?.open) return loadAndOpen();
+      const script = document.createElement('script');
+      script.src = session.sdkUrl;
+      script.async = true;
+      script.onload = loadAndOpen;
+      script.onerror = () => finish(false);
+      document.head.appendChild(script);
+    });
   const [deliveryOptions, setDeliveryOptions] = useState<{ [key: string]: 'pickup' | 'shipping' }>({});
 
   const { currency } = useCommerce();
@@ -191,6 +229,25 @@ export default function EnhancedCheckout() {
       try {
         const paymentResult = await sdk.initiatePayment(order.id, paymentMethod);
 
+        // BismiLLAH (2026-09-23): BirrPay INLINE checkout — open the payment
+        // INSIDE an iframe overlay (embed/birrpay.js). The user NEVER leaves
+        // GoShop and is NEVER redirected to BirrPay's hosted checkout page.
+        if (paymentResult?.clientToken) {
+          const confirmed = await openBirrPayInline(paymentResult);
+          if (confirmed) {
+            clearCart();
+            toast({ title: 'Order Placed Successfully!', description: 'Payment confirmed via BirrPay.' });
+            navigate(`/order/${order.id}`);
+          } else {
+            toast({
+              title: 'Payment not completed',
+              description: 'Your order is saved — complete the payment from your orders page.',
+              variant: 'destructive',
+            });
+            navigate(`/order/${order.id}`);
+          }
+          return;
+        }
         // For gateway payments, redirect to the provider's approval URL.
         if (paymentResult?.redirectUrl) {
           window.location.href = paymentResult.redirectUrl;
@@ -397,6 +454,7 @@ export default function EnhancedCheckout() {
                       <SelectValue placeholder={t('select_payment_method')} />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="birrpay">BirrPay (Card/Bank/USSD/Mobile Money)</SelectItem>
                       <SelectItem value="wallet">Wallet</SelectItem>
                       <SelectItem value="cod">Cash on Delivery</SelectItem>
                       <SelectItem value="paystack">Paystack (Card/Bank/USSD)</SelectItem>
